@@ -12,6 +12,7 @@ import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
 
 const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth()
@@ -28,6 +29,7 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route
             element={
               <RequireAuth>
