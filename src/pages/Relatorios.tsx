@@ -20,7 +20,12 @@ export default function Relatorios() {
 
   const [employees, setEmployees] = useState<any[]>([])
   const [payrollEntries, setPayrollEntries] = useState<any[]>([])
-  const [company, setCompany] = useState<{ name: string; tax_id: string } | null>(null)
+  const [company, setCompany] = useState<{
+    id: string
+    name: string
+    tax_id: string
+    logo?: string
+  } | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -30,7 +35,7 @@ export default function Relatorios() {
 
         if (user?.company_id) {
           const c = await pb.collection('companies').getOne(user.company_id)
-          setCompany({ name: c.name, tax_id: c.tax_id || '' })
+          setCompany({ id: c.id, name: c.name, tax_id: c.tax_id || '', logo: c.logo })
         }
 
         const startDate = `${selectedMonth}-01 00:00:00`
@@ -78,7 +83,7 @@ export default function Relatorios() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 flex flex-col h-full">
       <div className="flex flex-col sm:flex-row justify-between gap-4 print-hidden bg-card p-4 rounded-lg border">
         <div className="flex gap-4 items-end flex-wrap">
           <div className="space-y-1">
@@ -114,31 +119,33 @@ export default function Relatorios() {
             className="gap-2"
           >
             <Printer className="h-4 w-4" />
-            Imprimir Holerites ({printableData.length})
+            Imprimir ({printableData.length})
           </Button>
         </div>
       </div>
 
-      <div className="print-hidden mb-4 border-l-4 border-primary pl-4 text-muted-foreground">
-        Visualização de impressão. Clique no botão acima para enviar para a impressora ou gerar PDF.
+      <div className="print-hidden mb-4 border-l-4 border-primary pl-4 py-2 text-muted-foreground bg-muted/30 rounded-r-md text-sm">
+        Visualização em formato 80mm (bobina térmica). Clique em imprimir para gerar os recibos.
       </div>
 
-      <div className="space-y-12 pb-12 print:block print:w-full print:m-0 print:p-0">
-        {printableData.length === 0 && (
-          <div className="text-center p-12 bg-card border rounded-lg print-hidden">
-            Nenhum dado encontrado para os filtros selecionados.
-          </div>
-        )}
-
-        {company &&
-          printableData.map((data: any) => (
-            <div
-              key={data.employee.id}
-              className="print:page-break-after-always last:print:page-break-after-auto"
-            >
-              <HoleritePrint employee={data.employee} entry={data.entry} company={company} />
+      <div className="flex-1 overflow-auto print:overflow-visible pb-10">
+        <div className="flex flex-wrap gap-8 print:block print:w-[80mm] print:m-0 print:p-0">
+          {printableData.length === 0 && (
+            <div className="text-center p-12 bg-card border rounded-lg w-full print-hidden">
+              Nenhum dado encontrado para os filtros selecionados.
             </div>
-          ))}
+          )}
+
+          {company &&
+            printableData.map((data: any) => (
+              <div
+                key={data.employee.id}
+                className="print:page-break-after-always last:print:page-break-after-auto shrink-0"
+              >
+                <HoleritePrint employee={data.employee} entry={data.entry} company={company} />
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   )
