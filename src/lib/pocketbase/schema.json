@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T19:16:08.006Z",
+  "generatedAt": "2026-04-30T19:27:40.965Z",
   "collections": [
     {
       "name": "users",
@@ -55,11 +55,11 @@
       "name": "companies",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.company_id = id",
-        "view": "@request.auth.company_id = id",
-        "create": null,
-        "update": "@request.auth.company_id = id",
-        "delete": null
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
       },
       "fields": [
         {
@@ -103,11 +103,11 @@
       "name": "employees",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.company_id = company_id",
-        "view": "@request.auth.company_id = company_id",
-        "create": "@request.auth.company_id = company_id",
-        "update": "@request.auth.company_id = company_id",
-        "delete": "@request.auth.company_id = company_id"
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
       },
       "fields": [
         {
@@ -175,11 +175,11 @@
       "name": "payroll_entries",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.company_id = company_id",
-        "view": "@request.auth.company_id = company_id",
-        "create": "@request.auth.company_id = company_id",
-        "update": "@request.auth.company_id = company_id",
-        "delete": "@request.auth.company_id = company_id"
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
       },
       "fields": [
         {

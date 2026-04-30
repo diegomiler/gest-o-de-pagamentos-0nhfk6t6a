@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import pb from '@/lib/pocketbase/client'
 
 type Props = {
   initialData?: any
@@ -17,16 +18,25 @@ type Props = {
 }
 
 export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
+  const [companies, setCompanies] = useState<any[]>([])
   const [formData, setFormData] = useState<any>(
     initialData || {
       name: '',
       role: '',
       department: '',
+      company_id: '',
       base_salary: 0,
       status: 'active',
       admission_date: new Date().toISOString().split('T')[0],
     },
   )
+
+  useEffect(() => {
+    pb.collection('companies')
+      .getFullList({ sort: 'name' })
+      .then(setCompanies)
+      .catch(() => {})
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,8 +51,34 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 py-4">
+      {companies.length === 0 && (
+        <div className="bg-destructive/15 text-destructive p-3 rounded-md text-sm">
+          Nenhuma empresa cadastrada. Vá em Configurações para criar uma empresa primeiro.
+        </div>
+      )}
+
       <div className="space-y-2">
-        <Label htmlFor="name">Nome Completo</Label>
+        <Label>Empresa *</Label>
+        <Select
+          required
+          value={formData.company_id}
+          onValueChange={(val) => setFormData({ ...formData, company_id: val })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione a empresa" />
+          </SelectTrigger>
+          <SelectContent>
+            {companies.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name} {c.tax_id ? `(${c.tax_id})` : ''}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="name">Nome Completo *</Label>
         <Input
           id="name"
           required
@@ -72,7 +108,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="base_salary">Salário Base (R$)</Label>
+          <Label htmlFor="base_salary">Salário Base (R$) *</Label>
           <Input
             id="base_salary"
             type="number"
@@ -114,7 +150,9 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit">Salvar</Button>
+        <Button type="submit" disabled={companies.length === 0}>
+          Salvar
+        </Button>
       </div>
     </form>
   )

@@ -54,7 +54,7 @@ export default function Funcionarios() {
         await pb.collection('employees').update(editingEmployee.id, data)
         toast({ title: 'Sucesso', description: 'Funcionário atualizado com sucesso!' })
       } else {
-        await pb.collection('employees').create({ ...data, company_id: user?.company_id })
+        await pb.collection('employees').create(data)
         toast({ title: 'Sucesso', description: 'Novo funcionário adicionado.' })
       }
       setIsSheetOpen(false)
