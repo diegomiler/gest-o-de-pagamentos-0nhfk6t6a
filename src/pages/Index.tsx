@@ -1,64 +1,100 @@
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import { Users, Banknote, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import useMainStore from '@/stores/main'
 import { formatCurrency, formatMonthYear } from '@/lib/format'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Index() {
-  const { employees, payroll } = useMainStore()
+  const [employees, setEmployees] = useState<any[]>([])
+  const [payrollEntries, setPayrollEntries] = useState<any[]>([])
+  const currentMonth = '2026-04'
+
+  const loadData = async () => {
+    try {
+      const emps = await pb.collection('employees').getFullList()
+      setEmployees(emps)
+
+      const entries = await pb.collection('payroll_entries').getFullList({
+        filter: `entry_date >= '2025-11-01 00:00:00'`,
+      })
+      setPayrollEntries(entries)
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useRealtime('employees', loadData)
+  useRealtime('payroll_entries', loadData)
 
   const stats = useMemo(() => {
-    const currentMonth = '2026-04'
-    const entries = payroll[currentMonth] || []
+    const currentMonthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(currentMonth))
 
     let totalBase = 0
     let totalAdditions = 0
     let totalDeductions = 0
 
-    entries.forEach((entry) => {
-      const emp = employees.find((e) => e.id === entry.employeeId)
-      if (emp) totalBase += emp.baseSalary
-      totalAdditions += entry.commissions + entry.bonuses
-      totalDeductions += entry.pharmacy + entry.advances
+    employees.forEach((emp) => {
+      if (emp.status === 'active') {
+        totalBase += emp.base_salary
+      }
+    })
+
+    currentMonthEntries.forEach((entry) => {
+      if (entry.category === 'commission' || entry.category === 'bonus') {
+        totalAdditions += entry.amount
+      } else if (entry.category === 'pharmacy_discount' || entry.category === 'advance') {
+        totalDeductions += entry.amount
+      }
     })
 
     return {
-      activeEmployees: employees.filter((e) => e.status === 'Ativo').length,
+      activeEmployees: employees.filter((e) => e.status === 'active').length,
       totalPayroll: totalBase + totalAdditions - totalDeductions,
       totalCommissions: totalAdditions,
       totalDiscounts: totalDeductions,
     }
-  }, [employees, payroll])
+  }, [employees, payrollEntries, currentMonth])
 
   const chartData = useMemo(() => {
     const months = ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04']
     return months.map((m) => {
-      const entries = payroll[m] || []
-      let total = 0
+      const monthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(m))
+      let totalBase = 0
       let vars = 0
-      entries.forEach((e) => {
-        const emp = employees.find((x) => x.id === e.employeeId)
-        if (emp) total += emp.baseSalary
-        vars += e.commissions + e.bonuses
+
+      employees.forEach((emp) => {
+        if (emp.status === 'active' || emp.status === 'on_leave') totalBase += emp.base_salary
       })
+
+      monthEntries.forEach((e) => {
+        if (e.category === 'commission' || e.category === 'bonus') vars += e.amount
+      })
+
       return {
         month: formatMonthYear(m).split('/')[0].trim(),
-        base: total,
+        base: totalBase,
         variaveis: vars,
       }
     })
-  }, [employees, payroll])
+  }, [employees, payrollEntries])
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground">Visão geral da folha de pagamento (Abril/2026)</p>
+          <p className="text-muted-foreground">
+            Visão geral da folha de pagamento ({formatMonthYear(currentMonth)})
+          </p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
@@ -80,7 +116,7 @@ export default function Index() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalPayroll)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Líquido pago neste mês</p>
+            <p className="text-xs text-muted-foreground mt-1">Líquido estimado neste mês</p>
           </CardContent>
         </Card>
         <Card>

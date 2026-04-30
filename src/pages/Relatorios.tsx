@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Select,
   SelectContent,
@@ -9,28 +9,69 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Printer } from 'lucide-react'
-import useMainStore from '@/stores/main'
 import { HoleritePrint } from '@/components/HoleritePrint'
-import { formatMonthYear } from '@/lib/format'
+import pb from '@/lib/pocketbase/client'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function Relatorios() {
-  const { employees, payroll, company } = useMainStore()
+  const { user } = useAuth()
   const [selectedMonth, setSelectedMonth] = useState('2026-04')
   const [selectedEmp, setSelectedEmp] = useState('all')
 
+  const [employees, setEmployees] = useState<any[]>([])
+  const [payrollEntries, setPayrollEntries] = useState<any[]>([])
+  const [company, setCompany] = useState<{ name: string; tax_id: string } | null>(null)
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const emps = await pb.collection('employees').getFullList()
+        setEmployees(emps)
+
+        if (user?.company_id) {
+          const c = await pb.collection('companies').getOne(user.company_id)
+          setCompany({ name: c.name, tax_id: c.tax_id || '' })
+        }
+
+        const startDate = `${selectedMonth}-01 00:00:00`
+        const endDate = `${selectedMonth}-31 23:59:59`
+        const entries = await pb.collection('payroll_entries').getFullList({
+          filter: `entry_date >= '${startDate}' && entry_date <= '${endDate}'`,
+        })
+        setPayrollEntries(entries)
+      } catch {
+        /* intentionally ignored */
+      }
+    }
+    loadData()
+  }, [selectedMonth, user])
+
   const printableData = useMemo(() => {
-    const entries = payroll[selectedMonth] || []
-    return entries
-      .map((entry) => {
-        const emp = employees.find((e) => e.id === entry.employeeId)
-        return emp ? { employee: emp, entry } : null
+    const grouped = employees
+      .map((emp) => {
+        const empEntries = payrollEntries.filter((e) => e.employee_id === emp.id)
+        if (empEntries.length === 0 && emp.status === 'inactive') return null
+
+        let commissions = 0,
+          bonuses = 0,
+          pharmacy = 0,
+          advances = 0
+        empEntries.forEach((e) => {
+          if (e.category === 'commission') commissions += e.amount
+          if (e.category === 'bonus') bonuses += e.amount
+          if (e.category === 'pharmacy_discount') pharmacy += e.amount
+          if (e.category === 'advance') advances += e.amount
+        })
+
+        return {
+          employee: emp,
+          entry: { month: selectedMonth, commissions, bonuses, pharmacy, advances },
+        }
       })
       .filter(Boolean)
-      .filter((data) => selectedEmp === 'all' || data?.employee.id === selectedEmp) as {
-      employee: any
-      entry: any
-    }[]
-  }, [selectedMonth, selectedEmp, payroll, employees])
+
+    return grouped.filter((data) => selectedEmp === 'all' || data?.employee.id === selectedEmp)
+  }, [selectedMonth, selectedEmp, payrollEntries, employees])
 
   const handlePrint = () => {
     window.print()
@@ -67,7 +108,11 @@ export default function Relatorios() {
           </div>
         </div>
         <div className="flex items-end">
-          <Button onClick={handlePrint} disabled={printableData.length === 0} className="gap-2">
+          <Button
+            onClick={handlePrint}
+            disabled={printableData.length === 0 || !company}
+            className="gap-2"
+          >
             <Printer className="h-4 w-4" />
             Imprimir Holerites ({printableData.length})
           </Button>
@@ -78,7 +123,6 @@ export default function Relatorios() {
         Visualização de impressão. Clique no botão acima para enviar para a impressora ou gerar PDF.
       </div>
 
-      {/* Printable Area - In CSS print mode, only this fills the screen */}
       <div className="space-y-12 pb-12 print:block print:w-full print:m-0 print:p-0">
         {printableData.length === 0 && (
           <div className="text-center p-12 bg-card border rounded-lg print-hidden">
@@ -86,14 +130,15 @@ export default function Relatorios() {
           </div>
         )}
 
-        {printableData.map((data) => (
-          <div
-            key={data.employee.id}
-            className="print:page-break-after-always last:print:page-break-after-auto"
-          >
-            <HoleritePrint employee={data.employee} entry={data.entry} company={company} />
-          </div>
-        ))}
+        {company &&
+          printableData.map((data: any) => (
+            <div
+              key={data.employee.id}
+              className="print:page-break-after-always last:print:page-break-after-auto"
+            >
+              <HoleritePrint employee={data.employee} entry={data.entry} company={company} />
+            </div>
+          ))}
       </div>
     </div>
   )

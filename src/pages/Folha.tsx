@@ -11,52 +11,77 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import { Card, CardContent } from '@/components/ui/card'
-import useMainStore, { actions, PayrollEntry } from '@/stores/main'
 import { formatCurrency, parseInputValue } from '@/lib/format'
 import { useToast } from '@/hooks/use-toast'
 import { Save } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Folha() {
-  const { employees, payroll } = useMainStore()
   const { toast } = useToast()
 
   const [selectedMonth, setSelectedMonth] = useState('2026-04')
-  const [entries, setEntries] = useState<PayrollEntry[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
+  const [entries, setEntries] = useState<any[]>([])
+
+  const loadData = async () => {
+    try {
+      const emps = await pb.collection('employees').getFullList({ sort: 'name' })
+      setEmployees(emps)
+
+      const startDate = `${selectedMonth}-01 00:00:00`
+      const endDate = `${selectedMonth}-31 23:59:59`
+      const fetchedEntries = await pb.collection('payroll_entries').getFullList({
+        filter: `entry_date >= '${startDate}' && entry_date <= '${endDate}'`,
+      })
+
+      const activeEmployees = emps.filter((e) => e.status !== 'inactive')
+      const merged = activeEmployees.map((emp) => {
+        const empEntries = fetchedEntries.filter((e) => e.employee_id === emp.id)
+        let commissions = 0,
+          bonuses = 0,
+          pharmacy = 0,
+          advances = 0
+        empEntries.forEach((e) => {
+          if (e.category === 'commission') commissions += e.amount
+          if (e.category === 'bonus') bonuses += e.amount
+          if (e.category === 'pharmacy_discount') pharmacy += e.amount
+          if (e.category === 'advance') advances += e.amount
+        })
+
+        return {
+          employee_id: emp.id,
+          commissions,
+          bonuses,
+          pharmacy,
+          advances,
+        }
+      })
+      setEntries(merged)
+    } catch {
+      /* intentionally ignored */
+    }
+  }
 
   useEffect(() => {
-    // Sync local form state with store when month changes
-    const existing = payroll[selectedMonth] || []
-    const activeEmployees = employees.filter((e) => e.status !== 'Desligado')
+    loadData()
+  }, [selectedMonth])
 
-    const merged = activeEmployees.map((emp) => {
-      const found = existing.find((e) => e.employeeId === emp.id)
-      return (
-        found || {
-          employeeId: emp.id,
-          month: selectedMonth,
-          commissions: 0,
-          bonuses: 0,
-          pharmacy: 0,
-          advances: 0,
-        }
-      )
-    })
-    setEntries(merged)
-  }, [selectedMonth, payroll, employees])
+  useRealtime('employees', loadData)
+  useRealtime('payroll_entries', loadData)
 
-  const handleInputChange = (employeeId: string, field: keyof PayrollEntry, value: string) => {
+  const handleInputChange = (employee_id: string, field: string, value: string) => {
     const num = parseInputValue(value)
     setEntries((prev) =>
-      prev.map((e) => (e.employeeId === employeeId ? { ...e, [field]: num } : e)),
+      prev.map((e) => (e.employee_id === employee_id ? { ...e, [field]: num } : e)),
     )
   }
 
-  const handleSave = () => {
-    // Validation
+  const handleSave = async () => {
     const hasErrors = entries.some((entry) => {
-      const emp = employees.find((e) => e.id === entry.employeeId)
+      const emp = employees.find((e) => e.id === entry.employee_id)
       if (!emp) return false
-      const additions = emp.baseSalary + entry.commissions + entry.bonuses
+      const additions = emp.base_salary + entry.commissions + entry.bonuses
       const deductions = entry.pharmacy + entry.advances
       return deductions > additions * 0.3
     })
@@ -70,19 +95,31 @@ export default function Folha() {
       return
     }
 
-    actions.savePayroll(selectedMonth, entries)
-    toast({ title: 'Folha Salva', description: `Folha de ${selectedMonth} salva com sucesso.` })
+    try {
+      await pb.send('/backend/v1/payroll/sync', {
+        method: 'POST',
+        body: JSON.stringify({ month: selectedMonth, entries }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      toast({ title: 'Folha Salva', description: `Folha de ${selectedMonth} salva com sucesso.` })
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar a folha.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const totals = entries.reduce(
     (acc, entry) => {
-      const emp = employees.find((e) => e.id === entry.employeeId)
+      const emp = employees.find((e) => e.id === entry.employee_id)
       if (!emp) return acc
-      acc.base += emp.baseSalary
+      acc.base += emp.base_salary
       acc.additions += entry.commissions + entry.bonuses
       acc.deductions += entry.pharmacy + entry.advances
       acc.net +=
-        emp.baseSalary + entry.commissions + entry.bonuses - entry.pharmacy - entry.advances
+        emp.base_salary + entry.commissions + entry.bonuses - entry.pharmacy - entry.advances
       return acc
     },
     { base: 0, additions: 0, deductions: 0, net: 0 },
@@ -126,25 +163,25 @@ export default function Folha() {
             </TableHeader>
             <TableBody>
               {entries.map((entry) => {
-                const emp = employees.find((e) => e.id === entry.employeeId)!
+                const emp = employees.find((e) => e.id === entry.employee_id)
                 if (!emp) return null
                 const net =
-                  emp.baseSalary +
+                  emp.base_salary +
                   entry.commissions +
                   entry.bonuses -
                   entry.pharmacy -
                   entry.advances
                 const isOverLimit =
                   entry.pharmacy + entry.advances >
-                  (emp.baseSalary + entry.commissions + entry.bonuses) * 0.3
+                  (emp.base_salary + entry.commissions + entry.bonuses) * 0.3
 
                 return (
-                  <TableRow key={entry.employeeId} className={isOverLimit ? 'bg-rose-50/50' : ''}>
+                  <TableRow key={entry.employee_id} className={isOverLimit ? 'bg-rose-50/50' : ''}>
                     <TableCell className="font-medium">
                       <div>{emp.name}</div>
                       <div className="text-xs text-muted-foreground">{emp.role}</div>
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(emp.baseSalary)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(emp.base_salary)}</TableCell>
                     <TableCell>
                       <Input
                         type="number"

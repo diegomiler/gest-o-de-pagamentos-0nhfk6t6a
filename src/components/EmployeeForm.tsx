@@ -9,29 +9,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Employee, EmployeeStatus } from '@/stores/main'
 
 type Props = {
-  initialData?: Employee
-  onSubmit: (data: Omit<Employee, 'id'> | Employee) => void
+  initialData?: any
+  onSubmit: (data: any) => void
   onCancel: () => void
 }
 
 export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
-  const [formData, setFormData] = useState<Partial<Employee>>(
+  const [formData, setFormData] = useState<any>(
     initialData || {
       name: '',
       role: '',
       department: '',
-      baseSalary: 0,
-      status: 'Ativo',
-      admissionDate: new Date().toISOString().split('T')[0],
+      base_salary: 0,
+      status: 'active',
+      admission_date: new Date().toISOString().split('T')[0],
     },
   )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit(formData as Employee)
+    const dataToSave = {
+      ...formData,
+      admission_date: formData.admission_date
+        ? `${formData.admission_date.split('T')[0]} 12:00:00.000Z`
+        : '',
+    }
+    onSubmit(dataToSave)
   }
 
   return (
@@ -51,8 +56,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
           <Label htmlFor="role">Cargo</Label>
           <Input
             id="role"
-            required
-            value={formData.role}
+            value={formData.role || ''}
             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
           />
         </div>
@@ -60,8 +64,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
           <Label htmlFor="department">Departamento</Label>
           <Input
             id="department"
-            required
-            value={formData.department}
+            value={formData.department || ''}
             onChange={(e) => setFormData({ ...formData, department: e.target.value })}
           />
         </div>
@@ -69,24 +72,23 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="baseSalary">Salário Base (R$)</Label>
+          <Label htmlFor="base_salary">Salário Base (R$)</Label>
           <Input
-            id="baseSalary"
+            id="base_salary"
             type="number"
             step="0.01"
             required
-            value={formData.baseSalary || ''}
-            onChange={(e) => setFormData({ ...formData, baseSalary: parseFloat(e.target.value) })}
+            value={formData.base_salary || ''}
+            onChange={(e) => setFormData({ ...formData, base_salary: parseFloat(e.target.value) })}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="admissionDate">Data de Admissão</Label>
+          <Label htmlFor="admission_date">Data de Admissão</Label>
           <Input
-            id="admissionDate"
+            id="admission_date"
             type="date"
-            required
-            value={formData.admissionDate}
-            onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
+            value={formData.admission_date ? formData.admission_date.split('T')[0] : ''}
+            onChange={(e) => setFormData({ ...formData, admission_date: e.target.value })}
           />
         </div>
       </div>
@@ -95,15 +97,15 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
         <Label>Status</Label>
         <Select
           value={formData.status}
-          onValueChange={(val: EmployeeStatus) => setFormData({ ...formData, status: val })}
+          onValueChange={(val) => setFormData({ ...formData, status: val })}
         >
           <SelectTrigger>
             <SelectValue placeholder="Selecione o status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Ativo">Ativo</SelectItem>
-            <SelectItem value="Férias">Férias</SelectItem>
-            <SelectItem value="Desligado">Desligado</SelectItem>
+            <SelectItem value="active">Ativo</SelectItem>
+            <SelectItem value="on_leave">Férias</SelectItem>
+            <SelectItem value="inactive">Desligado</SelectItem>
           </SelectContent>
         </Select>
       </div>

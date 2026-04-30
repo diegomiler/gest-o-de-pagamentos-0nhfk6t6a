@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -12,33 +12,59 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Search, Plus } from 'lucide-react'
-import useMainStore, { actions, Employee } from '@/stores/main'
 import { formatCurrency } from '@/lib/format'
 import { EmployeeForm } from '@/components/EmployeeForm'
 import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function Funcionarios() {
-  const { employees } = useMainStore()
+  const [employees, setEmployees] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [isSheetOpen, setIsSheetOpen] = useState(false)
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
+  const [editingEmployee, setEditingEmployee] = useState<any | null>(null)
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  const loadData = async () => {
+    try {
+      const data = await pb.collection('employees').getFullList({ sort: 'name' })
+      setEmployees(data)
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useRealtime('employees', loadData)
 
   const filtered = employees.filter(
     (e) =>
       e.name.toLowerCase().includes(search.toLowerCase()) ||
-      e.department.toLowerCase().includes(search.toLowerCase()),
+      (e.department && e.department.toLowerCase().includes(search.toLowerCase())),
   )
 
-  const handleSave = (data: any) => {
-    if (editingEmployee) {
-      actions.updateEmployee(data as Employee)
-      toast({ title: 'Sucesso', description: 'Funcionário atualizado com sucesso!' })
-    } else {
-      actions.addEmployee(data)
-      toast({ title: 'Sucesso', description: 'Novo funcionário adicionado.' })
+  const handleSave = async (data: any) => {
+    try {
+      if (editingEmployee) {
+        await pb.collection('employees').update(editingEmployee.id, data)
+        toast({ title: 'Sucesso', description: 'Funcionário atualizado com sucesso!' })
+      } else {
+        await pb.collection('employees').create({ ...data, company_id: user?.company_id })
+        toast({ title: 'Sucesso', description: 'Novo funcionário adicionado.' })
+      }
+      setIsSheetOpen(false)
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: 'Verifique os dados informados.',
+        variant: 'destructive',
+      })
     }
-    setIsSheetOpen(false)
   }
 
   const openNew = () => {
@@ -46,7 +72,7 @@ export default function Funcionarios() {
     setIsSheetOpen(true)
   }
 
-  const openEdit = (emp: Employee) => {
+  const openEdit = (emp: any) => {
     setEditingEmployee(emp)
     setIsSheetOpen(true)
   }
@@ -100,23 +126,31 @@ export default function Funcionarios() {
                 <TableCell className="font-medium">{emp.name}</TableCell>
                 <TableCell>
                   <div className="flex flex-col">
-                    <span>{emp.role}</span>
-                    <span className="text-xs text-muted-foreground">{emp.department}</span>
+                    <span>{emp.role || '-'}</span>
+                    <span className="text-xs text-muted-foreground">{emp.department || '-'}</span>
                   </div>
                 </TableCell>
-                <TableCell>{new Date(emp.admissionDate).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell>{formatCurrency(emp.baseSalary)}</TableCell>
+                <TableCell>
+                  {emp.admission_date
+                    ? new Date(emp.admission_date).toLocaleDateString('pt-BR')
+                    : '-'}
+                </TableCell>
+                <TableCell>{formatCurrency(emp.base_salary)}</TableCell>
                 <TableCell>
                   <Badge
                     variant={
-                      emp.status === 'Ativo'
+                      emp.status === 'active'
                         ? 'default'
-                        : emp.status === 'Férias'
+                        : emp.status === 'on_leave'
                           ? 'secondary'
                           : 'destructive'
                     }
                   >
-                    {emp.status}
+                    {emp.status === 'active'
+                      ? 'Ativo'
+                      : emp.status === 'on_leave'
+                        ? 'Férias'
+                        : 'Desligado'}
                   </Badge>
                 </TableCell>
               </TableRow>

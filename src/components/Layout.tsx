@@ -17,10 +17,11 @@ import {
   FileText,
   Settings,
   Search,
-  UserCircle,
+  LogOut,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/use-auth'
 
 const NAV_ITEMS = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
 
 export default function Layout() {
   const location = useLocation()
+  const { signOut, user } = useAuth()
 
   return (
     <SidebarProvider>
@@ -76,8 +78,15 @@ export default function Layout() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <UserCircle className="h-6 w-6 text-muted-foreground" />
+              <span className="text-sm font-medium hidden sm:inline-block">{user?.name}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={signOut}
+                title="Sair"
+              >
+                <LogOut className="h-5 w-5 text-muted-foreground" />
               </Button>
             </div>
           </header>
