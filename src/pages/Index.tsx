@@ -1,12 +1,156 @@
-/* Home Page - Replace this page layout, components, content, behavior with what you want and translate to the language of the user */
-const Index = () => {
+import { useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
+import { Users, Banknote, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import useMainStore from '@/stores/main'
+import { formatCurrency, formatMonthYear } from '@/lib/format'
+
+export default function Index() {
+  const { employees, payroll } = useMainStore()
+
+  const stats = useMemo(() => {
+    const currentMonth = '2026-04'
+    const entries = payroll[currentMonth] || []
+
+    let totalBase = 0
+    let totalAdditions = 0
+    let totalDeductions = 0
+
+    entries.forEach((entry) => {
+      const emp = employees.find((e) => e.id === entry.employeeId)
+      if (emp) totalBase += emp.baseSalary
+      totalAdditions += entry.commissions + entry.bonuses
+      totalDeductions += entry.pharmacy + entry.advances
+    })
+
+    return {
+      activeEmployees: employees.filter((e) => e.status === 'Ativo').length,
+      totalPayroll: totalBase + totalAdditions - totalDeductions,
+      totalCommissions: totalAdditions,
+      totalDiscounts: totalDeductions,
+    }
+  }, [employees, payroll])
+
+  const chartData = useMemo(() => {
+    const months = ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04']
+    return months.map((m) => {
+      const entries = payroll[m] || []
+      let total = 0
+      let vars = 0
+      entries.forEach((e) => {
+        const emp = employees.find((x) => x.id === e.employeeId)
+        if (emp) total += emp.baseSalary
+        vars += e.commissions + e.bonuses
+      })
+      return {
+        month: formatMonthYear(m).split('/')[0].trim(),
+        base: total,
+        variaveis: vars,
+      }
+    })
+  }, [employees, payroll])
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">
-        This is a example page ready to be rewritten with your own content
-      </h1>
+    <div className="space-y-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground">Visão geral da folha de pagamento (Abril/2026)</p>
+        </div>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link to="/funcionarios">Gerenciar Equipe</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/folha">
+              Fechar Folha <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Custo Total Folha</CardTitle>
+            <Banknote className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalPayroll)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Líquido pago neste mês</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Funcionários Ativos</CardTitle>
+            <Users className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.activeEmployees}</div>
+            <p className="text-xs text-muted-foreground mt-1">Colaboradores registrados</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Variáveis</CardTitle>
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalCommissions)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Comissões e Bônus</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Descontos</CardTitle>
+            <TrendingDown className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalDiscounts)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Adiantamentos e Farmácia</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="col-span-4">
+        <CardHeader>
+          <CardTitle>Histórico de Pagamentos (Últimos 6 meses)</CardTitle>
+        </CardHeader>
+        <CardContent className="pl-0">
+          <ChartContainer
+            config={{
+              base: { label: 'Salário Base', color: 'hsl(var(--primary))' },
+              variaveis: { label: 'Variáveis (Comissões/Bônus)', color: 'hsl(var(--success))' },
+            }}
+            className="h-[300px] w-full"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis
+                  tickFormatter={(val) => `R$ ${val / 1000}k`}
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Legend verticalAlign="top" height={36} />
+                <Bar dataKey="base" stackId="a" fill="var(--color-base)" radius={[0, 0, 4, 4]} />
+                <Bar
+                  dataKey="variaveis"
+                  stackId="a"
+                  fill="var(--color-variaveis)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </CardContent>
+      </Card>
     </div>
   )
 }
-
-export default Index
