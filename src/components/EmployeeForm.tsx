@@ -26,6 +26,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
       department: '',
       company_id: '',
       base_salary: 0,
+      additional_amount: 0,
       status: 'active',
       admission_date: new Date().toISOString().split('T')[0],
     },
@@ -106,20 +107,34 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="base_salary">Salário Base (R$) *</Label>
+          <Label htmlFor="base_salary">Salário Base *</Label>
           <Input
             id="base_salary"
             type="number"
             step="0.01"
             required
-            value={formData.base_salary || ''}
-            onChange={(e) => setFormData({ ...formData, base_salary: parseFloat(e.target.value) })}
+            value={formData.base_salary}
+            onChange={(e) =>
+              setFormData({ ...formData, base_salary: parseFloat(e.target.value) || 0 })
+            }
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="admission_date">Data de Admissão</Label>
+          <Label htmlFor="additional_amount">Adicional</Label>
+          <Input
+            id="additional_amount"
+            type="number"
+            step="0.01"
+            value={formData.additional_amount}
+            onChange={(e) =>
+              setFormData({ ...formData, additional_amount: parseFloat(e.target.value) || 0 })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="admission_date">Admissão</Label>
           <Input
             id="admission_date"
             type="date"

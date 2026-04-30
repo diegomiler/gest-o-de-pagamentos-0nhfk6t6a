@@ -11,13 +11,14 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, Plus } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
 import { EmployeeForm } from '@/components/EmployeeForm'
+import { EmployeeHistory } from '@/components/EmployeeHistory'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
-import { useAuth } from '@/hooks/use-auth'
 
 export default function Funcionarios() {
   const [employees, setEmployees] = useState<any[]>([])
@@ -25,7 +26,6 @@ export default function Funcionarios() {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState<any | null>(null)
   const { toast } = useToast()
-  const { user } = useAuth()
 
   const loadData = async () => {
     try {
@@ -106,13 +106,14 @@ export default function Funcionarios() {
               <TableHead>Cargo / Depto</TableHead>
               <TableHead>Admissão</TableHead>
               <TableHead>Salário Base</TableHead>
+              <TableHead>Adicional</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   Nenhum funcionário encontrado.
                 </TableCell>
               </TableRow>
@@ -136,6 +137,7 @@ export default function Funcionarios() {
                     : '-'}
                 </TableCell>
                 <TableCell>{formatCurrency(emp.base_salary)}</TableCell>
+                <TableCell>{formatCurrency(emp.additional_amount || 0)}</TableCell>
                 <TableCell>
                   <Badge
                     variant={
@@ -160,15 +162,33 @@ export default function Funcionarios() {
       </div>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>{editingEmployee ? 'Editar Funcionário' : 'Novo Funcionário'}</SheetTitle>
+            <SheetTitle>
+              {editingEmployee ? 'Detalhes do Funcionário' : 'Novo Funcionário'}
+            </SheetTitle>
           </SheetHeader>
-          <EmployeeForm
-            initialData={editingEmployee || undefined}
-            onSubmit={handleSave}
-            onCancel={() => setIsSheetOpen(false)}
-          />
+
+          {editingEmployee ? (
+            <Tabs defaultValue="dados" className="w-full mt-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="dados">Dados</TabsTrigger>
+                <TabsTrigger value="historico">Histórico</TabsTrigger>
+              </TabsList>
+              <TabsContent value="dados" className="mt-4">
+                <EmployeeForm
+                  initialData={editingEmployee}
+                  onSubmit={handleSave}
+                  onCancel={() => setIsSheetOpen(false)}
+                />
+              </TabsContent>
+              <TabsContent value="historico" className="mt-4">
+                <EmployeeHistory employeeId={editingEmployee.id} />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <EmployeeForm onSubmit={handleSave} onCancel={() => setIsSheetOpen(false)} />
+          )}
         </SheetContent>
       </Sheet>
     </div>
