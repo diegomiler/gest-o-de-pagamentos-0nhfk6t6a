@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Info } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -29,7 +27,6 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
       company_id: '',
       base_salary: 0,
       additional_amount: 0,
-      overtime_parameter: 1.5,
       status: 'active',
       admission_date: new Date().toISOString().split('T')[0],
     },
@@ -133,41 +130,6 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
             value={formData.additional_amount}
             onChange={(e) =>
               setFormData({ ...formData, additional_amount: parseFloat(e.target.value) || 0 })
-            }
-          />
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="overtime_parameter">Parâmetro Hrs Extras</Label>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="cursor-help rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
-                  <span className="sr-only">Informações sobre Parâmetro Hrs Extras</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-[320px] p-3 text-sm space-y-2" side="top">
-                <p>Este parâmetro atua como um multiplicador para o valor da hora calculada.</p>
-                <div className="font-mono text-xs bg-muted/50 p-2 rounded-md text-foreground border">
-                  Fórmula: (Salário Base / 30 / 7.33) * Parâmetro
-                </div>
-                <p className="text-muted-foreground">
-                  Exemplo: Para um adicional de 50%, utilize o valor 1.5. Para um adicional de 100%,
-                  utilize o valor 2.0.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-          <Input
-            id="overtime_parameter"
-            type="number"
-            step="0.1"
-            value={formData.overtime_parameter ?? 1.5}
-            onChange={(e) =>
-              setFormData({ ...formData, overtime_parameter: parseFloat(e.target.value) || 0 })
             }
           />
         </div>

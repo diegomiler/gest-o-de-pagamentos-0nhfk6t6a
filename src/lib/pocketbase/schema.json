@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-04T18:41:23.495Z",
+  "generatedAt": "2026-05-04T18:47:56.028Z",
   "collections": [
     {
       "name": "users",
@@ -93,6 +93,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "overtime_config",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -170,12 +176,6 @@
         },
         {
           "name": "additional_amount",
-          "type": "number",
-          "required": false,
-          "system": false
-        },
-        {
-          "name": "overtime_parameter",
           "type": "number",
           "required": false,
           "system": false

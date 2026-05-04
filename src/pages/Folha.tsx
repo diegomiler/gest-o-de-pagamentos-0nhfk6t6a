@@ -23,17 +23,69 @@ import { Save } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 
+function calculateOvertimeValue(
+  base_salary: number,
+  hours: number,
+  company_id: string,
+  companies: any[],
+) {
+  const company = companies.find((c) => c.id === company_id)
+  const config = company?.overtime_config || []
+
+  if (config.length === 0 || hours === 0) {
+    return (base_salary / 30 / 7.33) * 1.5 * hours
+  }
+
+  const sortedBrackets = [...config].sort((a, b) => {
+    if (a.limit === null) return 1
+    if (b.limit === null) return -1
+    return a.limit - b.limit
+  })
+
+  let totalValue = 0
+  const hourlyRate = base_salary / 30 / 7.33
+  let previousLimit = 0
+
+  for (const bracket of sortedBrackets) {
+    if (hours <= previousLimit) break
+
+    const multiplier = 1 + bracket.percentage / 100
+    let hoursInBracket = hours - previousLimit
+
+    if (bracket.limit !== null) {
+      hoursInBracket = Math.min(hours - previousLimit, bracket.limit - previousLimit)
+    }
+
+    if (hoursInBracket > 0) {
+      totalValue += hourlyRate * multiplier * hoursInBracket
+    }
+
+    if (bracket.limit !== null) {
+      previousLimit = bracket.limit
+    } else {
+      break
+    }
+  }
+
+  return totalValue
+}
+
 export default function Folha() {
   const { toast } = useToast()
 
   const [selectedMonth, setSelectedMonth] = useState('2026-04')
   const [employees, setEmployees] = useState<any[]>([])
+  const [companies, setCompanies] = useState<any[]>([])
   const [entries, setEntries] = useState<any[]>([])
 
   const loadData = async () => {
     try {
-      const emps = await pb.collection('employees').getFullList({ sort: 'name' })
+      const [emps, comps] = await Promise.all([
+        pb.collection('employees').getFullList({ sort: 'name' }),
+        pb.collection('companies').getFullList(),
+      ])
       setEmployees(emps)
+      setCompanies(comps)
 
       const startDate = `${selectedMonth}-01 00:00:00`
       const endDate = `${selectedMonth}-31 23:59:59`
@@ -79,6 +131,7 @@ export default function Folha() {
 
   useRealtime('employees', loadData)
   useRealtime('payroll_entries', loadData)
+  useRealtime('companies', loadData)
 
   const handleInputChange = (employee_id: string, field: string, value: string) => {
     if (field === 'overtime_hours_str') {
@@ -103,9 +156,12 @@ export default function Folha() {
     const hasErrors = entries.some((entry) => {
       const emp = employees.find((e) => e.id === entry.employee_id)
       if (!emp) return false
-      const overtimeParam = emp.overtime_parameter ?? 1.5
-      const overtimeValue =
-        (emp.base_salary / 30 / 7.33) * overtimeParam * (entry.overtime_hours || 0)
+      const overtimeValue = calculateOvertimeValue(
+        emp.base_salary,
+        entry.overtime_hours || 0,
+        emp.company_id,
+        companies,
+      )
       const additions =
         emp.base_salary +
         (emp.additional_amount || 0) +
@@ -145,9 +201,12 @@ export default function Folha() {
     (acc, entry) => {
       const emp = employees.find((e) => e.id === entry.employee_id)
       if (!emp) return acc
-      const overtimeParam = emp.overtime_parameter ?? 1.5
-      const overtimeValue =
-        (emp.base_salary / 30 / 7.33) * overtimeParam * (entry.overtime_hours || 0)
+      const overtimeValue = calculateOvertimeValue(
+        emp.base_salary,
+        entry.overtime_hours || 0,
+        emp.company_id,
+        companies,
+      )
       acc.base += emp.base_salary
       acc.additional += emp.additional_amount || 0
       acc.overtime += overtimeValue
@@ -211,9 +270,12 @@ export default function Folha() {
               {entries.map((entry) => {
                 const emp = employees.find((e) => e.id === entry.employee_id)
                 if (!emp) return null
-                const overtimeParam = emp.overtime_parameter ?? 1.5
-                const overtimeValue =
-                  (emp.base_salary / 30 / 7.33) * overtimeParam * (entry.overtime_hours || 0)
+                const overtimeValue = calculateOvertimeValue(
+                  emp.base_salary,
+                  entry.overtime_hours || 0,
+                  emp.company_id,
+                  companies,
+                )
                 const totalAdditions =
                   emp.base_salary +
                   (emp.additional_amount || 0) +

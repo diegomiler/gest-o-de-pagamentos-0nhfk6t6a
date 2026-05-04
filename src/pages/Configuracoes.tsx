@@ -41,6 +41,9 @@ export default function Configuracoes() {
   const [formData, setFormData] = useState({ name: '', tax_id: '' })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [overtimeBrackets, setOvertimeBrackets] = useState<{ limit: string; percentage: string }[]>(
+    [],
+  )
   const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -64,6 +67,7 @@ export default function Configuracoes() {
     setFormData({ name: '', tax_id: '' })
     setLogoFile(null)
     setLogoPreview(null)
+    setOvertimeBrackets([])
     setErrors({})
     setIsDialogOpen(true)
   }
@@ -73,8 +77,28 @@ export default function Configuracoes() {
     setFormData({ name: company.name, tax_id: company.tax_id || '' })
     setLogoFile(null)
     setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
+
+    let brackets = []
+    if (Array.isArray(company.overtime_config)) {
+      brackets = company.overtime_config.map((b: any) => ({
+        limit: b.limit === null ? '' : String(b.limit),
+        percentage: String(b.percentage),
+      }))
+    }
+    setOvertimeBrackets(brackets)
+
     setErrors({})
     setIsDialogOpen(true)
+  }
+
+  const addBracket = () =>
+    setOvertimeBrackets([...overtimeBrackets, { limit: '', percentage: '50' }])
+  const removeBracket = (index: number) =>
+    setOvertimeBrackets(overtimeBrackets.filter((_, i) => i !== index))
+  const updateBracket = (index: number, field: 'limit' | 'percentage', value: string) => {
+    const newBrackets = [...overtimeBrackets]
+    newBrackets[index][field] = value
+    setOvertimeBrackets(newBrackets)
   }
 
   const confirmDelete = (company: any) => {
@@ -142,6 +166,12 @@ export default function Configuracoes() {
       } else if (logoPreview === null && editingCompany?.logo) {
         data.append('logo', '')
       }
+
+      const parsedBrackets = overtimeBrackets.map((b) => ({
+        limit: (b.limit || '').trim() ? Number(b.limit) : null,
+        percentage: Number(b.percentage) || 0,
+      }))
+      data.append('overtime_config', JSON.stringify(parsedBrackets))
 
       if (editingCompany) {
         await pb.collection('companies').update(editingCompany.id, data)
@@ -265,6 +295,50 @@ export default function Configuracoes() {
                   placeholder="00.000.000/0001-00"
                 />
                 {errors.tax_id && <p className="text-sm text-destructive">{errors.tax_id}</p>}
+              </div>
+
+              <div className="space-y-4 pt-4 border-t">
+                <div>
+                  <Label>Regras de Horas Extras</Label>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Exemplo: Até 2 horas = 50% (multiplicador 1.5); Acima de 2 horas (deixe limite
+                    vazio) = 100% (multiplicador 2.0).
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {overtimeBrackets.map((b, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder="Limite (h)"
+                        value={b.limit}
+                        onChange={(e) => updateBracket(idx, 'limit', e.target.value)}
+                        className="w-24"
+                      />
+                      <span className="text-muted-foreground text-sm">h =</span>
+                      <Input
+                        type="number"
+                        placeholder="%"
+                        value={b.percentage}
+                        onChange={(e) => updateBracket(idx, 'percentage', e.target.value)}
+                        className="w-20"
+                      />
+                      <span className="text-muted-foreground text-sm">%</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeBracket(idx)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" onClick={addBracket}>
+                    <Plus className="mr-2 h-4 w-4" /> Adicionar Regra
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-2">
