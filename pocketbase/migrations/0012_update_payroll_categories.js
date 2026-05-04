@@ -5,7 +5,8 @@ migrate(
       new SelectField({
         name: 'category',
         required: true,
-        selectValues: [
+        maxSelect: 1,
+        values: [
           'commission',
           'bonus',
           'pharmacy_discount',
@@ -31,7 +32,8 @@ migrate(
       new SelectField({
         name: 'category',
         required: true,
-        selectValues: [
+        maxSelect: 1,
+        values: [
           'commission',
           'bonus',
           'pharmacy_discount',

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-04T19:32:09.945Z",
+  "generatedAt": "2026-05-04T19:35:09.618Z",
   "collections": [
     {
       "name": "users",
@@ -221,7 +221,13 @@
             "additional",
             "other",
             "overtime",
-            "base_net"
+            "base_net",
+            "cash_shortage",
+            "negative_hours",
+            "partner_agreement",
+            "store_agreement",
+            "other_discount",
+            "other_addition"
           ]
         },
         {
