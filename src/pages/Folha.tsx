@@ -12,6 +12,17 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent } from '@/components/ui/card'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
+import {
   formatCurrency,
   parseInputValue,
   timeToDecimal,
@@ -19,7 +30,7 @@ import {
   formatTimeOnBlur,
 } from '@/lib/format'
 import { useToast } from '@/hooks/use-toast'
-import { Save, MessageSquareText } from 'lucide-react'
+import { Save, MessageSquareText, Eraser } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -266,42 +277,37 @@ export default function Folha() {
     )
   }
 
-  const handleSave = async () => {
-    const hasErrors = entries.some((entry) => {
-      const emp = employees.find((e) => e.id === entry.employee_id)
-      if (!emp) return false
-      const overtimeValue = calculateOvertimeValue(
-        emp.base_salary,
-        entry.overtime_hours || 0,
-        emp.company_id,
-        companies,
-      )
-      const additions =
-        (entry.base_net || 0) +
-        (emp.additional_amount || 0) +
-        overtimeValue +
-        entry.commissions +
-        entry.bonuses +
-        (entry.other_addition || 0)
-      const deductions =
-        entry.pharmacy +
-        entry.advances +
-        (entry.cash_shortage || 0) +
-        (entry.negative_hours || 0) +
-        (entry.partner_agreement || 0) +
-        (entry.store_agreement || 0) +
-        (entry.other_discount || 0)
-      return deductions > additions * 0.3
+  const handleClearAll = () => {
+    setEntries((prev) =>
+      prev.map((e) => ({
+        ...e,
+        commissions: 0,
+        bonuses: 0,
+        pharmacy: 0,
+        advances: 0,
+        overtime_hours: 0,
+        overtime_hours_str: '',
+        cash_shortage: 0,
+        cash_shortage_desc: '',
+        negative_hours: 0,
+        negative_hours_desc: '',
+        partner_agreement: 0,
+        partner_agreement_desc: '',
+        store_agreement: 0,
+        store_agreement_desc: '',
+        other_discount: 0,
+        other_discount_desc: '',
+        other_addition: 0,
+        other_addition_desc: '',
+      })),
+    )
+    toast({
+      title: 'Valores limpos',
+      description: 'Todos os valores da grade (exceto salário líquido) foram zerados.',
     })
-    if (hasErrors) {
-      toast({
-        title: 'Atenção',
-        description: 'Existem descontos excedendo 30% dos vencimentos!',
-        variant: 'destructive',
-      })
-      return
-    }
+  }
 
+  const handleSave = async () => {
     try {
       await pb.send('/backend/v1/payroll/sync', {
         method: 'POST',
@@ -341,6 +347,7 @@ export default function Folha() {
       acc.base += entry.base_net || 0
       acc.additional += emp.additional_amount || 0
       acc.overtime += overtimeValue
+      acc.overtime_hours += entry.overtime_hours || 0
       acc.additions += currentAdditions
       acc.deductions += currentDeductions
       acc.net +=
@@ -367,6 +374,7 @@ export default function Folha() {
       base: 0,
       additional: 0,
       overtime: 0,
+      overtime_hours: 0,
       additions: 0,
       deductions: 0,
       net: 0,
@@ -392,13 +400,37 @@ export default function Folha() {
             Registre comissões, horas extras e descontos mensais.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Input
             type="month"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="w-40 bg-card"
           />
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <Eraser className="h-4 w-4" /> Limpar Valores
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Limpar todos os valores?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja zerar todos os valores (horas extras, comissões, descontos)
+                  desta folha na tela atual? O salário líquido não será afetado. Lembre-se de salvar
+                  a folha após limpar.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearAll}>Confirmar</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Button onClick={handleSave} className="gap-2">
             <Save className="h-4 w-4" /> Salvar Folha
           </Button>
@@ -458,17 +490,12 @@ export default function Folha() {
                   (entry.store_agreement || 0) +
                   (entry.other_discount || 0)
                 const net = totalAdditions - totalDeductions
-                const isOverLimit = totalDeductions > totalAdditions * 0.3
 
                 return (
-                  <TableRow
-                    key={entry.employee_id}
-                    className={isOverLimit ? 'bg-rose-50/50 hover:bg-rose-50/50' : ''}
-                  >
+                  <TableRow key={entry.employee_id}>
                     <TableCell
                       className={cn(
-                        'font-medium sticky left-0 z-10 shadow-[1px_0_0_0_#e5e7eb]',
-                        isOverLimit ? 'bg-rose-100' : 'bg-muted',
+                        'font-medium sticky left-0 z-10 shadow-[1px_0_0_0_#e5e7eb] bg-muted',
                       )}
                     >
                       <div>{emp.name}</div>
@@ -611,8 +638,7 @@ export default function Folha() {
                     </TableCell>
                     <TableCell
                       className={cn(
-                        'text-right font-bold sticky right-0 shadow-[-1px_0_0_0_#e5e7eb] z-10',
-                        isOverLimit ? 'bg-rose-100 text-rose-600' : 'bg-muted',
+                        'text-right font-bold sticky right-0 shadow-[-1px_0_0_0_#e5e7eb] z-10 bg-muted',
                       )}
                     >
                       {formatCurrency(net)}
@@ -628,7 +654,9 @@ export default function Folha() {
                 </TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.base)}</TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.additional)}</TableCell>
-                <TableCell></TableCell>
+                <TableCell className="text-right text-emerald-600 font-medium">
+                  {decimalToTime(totals.overtime_hours)}
+                </TableCell>
                 <TableCell className="text-right text-emerald-600 font-medium">
                   +{formatCurrency(totals.overtime)}
                 </TableCell>
