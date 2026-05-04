@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-04T18:47:56.028Z",
+  "generatedAt": "2026-05-04T19:06:16.498Z",
   "collections": [
     {
       "name": "users",
@@ -220,7 +220,8 @@
             "advance",
             "additional",
             "other",
-            "overtime"
+            "overtime",
+            "base_net"
           ]
         },
         {
