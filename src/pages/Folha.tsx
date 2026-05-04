@@ -19,9 +19,57 @@ import {
   formatTimeOnBlur,
 } from '@/lib/format'
 import { useToast } from '@/hooks/use-toast'
-import { Save } from 'lucide-react'
+import { Save, MessageSquareText } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
+
+function EntryInput({
+  value,
+  onChange,
+  descValue,
+  onDescChange,
+}: {
+  value: string | number
+  onChange: (val: string) => void
+  descValue: string
+  onDescChange: (val: string) => void
+}) {
+  return (
+    <div className="relative flex items-center ml-auto w-[110px]">
+      <Input
+        type="number"
+        min="0"
+        step="0.01"
+        className="text-right h-8 w-full pr-8"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            className={cn(
+              'absolute right-2 top-1/2 -translate-y-1/2',
+              descValue ? 'text-blue-500' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <MessageSquareText className="w-4 h-4" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-2" side="left">
+          <Textarea
+            placeholder="Adicionar nota/histórico..."
+            value={descValue || ''}
+            onChange={(e) => onDescChange(e.target.value)}
+            className="min-h-[80px] text-sm"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  )
+}
 
 function calculateOvertimeValue(
   base_salary: number,
@@ -101,7 +149,21 @@ export default function Folha() {
           pharmacy = 0,
           advances = 0,
           overtime_hours = 0,
-          base_net = 0
+          base_net = 0,
+          cash_shortage = 0,
+          negative_hours = 0,
+          partner_agreement = 0,
+          store_agreement = 0,
+          other_discount = 0,
+          other_addition = 0
+
+        let cash_shortage_desc = '',
+          negative_hours_desc = '',
+          partner_agreement_desc = '',
+          store_agreement_desc = '',
+          other_discount_desc = '',
+          other_addition_desc = ''
+
         empEntries.forEach((e) => {
           if (e.category === 'commission') commissions += e.amount
           if (e.category === 'bonus') bonuses += e.amount
@@ -109,6 +171,30 @@ export default function Folha() {
           if (e.category === 'advance') advances += e.amount
           if (e.category === 'overtime') overtime_hours += e.quantity || 0
           if (e.category === 'base_net') base_net += e.amount
+          if (e.category === 'cash_shortage') {
+            cash_shortage += e.amount
+            cash_shortage_desc = e.description || ''
+          }
+          if (e.category === 'negative_hours') {
+            negative_hours += e.amount
+            negative_hours_desc = e.description || ''
+          }
+          if (e.category === 'partner_agreement') {
+            partner_agreement += e.amount
+            partner_agreement_desc = e.description || ''
+          }
+          if (e.category === 'store_agreement') {
+            store_agreement += e.amount
+            store_agreement_desc = e.description || ''
+          }
+          if (e.category === 'other_discount') {
+            other_discount += e.amount
+            other_discount_desc = e.description || ''
+          }
+          if (e.category === 'other_addition') {
+            other_addition += e.amount
+            other_addition_desc = e.description || ''
+          }
         })
 
         return {
@@ -120,6 +206,18 @@ export default function Folha() {
           overtime_hours,
           overtime_hours_str: decimalToTime(overtime_hours),
           base_net: base_net || 0,
+          cash_shortage,
+          cash_shortage_desc,
+          negative_hours,
+          negative_hours_desc,
+          partner_agreement,
+          partner_agreement_desc,
+          store_agreement,
+          store_agreement_desc,
+          other_discount,
+          other_discount_desc,
+          other_addition,
+          other_addition_desc,
         }
       })
 
@@ -137,7 +235,12 @@ export default function Folha() {
   useRealtime('payroll_entries', loadData)
   useRealtime('companies', loadData)
 
-  const handleInputChange = (employee_id: string, field: string, value: string) => {
+  const handleInputChange = (
+    employee_id: string,
+    field: string,
+    value: string,
+    isString = false,
+  ) => {
     if (field === 'overtime_hours_str') {
       const decimal = timeToDecimal(value)
       setEntries((prev) =>
@@ -146,6 +249,13 @@ export default function Folha() {
             ? { ...e, overtime_hours_str: value, overtime_hours: decimal }
             : e,
         ),
+      )
+      return
+    }
+
+    if (isString) {
+      setEntries((prev) =>
+        prev.map((e) => (e.employee_id === employee_id ? { ...e, [field]: value } : e)),
       )
       return
     }
@@ -171,8 +281,16 @@ export default function Folha() {
         (emp.additional_amount || 0) +
         overtimeValue +
         entry.commissions +
-        entry.bonuses
-      const deductions = entry.pharmacy + entry.advances
+        entry.bonuses +
+        (entry.other_addition || 0)
+      const deductions =
+        entry.pharmacy +
+        entry.advances +
+        (entry.cash_shortage || 0) +
+        (entry.negative_hours || 0) +
+        (entry.partner_agreement || 0) +
+        (entry.store_agreement || 0) +
+        (entry.other_discount || 0)
       return deductions > additions * 0.3
     })
     if (hasErrors) {
@@ -210,19 +328,27 @@ export default function Folha() {
         emp.company_id,
         companies,
       )
+      const currentAdditions = entry.commissions + entry.bonuses + (entry.other_addition || 0)
+      const currentDeductions =
+        entry.pharmacy +
+        entry.advances +
+        (entry.cash_shortage || 0) +
+        (entry.negative_hours || 0) +
+        (entry.partner_agreement || 0) +
+        (entry.store_agreement || 0) +
+        (entry.other_discount || 0)
+
       acc.base += entry.base_net || 0
       acc.additional += emp.additional_amount || 0
       acc.overtime += overtimeValue
-      acc.additions += entry.commissions + entry.bonuses
-      acc.deductions += entry.pharmacy + entry.advances
+      acc.additions += currentAdditions
+      acc.deductions += currentDeductions
       acc.net +=
         (entry.base_net || 0) +
         (emp.additional_amount || 0) +
         overtimeValue +
-        entry.commissions +
-        entry.bonuses -
-        entry.pharmacy -
-        entry.advances
+        currentAdditions -
+        currentDeductions
       return acc
     },
     { base: 0, additional: 0, overtime: 0, additions: 0, deductions: 0, net: 0 },
@@ -264,9 +390,17 @@ export default function Folha() {
                 <TableHead className="text-right text-emerald-600">Val. Extras</TableHead>
                 <TableHead className="text-right text-emerald-600">Comissões (+)</TableHead>
                 <TableHead className="text-right text-emerald-600">Bônus (+)</TableHead>
+                <TableHead className="text-right text-emerald-600">Outros Acrésc. (+)</TableHead>
                 <TableHead className="text-right text-rose-600">Farmácia (-)</TableHead>
                 <TableHead className="text-right text-rose-600">Vales (-)</TableHead>
-                <TableHead className="text-right font-bold">Líquido</TableHead>
+                <TableHead className="text-right text-rose-600">Furo de Caixa (-)</TableHead>
+                <TableHead className="text-right text-rose-600">Horas Neg. (-)</TableHead>
+                <TableHead className="text-right text-rose-600">Conv. Parc. (-)</TableHead>
+                <TableHead className="text-right text-rose-600">Conv. Loja (-)</TableHead>
+                <TableHead className="text-right text-rose-600">Outros Desc. (-)</TableHead>
+                <TableHead className="text-right font-bold bg-muted/50 sticky right-0 shadow-[-1px_0_0_0_#e5e7eb] z-20">
+                  Líquido
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -284,8 +418,16 @@ export default function Folha() {
                   (emp.additional_amount || 0) +
                   overtimeValue +
                   entry.commissions +
-                  entry.bonuses
-                const totalDeductions = entry.pharmacy + entry.advances
+                  entry.bonuses +
+                  (entry.other_addition || 0)
+                const totalDeductions =
+                  entry.pharmacy +
+                  entry.advances +
+                  (entry.cash_shortage || 0) +
+                  (entry.negative_hours || 0) +
+                  (entry.partner_agreement || 0) +
+                  (entry.store_agreement || 0) +
+                  (entry.other_discount || 0)
                 const net = totalAdditions - totalDeductions
                 const isOverLimit = totalDeductions > totalAdditions * 0.3
 
@@ -354,6 +496,16 @@ export default function Folha() {
                       />
                     </TableCell>
                     <TableCell>
+                      <EntryInput
+                        value={entry.other_addition}
+                        onChange={(v) => handleInputChange(emp.id, 'other_addition', v)}
+                        descValue={entry.other_addition_desc}
+                        onDescChange={(v) =>
+                          handleInputChange(emp.id, 'other_addition_desc', v, true)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
                       <Input
                         type="number"
                         min="0"
@@ -373,8 +525,58 @@ export default function Folha() {
                         onChange={(e) => handleInputChange(emp.id, 'advances', e.target.value)}
                       />
                     </TableCell>
+                    <TableCell>
+                      <EntryInput
+                        value={entry.cash_shortage}
+                        onChange={(v) => handleInputChange(emp.id, 'cash_shortage', v)}
+                        descValue={entry.cash_shortage_desc}
+                        onDescChange={(v) =>
+                          handleInputChange(emp.id, 'cash_shortage_desc', v, true)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <EntryInput
+                        value={entry.negative_hours}
+                        onChange={(v) => handleInputChange(emp.id, 'negative_hours', v)}
+                        descValue={entry.negative_hours_desc}
+                        onDescChange={(v) =>
+                          handleInputChange(emp.id, 'negative_hours_desc', v, true)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <EntryInput
+                        value={entry.partner_agreement}
+                        onChange={(v) => handleInputChange(emp.id, 'partner_agreement', v)}
+                        descValue={entry.partner_agreement_desc}
+                        onDescChange={(v) =>
+                          handleInputChange(emp.id, 'partner_agreement_desc', v, true)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <EntryInput
+                        value={entry.store_agreement}
+                        onChange={(v) => handleInputChange(emp.id, 'store_agreement', v)}
+                        descValue={entry.store_agreement_desc}
+                        onDescChange={(v) =>
+                          handleInputChange(emp.id, 'store_agreement_desc', v, true)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <EntryInput
+                        value={entry.other_discount}
+                        onChange={(v) => handleInputChange(emp.id, 'other_discount', v)}
+                        descValue={entry.other_discount_desc}
+                        onDescChange={(v) =>
+                          handleInputChange(emp.id, 'other_discount_desc', v, true)
+                        }
+                      />
+                    </TableCell>
                     <TableCell
-                      className={`text-right font-bold ${isOverLimit ? 'text-rose-600' : ''}`}
+                      className={`text-right font-bold sticky right-0 bg-card shadow-[-1px_0_0_0_#e5e7eb] z-10 ${isOverLimit ? 'text-rose-600' : ''}`}
                     >
                       {formatCurrency(net)}
                     </TableCell>
@@ -393,15 +595,21 @@ export default function Folha() {
                 <TableCell className="text-right text-emerald-600 font-medium">
                   +{formatCurrency(totals.overtime)}
                 </TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
                 <TableCell className="text-right text-emerald-600 font-medium">
                   +{formatCurrency(totals.additions)}
                 </TableCell>
                 <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
+                <TableCell></TableCell>
                 <TableCell className="text-right text-rose-600 font-medium">
                   -{formatCurrency(totals.deductions)}
                 </TableCell>
-                <TableCell></TableCell>
-                <TableCell className="text-right font-bold text-lg">
+                <TableCell className="text-right font-bold text-lg sticky right-0 bg-muted/50 shadow-[-1px_0_0_0_#e5e7eb] z-20">
                   {formatCurrency(totals.net)}
                 </TableCell>
               </TableRow>

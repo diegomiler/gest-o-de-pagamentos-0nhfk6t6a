@@ -1,70 +1,93 @@
+// sync payroll entries for multiple employees in a single transaction
 routerAdd(
   'POST',
   '/backend/v1/payroll/sync',
   (e) => {
     const body = e.requestInfo().body
-    const month = body.month
-    const entries = body.entries
+    const month = body.month // "YYYY-MM"
+    const entries = body.entries // array of objects
 
-    if (!month || !entries) {
-      return e.badRequestError('Missing month or entries')
+    if (!month || !Array.isArray(entries)) {
+      return e.badRequestError('Invalid payload')
     }
 
-    const startDate = `${month}-01 00:00:00`
-    const endDate = `${month}-31 23:59:59`
+    const startDate = month + '-01 00:00:00'
+    const endDate = month + '-31 23:59:59'
 
     $app.runInTransaction((txApp) => {
-      for (const entry of entries) {
-        const empId = entry.employee_id
-        const emp = txApp.findRecordById('employees', empId)
-        const companyId = emp.get('company_id')
+      for (const emp of entries) {
+        const employeeId = emp.employee_id
+        if (!employeeId) continue
 
+        let employee
+        try {
+          employee = txApp.findRecordById('employees', employeeId)
+        } catch (_) {
+          continue
+        }
+        const companyId = employee.get('company_id')
+
+        // Build categories map based on the new schema and payload
         const categories = [
-          { name: 'commission', amount: Number(entry.commissions) || 0, qty: 0 },
-          { name: 'bonus', amount: Number(entry.bonuses) || 0, qty: 0 },
-          { name: 'pharmacy_discount', amount: Number(entry.pharmacy) || 0, qty: 0 },
-          { name: 'advance', amount: Number(entry.advances) || 0, qty: 0 },
-          { name: 'overtime', amount: 0, qty: Number(entry.overtime_hours) || 0 },
-          { name: 'base_net', amount: Number(entry.base_net) || 0, qty: 0 },
+          { key: 'base_net', val: emp.base_net },
+          { key: 'commission', val: emp.commissions },
+          { key: 'bonus', val: emp.bonuses },
+          { key: 'pharmacy_discount', val: emp.pharmacy },
+          { key: 'advance', val: emp.advances },
+          { key: 'overtime', val: 0, qty: emp.overtime_hours },
+          { key: 'cash_shortage', val: emp.cash_shortage, desc: emp.cash_shortage_desc },
+          { key: 'negative_hours', val: emp.negative_hours, desc: emp.negative_hours_desc },
+          {
+            key: 'partner_agreement',
+            val: emp.partner_agreement,
+            desc: emp.partner_agreement_desc,
+          },
+          { key: 'store_agreement', val: emp.store_agreement, desc: emp.store_agreement_desc },
+          { key: 'other_discount', val: emp.other_discount, desc: emp.other_discount_desc },
+          { key: 'other_addition', val: emp.other_addition, desc: emp.other_addition_desc },
         ]
 
         for (const cat of categories) {
-          let existing = null
+          const val = Number(cat.val) || 0
+          const qty = Number(cat.qty) || 0
+          const desc = cat.desc || ''
+
+          let record
           try {
             const records = txApp.findRecordsByFilter(
               'payroll_entries',
-              `employee_id = '${empId}' && category = '${cat.name}' && entry_date >= '${startDate}' && entry_date <= '${endDate}'`,
-              '-created',
+              `employee_id = {:emp} && category = {:cat} && entry_date >= {:start} && entry_date <= {:end}`,
+              '',
               1,
               0,
+              { emp: employeeId, cat: cat.key, start: startDate, end: endDate },
             )
-            if (records && records.length > 0) {
-              existing = records[0]
+            if (records.length > 0) {
+              record = records[0]
             }
-          } catch (err) {}
+          } catch (_) {}
 
-          if (cat.amount === 0 && cat.qty === 0) {
-            if (existing) {
-              txApp.delete(existing)
+          // If no value, quantity or description, delete or skip
+          if (val === 0 && qty === 0 && desc === '') {
+            if (record) {
+              txApp.delete(record)
             }
             continue
           }
 
-          if (existing) {
-            existing.set('amount', cat.amount)
-            existing.set('quantity', cat.qty)
-            txApp.save(existing)
-          } else {
-            const col = txApp.findCollectionByNameOrId('payroll_entries')
-            const newRec = new Record(col)
-            newRec.set('employee_id', empId)
-            newRec.set('company_id', companyId)
-            newRec.set('category', cat.name)
-            newRec.set('amount', cat.amount)
-            newRec.set('quantity', cat.qty)
-            newRec.set('entry_date', `${month}-01 12:00:00`)
-            txApp.save(newRec)
+          if (!record) {
+            const collection = txApp.findCollectionByNameOrId('payroll_entries')
+            record = new Record(collection)
+            record.set('employee_id', employeeId)
+            record.set('company_id', companyId)
+            record.set('category', cat.key)
+            record.set('entry_date', month + '-01 12:00:00')
           }
+
+          record.set('amount', val)
+          record.set('quantity', qty)
+          record.set('description', desc)
+          txApp.save(record)
         }
       }
     })

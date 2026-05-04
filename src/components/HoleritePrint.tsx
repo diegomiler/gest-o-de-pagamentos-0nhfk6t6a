@@ -8,8 +8,19 @@ type Props = {
 }
 
 export function HoleritePrint({ employee, entry, company }: Props) {
-  const additions = (entry.base_net || 0) + entry.commissions + entry.bonuses
-  const deductions = entry.pharmacy + entry.advances
+  const additions =
+    (entry.base_net || 0) +
+    (entry.commissions || 0) +
+    (entry.bonuses || 0) +
+    (entry.other_addition || 0)
+  const deductions =
+    (entry.pharmacy || 0) +
+    (entry.advances || 0) +
+    (entry.cash_shortage || 0) +
+    (entry.negative_hours || 0) +
+    (entry.partner_agreement || 0) +
+    (entry.store_agreement || 0) +
+    (entry.other_discount || 0)
   const net = additions - deductions
 
   const logoUrl =
@@ -80,6 +91,13 @@ export function HoleritePrint({ employee, entry, company }: Props) {
               <td className="py-1 text-right"></td>
             </tr>
           )}
+          {entry.other_addition > 0 && (
+            <tr>
+              <td className="py-1">Outros Acréscimos</td>
+              <td className="py-1 text-right">{formatCurrency(entry.other_addition)}</td>
+              <td className="py-1 text-right"></td>
+            </tr>
+          )}
           {entry.pharmacy > 0 && (
             <tr>
               <td className="py-1">Farmácia</td>
@@ -92,6 +110,41 @@ export function HoleritePrint({ employee, entry, company }: Props) {
               <td className="py-1">Vales</td>
               <td className="py-1 text-right"></td>
               <td className="py-1 text-right">{formatCurrency(entry.advances)}</td>
+            </tr>
+          )}
+          {entry.cash_shortage > 0 && (
+            <tr>
+              <td className="py-1">Furo de Caixa</td>
+              <td className="py-1 text-right"></td>
+              <td className="py-1 text-right">{formatCurrency(entry.cash_shortage)}</td>
+            </tr>
+          )}
+          {entry.negative_hours > 0 && (
+            <tr>
+              <td className="py-1">Horas Negativas</td>
+              <td className="py-1 text-right"></td>
+              <td className="py-1 text-right">{formatCurrency(entry.negative_hours)}</td>
+            </tr>
+          )}
+          {entry.partner_agreement > 0 && (
+            <tr>
+              <td className="py-1">Convênio Parceiros</td>
+              <td className="py-1 text-right"></td>
+              <td className="py-1 text-right">{formatCurrency(entry.partner_agreement)}</td>
+            </tr>
+          )}
+          {entry.store_agreement > 0 && (
+            <tr>
+              <td className="py-1">Convênios Loja</td>
+              <td className="py-1 text-right"></td>
+              <td className="py-1 text-right">{formatCurrency(entry.store_agreement)}</td>
+            </tr>
+          )}
+          {entry.other_discount > 0 && (
+            <tr>
+              <td className="py-1">Outros Descontos</td>
+              <td className="py-1 text-right"></td>
+              <td className="py-1 text-right">{formatCurrency(entry.other_discount)}</td>
             </tr>
           )}
         </tbody>
