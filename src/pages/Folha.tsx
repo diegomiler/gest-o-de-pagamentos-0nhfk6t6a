@@ -349,9 +349,38 @@ export default function Folha() {
         overtimeValue +
         currentAdditions -
         currentDeductions
+
+      acc.commissions += entry.commissions || 0
+      acc.bonuses += entry.bonuses || 0
+      acc.other_addition += entry.other_addition || 0
+      acc.pharmacy += entry.pharmacy || 0
+      acc.advances += entry.advances || 0
+      acc.cash_shortage += entry.cash_shortage || 0
+      acc.negative_hours += entry.negative_hours || 0
+      acc.partner_agreement += entry.partner_agreement || 0
+      acc.store_agreement += entry.store_agreement || 0
+      acc.other_discount += entry.other_discount || 0
+
       return acc
     },
-    { base: 0, additional: 0, overtime: 0, additions: 0, deductions: 0, net: 0 },
+    {
+      base: 0,
+      additional: 0,
+      overtime: 0,
+      additions: 0,
+      deductions: 0,
+      net: 0,
+      commissions: 0,
+      bonuses: 0,
+      other_addition: 0,
+      pharmacy: 0,
+      advances: 0,
+      cash_shortage: 0,
+      negative_hours: 0,
+      partner_agreement: 0,
+      store_agreement: 0,
+      other_discount: 0,
+    },
   )
 
   return (
@@ -381,7 +410,7 @@ export default function Folha() {
           <Table className="min-w-[1000px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-[200px] sticky left-0 z-20 bg-muted/50 shadow-[1px_0_0_0_#e5e7eb]">
+                <TableHead className="w-[200px] sticky left-0 z-20 bg-muted shadow-[1px_0_0_0_#e5e7eb]">
                   Funcionário
                 </TableHead>
                 <TableHead className="text-right">Salário Líq.</TableHead>
@@ -398,7 +427,7 @@ export default function Folha() {
                 <TableHead className="text-right text-rose-600">Conv. Parc. (-)</TableHead>
                 <TableHead className="text-right text-rose-600">Conv. Loja (-)</TableHead>
                 <TableHead className="text-right text-rose-600">Outros Desc. (-)</TableHead>
-                <TableHead className="text-right font-bold bg-muted/50 sticky right-0 shadow-[-1px_0_0_0_#e5e7eb] z-20">
+                <TableHead className="text-right font-bold bg-muted sticky right-0 shadow-[-1px_0_0_0_#e5e7eb] z-20">
                   Líquido
                 </TableHead>
               </TableRow>
@@ -436,7 +465,12 @@ export default function Folha() {
                     key={entry.employee_id}
                     className={isOverLimit ? 'bg-rose-50/50 hover:bg-rose-50/50' : ''}
                   >
-                    <TableCell className="font-medium sticky left-0 z-10 bg-card shadow-[1px_0_0_0_#e5e7eb]">
+                    <TableCell
+                      className={cn(
+                        'font-medium sticky left-0 z-10 shadow-[1px_0_0_0_#e5e7eb]',
+                        isOverLimit ? 'bg-rose-100' : 'bg-muted',
+                      )}
+                    >
                       <div>{emp.name}</div>
                       <div className="text-xs text-muted-foreground">{emp.role}</div>
                     </TableCell>
@@ -576,7 +610,10 @@ export default function Folha() {
                       />
                     </TableCell>
                     <TableCell
-                      className={`text-right font-bold sticky right-0 bg-card shadow-[-1px_0_0_0_#e5e7eb] z-10 ${isOverLimit ? 'text-rose-600' : ''}`}
+                      className={cn(
+                        'text-right font-bold sticky right-0 shadow-[-1px_0_0_0_#e5e7eb] z-10',
+                        isOverLimit ? 'bg-rose-100 text-rose-600' : 'bg-muted',
+                      )}
                     >
                       {formatCurrency(net)}
                     </TableCell>
@@ -584,9 +621,9 @@ export default function Folha() {
                 )
               })}
             </TableBody>
-            <TableFooter className="bg-muted/50">
+            <TableFooter className="bg-muted">
               <TableRow>
-                <TableCell className="sticky left-0 z-20 bg-muted/50 shadow-[1px_0_0_0_#e5e7eb]">
+                <TableCell className="sticky left-0 z-20 bg-muted shadow-[1px_0_0_0_#e5e7eb] font-bold">
                   Total
                 </TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.base)}</TableCell>
@@ -595,21 +632,37 @@ export default function Folha() {
                 <TableCell className="text-right text-emerald-600 font-medium">
                   +{formatCurrency(totals.overtime)}
                 </TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
                 <TableCell className="text-right text-emerald-600 font-medium">
-                  +{formatCurrency(totals.additions)}
+                  +{formatCurrency(totals.commissions)}
                 </TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
-                <TableCell></TableCell>
+                <TableCell className="text-right text-emerald-600 font-medium">
+                  +{formatCurrency(totals.bonuses)}
+                </TableCell>
+                <TableCell className="text-right text-emerald-600 font-medium">
+                  +{formatCurrency(totals.other_addition)}
+                </TableCell>
                 <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.deductions)}
+                  -{formatCurrency(totals.pharmacy)}
                 </TableCell>
-                <TableCell className="text-right font-bold text-lg sticky right-0 bg-muted/50 shadow-[-1px_0_0_0_#e5e7eb] z-20">
+                <TableCell className="text-right text-rose-600 font-medium">
+                  -{formatCurrency(totals.advances)}
+                </TableCell>
+                <TableCell className="text-right text-rose-600 font-medium">
+                  -{formatCurrency(totals.cash_shortage)}
+                </TableCell>
+                <TableCell className="text-right text-rose-600 font-medium">
+                  -{formatCurrency(totals.negative_hours)}
+                </TableCell>
+                <TableCell className="text-right text-rose-600 font-medium">
+                  -{formatCurrency(totals.partner_agreement)}
+                </TableCell>
+                <TableCell className="text-right text-rose-600 font-medium">
+                  -{formatCurrency(totals.store_agreement)}
+                </TableCell>
+                <TableCell className="text-right text-rose-600 font-medium">
+                  -{formatCurrency(totals.other_discount)}
+                </TableCell>
+                <TableCell className="text-right font-bold text-lg sticky right-0 bg-muted shadow-[-1px_0_0_0_#e5e7eb] z-20">
                   {formatCurrency(totals.net)}
                 </TableCell>
               </TableRow>
