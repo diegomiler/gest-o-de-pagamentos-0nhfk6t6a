@@ -121,7 +121,9 @@ export default function Folha() {
           overtime_hours_str: decimalToTime(overtime_hours),
           base_net: base_net || 0,
         }
-      })      setEntries(merged)
+      })
+
+      setEntries(merged)
     } catch {
       /* intentionally ignored */
     }
