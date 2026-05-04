@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-30T20:36:41.903Z",
+  "generatedAt": "2026-05-04T18:17:01.949Z",
   "collections": [
     {
       "name": "users",
@@ -213,7 +213,8 @@
             "pharmacy_discount",
             "advance",
             "additional",
-            "other"
+            "other",
+            "overtime"
           ]
         },
         {
@@ -247,6 +248,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "quantity",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

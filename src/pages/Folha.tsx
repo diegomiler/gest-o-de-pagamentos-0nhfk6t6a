@@ -41,12 +41,14 @@ export default function Folha() {
         let commissions = 0,
           bonuses = 0,
           pharmacy = 0,
-          advances = 0
+          advances = 0,
+          overtime_hours = 0
         empEntries.forEach((e) => {
           if (e.category === 'commission') commissions += e.amount
           if (e.category === 'bonus') bonuses += e.amount
           if (e.category === 'pharmacy_discount') pharmacy += e.amount
           if (e.category === 'advance') advances += e.amount
+          if (e.category === 'overtime') overtime_hours += e.quantity || 0
         })
 
         return {
@@ -55,6 +57,7 @@ export default function Folha() {
           bonuses,
           pharmacy,
           advances,
+          overtime_hours,
         }
       })
       setEntries(merged)
@@ -81,7 +84,13 @@ export default function Folha() {
     const hasErrors = entries.some((entry) => {
       const emp = employees.find((e) => e.id === entry.employee_id)
       if (!emp) return false
-      const additions = emp.base_salary + entry.commissions + entry.bonuses
+      const overtimeValue = (emp.base_salary / 30 / 7.33) * 1.5 * (entry.overtime_hours || 0)
+      const additions =
+        emp.base_salary +
+        (emp.additional_amount || 0) +
+        overtimeValue +
+        entry.commissions +
+        entry.bonuses
       const deductions = entry.pharmacy + entry.advances
       return deductions > additions * 0.3
     })
@@ -115,14 +124,23 @@ export default function Folha() {
     (acc, entry) => {
       const emp = employees.find((e) => e.id === entry.employee_id)
       if (!emp) return acc
+      const overtimeValue = (emp.base_salary / 30 / 7.33) * 1.5 * (entry.overtime_hours || 0)
       acc.base += emp.base_salary
+      acc.additional += emp.additional_amount || 0
+      acc.overtime += overtimeValue
       acc.additions += entry.commissions + entry.bonuses
       acc.deductions += entry.pharmacy + entry.advances
       acc.net +=
-        emp.base_salary + entry.commissions + entry.bonuses - entry.pharmacy - entry.advances
+        emp.base_salary +
+        (emp.additional_amount || 0) +
+        overtimeValue +
+        entry.commissions +
+        entry.bonuses -
+        entry.pharmacy -
+        entry.advances
       return acc
     },
-    { base: 0, additions: 0, deductions: 0, net: 0 },
+    { base: 0, additional: 0, overtime: 0, additions: 0, deductions: 0, net: 0 },
   )
 
   return (
@@ -131,7 +149,7 @@ export default function Folha() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Lançamentos da Folha</h2>
           <p className="text-muted-foreground">
-            Registre comissões, adicionais e descontos mensais.
+            Registre comissões, horas extras e descontos mensais.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -148,14 +166,19 @@ export default function Folha() {
       </div>
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table className="min-w-[800px]">
+        <CardContent className="p-0 overflow-x-auto relative">
+          <Table className="min-w-[1000px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-[200px]">Funcionário</TableHead>
+                <TableHead className="w-[200px] sticky left-0 z-20 bg-muted/50 shadow-[1px_0_0_0_#e5e7eb]">
+                  Funcionário
+                </TableHead>
                 <TableHead className="text-right">Salário Base</TableHead>
+                <TableHead className="text-right">Adicional Fix.</TableHead>
+                <TableHead className="text-right text-emerald-600">Hrs Extras</TableHead>
+                <TableHead className="text-right text-emerald-600">Val. Extras</TableHead>
                 <TableHead className="text-right text-emerald-600">Comissões (+)</TableHead>
-                <TableHead className="text-right text-emerald-600">Adicionais (+)</TableHead>
+                <TableHead className="text-right text-emerald-600">Bônus (+)</TableHead>
                 <TableHead className="text-right text-rose-600">Farmácia (-)</TableHead>
                 <TableHead className="text-right text-rose-600">Vales (-)</TableHead>
                 <TableHead className="text-right font-bold">Líquido</TableHead>
@@ -165,29 +188,52 @@ export default function Folha() {
               {entries.map((entry) => {
                 const emp = employees.find((e) => e.id === entry.employee_id)
                 if (!emp) return null
-                const net =
+                const overtimeValue =
+                  (emp.base_salary / 30 / 7.33) * 1.5 * (entry.overtime_hours || 0)
+                const totalAdditions =
                   emp.base_salary +
+                  (emp.additional_amount || 0) +
+                  overtimeValue +
                   entry.commissions +
-                  entry.bonuses -
-                  entry.pharmacy -
-                  entry.advances
-                const isOverLimit =
-                  entry.pharmacy + entry.advances >
-                  (emp.base_salary + entry.commissions + entry.bonuses) * 0.3
+                  entry.bonuses
+                const totalDeductions = entry.pharmacy + entry.advances
+                const net = totalAdditions - totalDeductions
+                const isOverLimit = totalDeductions > totalAdditions * 0.3
 
                 return (
-                  <TableRow key={entry.employee_id} className={isOverLimit ? 'bg-rose-50/50' : ''}>
-                    <TableCell className="font-medium">
+                  <TableRow
+                    key={entry.employee_id}
+                    className={isOverLimit ? 'bg-rose-50/50 hover:bg-rose-50/50' : ''}
+                  >
+                    <TableCell className="font-medium sticky left-0 z-10 bg-card shadow-[1px_0_0_0_#e5e7eb]">
                       <div>{emp.name}</div>
                       <div className="text-xs text-muted-foreground">{emp.role}</div>
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(emp.base_salary)}</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(emp.additional_amount || 0)}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.5"
+                        className="text-right h-8 w-20 ml-auto"
+                        value={entry.overtime_hours || ''}
+                        onChange={(e) =>
+                          handleInputChange(emp.id, 'overtime_hours', e.target.value)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="text-right text-emerald-600">
+                      {formatCurrency(overtimeValue)}
+                    </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         min="0"
                         step="0.01"
-                        className="text-right h-8"
+                        className="text-right h-8 w-24 ml-auto"
                         value={entry.commissions || ''}
                         onChange={(e) => handleInputChange(emp.id, 'commissions', e.target.value)}
                       />
@@ -197,7 +243,7 @@ export default function Folha() {
                         type="number"
                         min="0"
                         step="0.01"
-                        className="text-right h-8"
+                        className="text-right h-8 w-24 ml-auto"
                         value={entry.bonuses || ''}
                         onChange={(e) => handleInputChange(emp.id, 'bonuses', e.target.value)}
                       />
@@ -207,7 +253,7 @@ export default function Folha() {
                         type="number"
                         min="0"
                         step="0.01"
-                        className="text-right h-8"
+                        className="text-right h-8 w-24 ml-auto"
                         value={entry.pharmacy || ''}
                         onChange={(e) => handleInputChange(emp.id, 'pharmacy', e.target.value)}
                       />
@@ -217,7 +263,7 @@ export default function Folha() {
                         type="number"
                         min="0"
                         step="0.01"
-                        className="text-right h-8"
+                        className="text-right h-8 w-24 ml-auto"
                         value={entry.advances || ''}
                         onChange={(e) => handleInputChange(emp.id, 'advances', e.target.value)}
                       />
@@ -233,8 +279,15 @@ export default function Folha() {
             </TableBody>
             <TableFooter className="bg-muted/50">
               <TableRow>
-                <TableCell>Total</TableCell>
+                <TableCell className="sticky left-0 z-20 bg-muted/50 shadow-[1px_0_0_0_#e5e7eb]">
+                  Total
+                </TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.base)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(totals.additional)}</TableCell>
+                <TableCell></TableCell>
+                <TableCell className="text-right text-emerald-600 font-medium">
+                  +{formatCurrency(totals.overtime)}
+                </TableCell>
                 <TableCell className="text-right text-emerald-600 font-medium">
                   +{formatCurrency(totals.additions)}
                 </TableCell>
