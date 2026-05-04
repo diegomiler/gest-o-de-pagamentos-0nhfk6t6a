@@ -100,13 +100,15 @@ export default function Folha() {
           bonuses = 0,
           pharmacy = 0,
           advances = 0,
-          overtime_hours = 0
+          overtime_hours = 0,
+          base_net = 0
         empEntries.forEach((e) => {
           if (e.category === 'commission') commissions += e.amount
           if (e.category === 'bonus') bonuses += e.amount
           if (e.category === 'pharmacy_discount') pharmacy += e.amount
           if (e.category === 'advance') advances += e.amount
           if (e.category === 'overtime') overtime_hours += e.quantity || 0
+          if (e.category === 'base_net') base_net += e.amount
         })
 
         return {
@@ -117,9 +119,9 @@ export default function Folha() {
           advances,
           overtime_hours,
           overtime_hours_str: decimalToTime(overtime_hours),
+          base_net: base_net || 0,
         }
-      })
-      setEntries(merged)
+      })      setEntries(merged)
     } catch {
       /* intentionally ignored */
     }
@@ -163,7 +165,7 @@ export default function Folha() {
         companies,
       )
       const additions =
-        emp.base_salary +
+        (entry.base_net || 0) +
         (emp.additional_amount || 0) +
         overtimeValue +
         entry.commissions +
@@ -171,7 +173,6 @@ export default function Folha() {
       const deductions = entry.pharmacy + entry.advances
       return deductions > additions * 0.3
     })
-
     if (hasErrors) {
       toast({
         title: 'Atenção',
@@ -207,13 +208,13 @@ export default function Folha() {
         emp.company_id,
         companies,
       )
-      acc.base += emp.base_salary
+      acc.base += entry.base_net || 0
       acc.additional += emp.additional_amount || 0
       acc.overtime += overtimeValue
       acc.additions += entry.commissions + entry.bonuses
       acc.deductions += entry.pharmacy + entry.advances
       acc.net +=
-        emp.base_salary +
+        (entry.base_net || 0) +
         (emp.additional_amount || 0) +
         overtimeValue +
         entry.commissions +
@@ -255,7 +256,7 @@ export default function Folha() {
                 <TableHead className="w-[200px] sticky left-0 z-20 bg-muted/50 shadow-[1px_0_0_0_#e5e7eb]">
                   Funcionário
                 </TableHead>
-                <TableHead className="text-right">Salário Base</TableHead>
+                <TableHead className="text-right">Salário Líq.</TableHead>
                 <TableHead className="text-right">Adicional Fix.</TableHead>
                 <TableHead className="text-right text-emerald-600">Hrs Extras</TableHead>
                 <TableHead className="text-right text-emerald-600">Val. Extras</TableHead>
@@ -277,7 +278,7 @@ export default function Folha() {
                   companies,
                 )
                 const totalAdditions =
-                  emp.base_salary +
+                  (entry.base_net || 0) +
                   (emp.additional_amount || 0) +
                   overtimeValue +
                   entry.commissions +
@@ -295,7 +296,16 @@ export default function Folha() {
                       <div>{emp.name}</div>
                       <div className="text-xs text-muted-foreground">{emp.role}</div>
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(emp.base_salary)}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="text-right h-8 w-24 ml-auto"
+                        value={entry.base_net || ''}
+                        onChange={(e) => handleInputChange(emp.id, 'base_net', e.target.value)}
+                      />
+                    </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(emp.additional_amount || 0)}
                     </TableCell>

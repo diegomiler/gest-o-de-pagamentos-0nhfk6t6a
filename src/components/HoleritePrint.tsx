@@ -8,7 +8,7 @@ type Props = {
 }
 
 export function HoleritePrint({ employee, entry, company }: Props) {
-  const additions = employee.base_salary + entry.commissions + entry.bonuses
+  const additions = (entry.base_net || 0) + entry.commissions + entry.bonuses
   const deductions = entry.pharmacy + entry.advances
   const net = additions - deductions
 
@@ -62,8 +62,8 @@ export function HoleritePrint({ employee, entry, company }: Props) {
         </thead>
         <tbody>
           <tr>
-            <td className="py-1">Salário Base</td>
-            <td className="py-1 text-right">{formatCurrency(employee.base_salary)}</td>
+            <td className="py-1">Salário Líquido (Base)</td>
+            <td className="py-1 text-right">{formatCurrency(entry.base_net || 0)}</td>
             <td className="py-1 text-right"></td>
           </tr>
           {entry.commissions > 0 && (

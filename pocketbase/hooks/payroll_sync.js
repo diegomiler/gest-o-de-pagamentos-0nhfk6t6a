@@ -4,50 +4,67 @@ routerAdd(
   (e) => {
     const body = e.requestInfo().body
     const month = body.month
-    const entries = body.entries || []
+    const entries = body.entries
 
-    if (!month) return e.badRequestError('Month is required')
+    if (!month || !entries) {
+      return e.badRequestError('Missing month or entries')
+    }
 
     const startDate = `${month}-01 00:00:00`
     const endDate = `${month}-31 23:59:59`
 
     $app.runInTransaction((txApp) => {
-      // Delete existing entries for this month
-      const existing = txApp.findRecordsByFilter(
-        'payroll_entries',
-        `entry_date >= '${startDate}' && entry_date <= '${endDate}'`,
-        '',
-        10000,
-        0,
-      )
-      for (const record of existing) {
-        txApp.delete(record)
-      }
-
-      const col = txApp.findCollectionByNameOrId('payroll_entries')
-
       for (const entry of entries) {
-        const emp = txApp.findRecordById('employees', entry.employee_id)
+        const empId = entry.employee_id
+        const emp = txApp.findRecordById('employees', empId)
         const companyId = emp.get('company_id')
 
-        const createEntry = (category, amount, quantity = 0) => {
-          const record = new Record(col)
-          record.set('employee_id', entry.employee_id)
-          record.set('company_id', companyId)
-          record.set('category', category)
-          record.set('amount', amount)
-          if (quantity > 0) record.set('quantity', quantity)
-          record.set('entry_date', `${month}-01 12:00:00`)
-          txApp.save(record)
-        }
+        const categories = [
+          { name: 'commission', amount: Number(entry.commissions) || 0, qty: 0 },
+          { name: 'bonus', amount: Number(entry.bonuses) || 0, qty: 0 },
+          { name: 'pharmacy_discount', amount: Number(entry.pharmacy) || 0, qty: 0 },
+          { name: 'advance', amount: Number(entry.advances) || 0, qty: 0 },
+          { name: 'overtime', amount: 0, qty: Number(entry.overtime_hours) || 0 },
+          { name: 'base_net', amount: Number(entry.base_net) || 0, qty: 0 },
+        ]
 
-        if (entry.commissions > 0) createEntry('commission', entry.commissions)
-        if (entry.bonuses > 0) createEntry('bonus', entry.bonuses)
-        if (entry.pharmacy > 0) createEntry('pharmacy_discount', entry.pharmacy)
-        if (entry.advances > 0) createEntry('advance', entry.advances)
-        if (entry.overtime_hours > 0) createEntry('overtime', 0, entry.overtime_hours)
-        if (entry.base_net !== null && entry.base_net !== undefined && entry.base_net !== '') {
-          createEntry('base_net', Number(entry.base_net))
+        for (const cat of categories) {
+          let existing = null
+          try {
+            const records = txApp.findRecordsByFilter(
+              'payroll_entries',
+              `employee_id = '${empId}' && category = '${cat.name}' && entry_date >= '${startDate}' && entry_date <= '${endDate}'`,
+              '-created',
+              1,
+              0,
+            )
+            if (records && records.length > 0) {
+              existing = records[0]
+            }
+          } catch (err) {}
+
+          if (cat.amount === 0 && cat.qty === 0) {
+            if (existing) {
+              txApp.delete(existing)
+            }
+            continue
+          }
+
+          if (existing) {
+            existing.set('amount', cat.amount)
+            existing.set('quantity', cat.qty)
+            txApp.save(existing)
+          } else {
+            const col = txApp.findCollectionByNameOrId('payroll_entries')
+            const newRec = new Record(col)
+            newRec.set('employee_id', empId)
+            newRec.set('company_id', companyId)
+            newRec.set('category', cat.name)
+            newRec.set('amount', cat.amount)
+            newRec.set('quantity', cat.qty)
+            newRec.set('entry_date', `${month}-01 12:00:00`)
+            txApp.save(newRec)
+          }
         }
       }
     })
