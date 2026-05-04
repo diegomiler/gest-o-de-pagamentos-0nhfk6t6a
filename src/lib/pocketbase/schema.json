@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-04T18:17:01.949Z",
+  "generatedAt": "2026-05-04T18:36:06.600Z",
   "collections": [
     {
       "name": "users",
@@ -170,6 +170,12 @@
         },
         {
           "name": "additional_amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "overtime_parameter",
           "type": "number",
           "required": false,
           "system": false

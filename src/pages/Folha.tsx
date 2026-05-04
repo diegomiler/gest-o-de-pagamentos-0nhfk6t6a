@@ -11,7 +11,13 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import { Card, CardContent } from '@/components/ui/card'
-import { formatCurrency, parseInputValue } from '@/lib/format'
+import {
+  formatCurrency,
+  parseInputValue,
+  timeToDecimal,
+  decimalToTime,
+  formatTimeOnBlur,
+} from '@/lib/format'
 import { useToast } from '@/hooks/use-toast'
 import { Save } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
@@ -58,6 +64,7 @@ export default function Folha() {
           pharmacy,
           advances,
           overtime_hours,
+          overtime_hours_str: decimalToTime(overtime_hours),
         }
       })
       setEntries(merged)
@@ -74,6 +81,18 @@ export default function Folha() {
   useRealtime('payroll_entries', loadData)
 
   const handleInputChange = (employee_id: string, field: string, value: string) => {
+    if (field === 'overtime_hours_str') {
+      const decimal = timeToDecimal(value)
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.employee_id === employee_id
+            ? { ...e, overtime_hours_str: value, overtime_hours: decimal }
+            : e,
+        ),
+      )
+      return
+    }
+
     const num = parseInputValue(value)
     setEntries((prev) =>
       prev.map((e) => (e.employee_id === employee_id ? { ...e, [field]: num } : e)),
@@ -84,7 +103,9 @@ export default function Folha() {
     const hasErrors = entries.some((entry) => {
       const emp = employees.find((e) => e.id === entry.employee_id)
       if (!emp) return false
-      const overtimeValue = (emp.base_salary / 30 / 7.33) * 1.5 * (entry.overtime_hours || 0)
+      const overtimeParam = emp.overtime_parameter ?? 1.5
+      const overtimeValue =
+        (emp.base_salary / 30 / 7.33) * overtimeParam * (entry.overtime_hours || 0)
       const additions =
         emp.base_salary +
         (emp.additional_amount || 0) +
@@ -124,7 +145,9 @@ export default function Folha() {
     (acc, entry) => {
       const emp = employees.find((e) => e.id === entry.employee_id)
       if (!emp) return acc
-      const overtimeValue = (emp.base_salary / 30 / 7.33) * 1.5 * (entry.overtime_hours || 0)
+      const overtimeParam = emp.overtime_parameter ?? 1.5
+      const overtimeValue =
+        (emp.base_salary / 30 / 7.33) * overtimeParam * (entry.overtime_hours || 0)
       acc.base += emp.base_salary
       acc.additional += emp.additional_amount || 0
       acc.overtime += overtimeValue
@@ -188,8 +211,9 @@ export default function Folha() {
               {entries.map((entry) => {
                 const emp = employees.find((e) => e.id === entry.employee_id)
                 if (!emp) return null
+                const overtimeParam = emp.overtime_parameter ?? 1.5
                 const overtimeValue =
-                  (emp.base_salary / 30 / 7.33) * 1.5 * (entry.overtime_hours || 0)
+                  (emp.base_salary / 30 / 7.33) * overtimeParam * (entry.overtime_hours || 0)
                 const totalAdditions =
                   emp.base_salary +
                   (emp.additional_amount || 0) +
@@ -215,14 +239,21 @@ export default function Folha() {
                     </TableCell>
                     <TableCell>
                       <Input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        className="text-right h-8 w-20 ml-auto"
-                        value={entry.overtime_hours || ''}
-                        onChange={(e) =>
-                          handleInputChange(emp.id, 'overtime_hours', e.target.value)
-                        }
+                        type="text"
+                        placeholder="00:00"
+                        className="text-right h-8 w-24 ml-auto"
+                        value={entry.overtime_hours_str || ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^\d:]/g, '')
+                          handleInputChange(emp.id, 'overtime_hours_str', val)
+                        }}
+                        onBlur={(e) => {
+                          const val = e.target.value
+                          if (val) {
+                            const formatted = formatTimeOnBlur(val)
+                            handleInputChange(emp.id, 'overtime_hours_str', formatted)
+                          }
+                        }}
                       />
                     </TableCell>
                     <TableCell className="text-right text-emerald-600">

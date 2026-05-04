@@ -27,6 +27,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
       company_id: '',
       base_salary: 0,
       additional_amount: 0,
+      overtime_parameter: 1.5,
       status: 'active',
       admission_date: new Date().toISOString().split('T')[0],
     },
@@ -107,7 +108,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="base_salary">Salário Base *</Label>
           <Input
@@ -130,6 +131,18 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
             value={formData.additional_amount}
             onChange={(e) =>
               setFormData({ ...formData, additional_amount: parseFloat(e.target.value) || 0 })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="overtime_parameter">Parâmetro Hrs Extras</Label>
+          <Input
+            id="overtime_parameter"
+            type="number"
+            step="0.1"
+            value={formData.overtime_parameter ?? 1.5}
+            onChange={(e) =>
+              setFormData({ ...formData, overtime_parameter: parseFloat(e.target.value) || 0 })
             }
           />
         </div>
