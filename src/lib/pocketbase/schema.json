@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-08T14:20:27.675Z",
+  "generatedAt": "2026-05-08T14:34:44.631Z",
   "collections": [
     {
       "name": "users",
@@ -93,12 +93,6 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
-        },
-        {
-          "name": "overtime_config",
-          "type": "json",
-          "required": false,
-          "system": false
         },
         {
           "name": "address",

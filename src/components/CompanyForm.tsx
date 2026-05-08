@@ -7,18 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
-import {
-  Plus,
-  Trash2,
-  UploadCloud,
-  Image as ImageIcon,
-  X,
-  Loader2,
-  ArrowLeft,
-  HelpCircle,
-} from 'lucide-react'
+import { UploadCloud, Image as ImageIcon, X, Loader2, ArrowLeft } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function CompanyForm({
   companyId,
@@ -35,7 +25,6 @@ export function CompanyForm({
   const [formData, setFormData] = useState({ name: '', tax_id: '', address: '' })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [overtimeRules, setOvertimeRules] = useState<{ rule: string; percentage: string }[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -50,21 +39,6 @@ export function CompanyForm({
             address: company.address || '',
           })
           setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
-          let rules: { rule: string; percentage: string }[] = []
-          if (company.overtime_config) {
-            if (Array.isArray(company.overtime_config)) {
-              rules = company.overtime_config.map((b: any) => ({
-                rule: b.rule || b.limit?.toString() || '',
-                percentage: b.percentage?.toString() || '',
-              }))
-            } else if (typeof company.overtime_config === 'object') {
-              rules = Object.entries(company.overtime_config).map(([k, v]) => ({
-                rule: k,
-                percentage: v?.toString() || '',
-              }))
-            }
-          }
-          setOvertimeRules(rules)
           setIsLoading(false)
         })
         .catch(() => {
@@ -88,18 +62,10 @@ export function CompanyForm({
       return
     }
     try {
-      const configObj: Record<string, number> = {}
-      overtimeRules.forEach((r) => {
-        if (r.rule.trim()) {
-          configObj[r.rule.trim()] = Number(r.percentage) || 0
-        }
-      })
-
       const payload: any = {
         name: formData.name,
         tax_id: formData.tax_id || '',
         address: formData.address || '',
-        overtime_config: configObj,
       }
       if (logoFile) payload.logo = logoFile
       else if (logoPreview === null) payload.logo = null
@@ -178,71 +144,6 @@ export function CompanyForm({
                   className="resize-none"
                 />
                 {errors.address && <p className="text-sm text-destructive">{errors.address}</p>}
-              </div>
-            </div>
-            <div className="space-y-4 pt-4 border-t">
-              <div className="flex items-center gap-2">
-                <Label className="text-base">Regras de Horas Extras</Label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-[300px] text-sm">
-                    <p>
-                      Configuração de Horas Extras: Defina os percentuais para dias úteis e finais
-                      de semana (ex: {"{'semana': 50, 'domingo': 100}"}).
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <div className="space-y-3">
-                {overtimeRules.map((b, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    <Input
-                      type="text"
-                      placeholder="Regra (ex: semana, domingo)"
-                      value={b.rule}
-                      onChange={(e) => {
-                        const n = [...overtimeRules]
-                        n[idx].rule = e.target.value
-                        setOvertimeRules(n)
-                      }}
-                      className="flex-1"
-                    />
-                    <span className="text-sm text-muted-foreground"> = </span>
-                    <Input
-                      type="number"
-                      placeholder="%"
-                      value={b.percentage}
-                      onChange={(e) => {
-                        const n = [...overtimeRules]
-                        n[idx].percentage = e.target.value
-                        setOvertimeRules(n)
-                      }}
-                      className="w-24"
-                    />
-                    <span className="text-sm text-muted-foreground">%</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setOvertimeRules(overtimeRules.filter((_, i) => i !== idx))}
-                      className="text-destructive shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setOvertimeRules([...overtimeRules, { rule: '', percentage: '50' }])
-                  }
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar Regra
-                </Button>
               </div>
             </div>
             <div className="space-y-4 pt-4 border-t">
