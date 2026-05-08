@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 import { CompanyForm } from '@/components/CompanyForm'
 import { useAuth } from '@/hooks/use-auth'
+import { toast } from 'sonner'
 
 export default function Configuracoes() {
   const { user } = useAuth()
@@ -19,7 +20,18 @@ export default function Configuracoes() {
         try {
           await pb.collection('companies').getOne(user.company_id)
           setCompanyId(user.company_id)
-        } catch {
+        } catch (err: any) {
+          if (err.status === 404) {
+            toast.error('Empresa não encontrada', {
+              description:
+                'O registro da empresa não foi encontrado. Por favor, crie uma nova configuração.',
+            })
+            try {
+              await pb.collection('users').update(user.id, { company_id: null })
+            } catch (updateErr) {
+              console.error('Falha ao limpar company_id do usuário', updateErr)
+            }
+          }
           setCompanyId(null)
         }
       } else {
