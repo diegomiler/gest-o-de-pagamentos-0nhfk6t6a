@@ -113,20 +113,21 @@ export function FechamentoView() {
           }
         })
 
+        const fixedAdditional = emp.additional_amount || 0
+        totalEarnings += fixedAdditional
+
         const netTotal = totalEarnings - totalDiscounts
-        const pdfTotalEarnings = totalEarnings - baseSalary
-        const pdfNetTotal = pdfTotalEarnings - totalDiscounts
 
         return {
           id: emp.id,
           name: emp.name,
           role: emp.role || emp.department || '',
           baseSalary,
+          fixedAdditional,
           overtime,
           commissionBonus,
           otherAdditions,
           totalEarnings,
-          pdfTotalEarnings,
           pharmacyStore,
           cashShortage,
           negativeHours,
@@ -134,7 +135,6 @@ export function FechamentoView() {
           otherDiscounts,
           totalDiscounts,
           netTotal,
-          pdfNetTotal,
           entries: entries.sort(
             (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime(),
           ),
@@ -148,6 +148,7 @@ export function FechamentoView() {
     return reportData.reduce(
       (acc, row) => ({
         baseSalary: acc.baseSalary + row.baseSalary,
+        fixedAdditional: acc.fixedAdditional + row.fixedAdditional,
         overtime: acc.overtime + row.overtime,
         commissionBonus: acc.commissionBonus + row.commissionBonus,
         otherAdditions: acc.otherAdditions + row.otherAdditions,
@@ -162,6 +163,7 @@ export function FechamentoView() {
       }),
       {
         baseSalary: 0,
+        fixedAdditional: 0,
         overtime: 0,
         commissionBonus: 0,
         otherAdditions: 0,
@@ -181,7 +183,15 @@ export function FechamentoView() {
 
   const handleExportCSV = () => {
     if (!activeCompany) return
-    const headers = ['Período', 'Funcionário', 'Cargo', 'Categoria', 'Valor', 'Data']
+    const headers = [
+      'Período',
+      'Funcionário',
+      'Cargo',
+      'Categoria',
+      'Valor',
+      'Data',
+      'Total Proventos',
+    ]
 
     const rows: string[][] = []
 
@@ -192,14 +202,15 @@ export function FechamentoView() {
           `"${emp.name}"`,
           `"${emp.role}"`,
           `"${CATEGORY_NAMES[entry.category] || entry.category}"`,
-          entry.amount.toFixed(2),
+          `"${entry.amount.toFixed(2).replace('.', ',')}"`,
           `"${entry.entry_date.split(' ')[0]}"`,
+          `"${emp.totalEarnings.toFixed(2).replace('.', ',')}"`,
         ])
       })
     })
 
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const csvContent = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n')
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -457,7 +468,7 @@ export function FechamentoView() {
                 <div className="grid grid-cols-2 gap-8">
                   <div>
                     <p className="font-bold border-b border-gray-300 pb-1 mb-2 uppercase text-xs text-gray-500">
-                      Proventos Variáveis
+                      Proventos
                     </p>
                     {row.entries
                       .filter(
@@ -479,12 +490,12 @@ export function FechamentoView() {
                         e.category !== 'additional',
                     ).length === 0 && (
                       <div className="text-sm py-1 text-gray-400 italic">
-                        Nenhum provento variável
+                        Nenhum provento lançado
                       </div>
                     )}
                     <div className="flex justify-between font-bold text-sm mt-2 pt-2 border-t border-gray-300">
-                      <span>Total Proventos Variáveis</span>
-                      <span>{formatCurrency(row.pdfTotalEarnings)}</span>
+                      <span>Total Proventos</span>
+                      <span>{formatCurrency(row.totalEarnings)}</span>
                     </div>
                   </div>
 
@@ -512,7 +523,7 @@ export function FechamentoView() {
 
                 <div className="mt-4 flex justify-end">
                   <div className="bg-gray-100 px-4 py-2 rounded-md font-bold text-lg border border-gray-200">
-                    Líquido Variável a Pagar: {formatCurrency(row.pdfNetTotal)}
+                    Total Líquido a Pagar: {formatCurrency(row.netTotal)}
                   </div>
                 </div>
               </div>
@@ -528,12 +539,8 @@ export function FechamentoView() {
           {reportData.length > 0 && (
             <div className="mt-8 border-t-2 border-black pt-4 flex justify-end gap-16 text-sm break-inside-avoid">
               <div>
-                <p className="font-bold text-gray-500 uppercase text-xs mb-1">
-                  Total Vencimentos (Variáveis)
-                </p>
-                <p className="text-xl font-semibold">
-                  {formatCurrency(totals.totalEarnings - totals.baseSalary)}
-                </p>
+                <p className="font-bold text-gray-500 uppercase text-xs mb-1">Total Vencimentos</p>
+                <p className="text-xl font-semibold">{formatCurrency(totals.totalEarnings)}</p>
               </div>
               <div>
                 <p className="font-bold text-gray-500 uppercase text-xs mb-1">Total de Descontos</p>
@@ -541,11 +548,9 @@ export function FechamentoView() {
               </div>
               <div>
                 <p className="font-bold text-gray-500 uppercase text-xs mb-1">
-                  Total Líquido Geral (Variável)
+                  Total Líquido Geral
                 </p>
-                <p className="text-2xl font-black">
-                  {formatCurrency(totals.netTotal - totals.baseSalary)}
-                </p>
+                <p className="text-2xl font-black">{formatCurrency(totals.netTotal)}</p>
               </div>
             </div>
           )}
