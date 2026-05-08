@@ -62,7 +62,7 @@ routerAdd(
           const rawValue = empData[map.key]
           const amount = Number(rawValue) || 0
 
-          if (amount !== 0 || map.cat === 'base_net') {
+          if (amount !== 0) {
             const rec = new Record(payrollCol)
             rec.set('employee_id', empId)
             rec.set('company_id', companyId)
@@ -77,12 +77,13 @@ routerAdd(
         }
 
         const otHours = Number(empData.overtime_hours) || 0
-        if (otHours !== 0) {
+        const otAmount = Number(empData.overtime_amount) || 0
+        if (otHours !== 0 && otAmount !== 0) {
           const rec = new Record(payrollCol)
           rec.set('employee_id', empId)
           rec.set('company_id', companyId)
           rec.set('category', 'overtime')
-          rec.set('amount', 0)
+          rec.set('amount', otAmount)
           rec.set('quantity', otHours)
           rec.set('entry_date', entryDate)
           txApp.save(rec)

@@ -332,9 +332,38 @@ export default function Folha() {
 
   const handleSave = async () => {
     try {
+      const sanitizedEntries = entries.map((entry) => {
+        const emp = employees.find((e) => e.id === entry.employee_id)
+        const overtime_amount = emp
+          ? calculateOvertimeValue(
+              emp.base_salary,
+              entry.overtime_hours || 0,
+              emp.company_id,
+              companies,
+            )
+          : 0
+
+        return {
+          ...entry,
+          base_net: Number(entry.base_net) || 0,
+          commissions: Number(entry.commissions) || 0,
+          bonuses: Number(entry.bonuses) || 0,
+          pharmacy: Number(entry.pharmacy) || 0,
+          advances: Number(entry.advances) || 0,
+          cash_shortage: Number(entry.cash_shortage) || 0,
+          negative_hours: Number(entry.negative_hours) || 0,
+          partner_agreement: Number(entry.partner_agreement) || 0,
+          store_agreement: Number(entry.store_agreement) || 0,
+          other_discount: Number(entry.other_discount) || 0,
+          other_addition: Number(entry.other_addition) || 0,
+          overtime_hours: Number(entry.overtime_hours) || 0,
+          overtime_amount,
+        }
+      })
+
       await pb.send('/backend/v1/payroll/sync', {
         method: 'POST',
-        body: JSON.stringify({ month: selectedMonth, entries }),
+        body: JSON.stringify({ month: selectedMonth, entries: sanitizedEntries }),
         headers: { 'Content-Type': 'application/json' },
       })
       toast({ title: 'Folha Salva', description: `Folha de ${selectedMonth} salva com sucesso.` })

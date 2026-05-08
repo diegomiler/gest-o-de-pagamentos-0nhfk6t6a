@@ -59,11 +59,9 @@ export function CompanyForm({
     try {
       const unmaskedCnpj = formData.cnpj.replace(/\D/g, '')
       if (unmaskedCnpj) {
-        const exist = await pb
-          .collection('companies')
-          .getList(1, 1, {
-            filter: `cnpj = "${unmaskedCnpj}"${company ? ` && id != "${company.id}"` : ''}`,
-          })
+        const exist = await pb.collection('companies').getList(1, 1, {
+          filter: `cnpj = "${unmaskedCnpj}"${company ? ` && id != "${company.id}"` : ''}`,
+        })
         if (exist.items.length > 0) {
           setErrors({ cnpj: 'CNPJ já cadastrado.' })
           setIsSaving(false)
