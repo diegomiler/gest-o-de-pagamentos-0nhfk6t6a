@@ -163,35 +163,105 @@ export function FechamentoView() {
       'Cargo',
       'Salário Base',
       'Adicional Fixo',
-      'Horas Extras',
-      'Comissões e Prêmios',
-      'Outros Vencimentos',
-      'Total Vencimentos',
-      'Furos de Caixa',
-      'Horas Negativas',
-      'Convênios (Farma/Loja)',
-      'Adiantamentos',
-      'Outros Descontos',
-      'Total Descontos',
-      'Líquido',
+      'Categoria',
+      'Valor',
+      'Quantidade',
+      'Data',
+      'Descrição',
     ]
-    const rows = reportData.map((row) => [
-      `"${activeCompany.name}"`,
-      `"${row.name}"`,
-      `"${row.role}"`,
-      row.baseSalary.toFixed(2),
-      row.additionalFixed.toFixed(2),
-      row.overtime.toFixed(2),
-      row.commissionBonus.toFixed(2),
-      row.otherAdditions.toFixed(2),
-      row.totalEarnings.toFixed(2),
-      row.cashShortage.toFixed(2),
-      row.negativeHours.toFixed(2),
-      row.pharmacyStore.toFixed(2),
-      row.advances.toFixed(2),
-      row.otherDiscounts.toFixed(2),
-      row.totalDiscounts.toFixed(2),
-      row.netTotal.toFixed(2),
+
+    const categoryMap: Record<string, string> = {
+      commission: 'Comissão',
+      bonus: 'Prêmio',
+      pharmacy_discount: 'Farmácia',
+      advance: 'Adiantamento',
+      additional: 'Adicional',
+      other: 'Outro',
+      overtime: 'Hora Extra',
+      base_net: 'Base Líquida',
+      cash_shortage: 'Furo de Caixa',
+      negative_hours: 'Hora Negativa',
+      partner_agreement: 'Convênio Parceiro',
+      store_agreement: 'Convênio Loja',
+      other_discount: 'Outro Desconto',
+      other_addition: 'Outro Acréscimo',
+    }
+
+    const companyEmployees = employees.filter((e) => e.company_id === activeCompany.id)
+    const rows: string[][] = []
+
+    companyEmployees.forEach((emp) => {
+      const empEntries = payrollEntries.filter((e) => e.employee_id === emp.id)
+      const baseSalary = (emp.base_salary || 0).toFixed(2)
+      const addFixed = (emp.additional_amount || 0).toFixed(2)
+
+      if (empEntries.length === 0) {
+        rows.push([
+          `"${activeCompany.name}"`,
+          `"${emp.name}"`,
+          `"${emp.role || ''}"`,
+          baseSalary,
+          addFixed,
+          '""',
+          '0.00',
+          '0.00',
+          '""',
+          '""',
+        ])
+      } else {
+        empEntries.forEach((entry) => {
+          rows.push([
+            `"${activeCompany.name}"`,
+            `"${emp.name}"`,
+            `"${emp.role || ''}"`,
+            baseSalary,
+            addFixed,
+            `"${categoryMap[entry.category] || entry.category}"`,
+            (entry.amount || 0).toFixed(2),
+            (entry.quantity || 0).toFixed(2),
+            `"${entry.entry_date ? entry.entry_date.split(' ')[0] : ''}"`,
+            `"${entry.description || ''}"`,
+          ])
+        })
+      }
+    })
+
+    rows.push([])
+    rows.push([
+      '""',
+      '""',
+      '""',
+      '""',
+      '""',
+      '"TOTAL VENCIMENTOS"',
+      totals.totalEarnings.toFixed(2),
+      '""',
+      '""',
+      '""',
+    ])
+    rows.push([
+      '""',
+      '""',
+      '""',
+      '""',
+      '""',
+      '"TOTAL DESCONTOS"',
+      totals.totalDiscounts.toFixed(2),
+      '""',
+      '""',
+      '""',
+    ])
+    rows.push([
+      '""',
+      '""',
+      '""',
+      '""',
+      '""',
+      '"TOTAL LÍQUIDO GERAL"',
+      totals.netTotal.toFixed(2),
+      '""',
+      '""',
+      '""',
     ])
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
@@ -200,7 +270,7 @@ export function FechamentoView() {
     const link = document.createElement('a')
     link.href = url
     const [year, month] = selectedMonth.split('-')
-    link.download = `fechamento_${activeCompany.name}_${month}_${year}.csv`
+    link.download = `relatorio_detalhado_${activeCompany.name}_${month}_${year}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -216,14 +286,35 @@ export function FechamentoView() {
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            width: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
           .print-hidden {
             display: none !important;
           }
-          table { page-break-inside: auto; width: 100%; }
-          tr { page-break-inside: avoid; page-break-after: auto; }
+          aside, header, nav {
+            display: none !important;
+          }
+          main {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+          }
+          table { 
+            page-break-inside: auto; 
+            width: 100%; 
+          }
+          tr { 
+            page-break-inside: avoid; 
+            page-break-after: auto; 
+          }
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
+          td, th {
+            white-space: normal !important;
+            word-wrap: break-word;
+          }
         }
       `}</style>
       <div className="space-y-6 flex flex-col h-full">
@@ -325,7 +416,7 @@ export function FechamentoView() {
         </div>
 
         <div className="flex-1 bg-card border rounded-lg overflow-auto print:border-none print:shadow-none print:m-0 print:p-0 print:overflow-visible">
-          <Table className="print:text-[10px] text-xs whitespace-nowrap [&_th]:print:p-1 [&_td]:print:p-1 min-w-[1200px] print:min-w-full">
+          <Table className="print:text-[9px] text-xs whitespace-nowrap print:whitespace-normal [&_th]:print:p-1 [&_td]:print:p-1 min-w-[1200px] print:min-w-full print:w-full">
             <TableHeader>
               <TableRow className="print:border-b-2 print:border-black">
                 <TableHead className="w-[180px]">Funcionário / Cargo</TableHead>
