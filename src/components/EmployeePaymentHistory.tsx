@@ -288,24 +288,37 @@ export function EmployeePaymentHistory({ employeeId }: { employeeId: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {selectedMonthDetail?.details.map((d: any) => {
-                  const isEarn = EARNINGS.includes(d.category)
-                  const isDed = DEDUCTIONS.includes(d.category)
-                  return (
-                    <TableRow key={d.id}>
-                      <TableCell className="font-medium">{getCategoryLabel(d.category)}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {d.description || '-'}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right ${isDed ? 'text-rose-600' : isEarn ? 'text-emerald-600' : ''}`}
-                      >
-                        {isDed ? '-' : isEarn ? '+' : ''}
-                        {formatCurrency(d.amount)}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
+                {[...(selectedMonthDetail?.details || [])]
+                  .sort((a: any, b: any) => {
+                    const aIsEarn = EARNINGS.includes(a.category)
+                    const bIsEarn = EARNINGS.includes(b.category)
+                    if (aIsEarn && !bIsEarn) return -1
+                    if (!aIsEarn && bIsEarn) return 1
+
+                    const labelA = getCategoryLabel(a.category)
+                    const labelB = getCategoryLabel(b.category)
+                    return labelA.localeCompare(labelB)
+                  })
+                  .map((d: any) => {
+                    const isEarn = EARNINGS.includes(d.category)
+                    const isDed = DEDUCTIONS.includes(d.category)
+                    return (
+                      <TableRow key={d.id}>
+                        <TableCell className="font-medium">
+                          {getCategoryLabel(d.category)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {d.description || '-'}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right ${isDed ? 'text-rose-600' : isEarn ? 'text-emerald-600' : ''}`}
+                        >
+                          {isDed ? '-' : isEarn ? '+' : ''}
+                          {formatCurrency(d.amount)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
               </TableBody>
             </Table>
           </div>
