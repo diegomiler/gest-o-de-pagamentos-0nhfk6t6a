@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import {
   Select,
   SelectContent,
@@ -12,6 +12,7 @@ import { Printer } from 'lucide-react'
 import { HoleritePrint } from '@/components/HoleritePrint'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { ClientResponseError } from 'pocketbase'
 
 export default function Relatorios() {
   const { user } = useAuth()
@@ -20,6 +21,7 @@ export default function Relatorios() {
 
   const [employees, setEmployees] = useState<any[]>([])
   const [payrollEntries, setPayrollEntries] = useState<any[]>([])
+  const invalidCompanyIdRef = useRef<string | null>(null)
   const [company, setCompany] = useState<{
     id: string
     name: string
@@ -34,12 +36,26 @@ export default function Relatorios() {
         setEmployees(emps)
 
         if (user?.company_id) {
-          try {
-            const c = await pb.collection('companies').getOne(user.company_id)
-            setCompany({ id: c.id, name: c.name, tax_id: c.tax_id || '', logo: c.logo })
-          } catch {
+          if (user.company_id === invalidCompanyIdRef.current) {
             setCompany(null)
+          } else {
+            try {
+              const c = await pb.collection('companies').getOne(user.company_id)
+              setCompany({ id: c.id, name: c.name, tax_id: c.tax_id || '', logo: c.logo })
+            } catch (err: any) {
+              setCompany(null)
+              if (err instanceof ClientResponseError && err.status === 404) {
+                invalidCompanyIdRef.current = user.company_id
+                try {
+                  await pb.collection('users').update(user.id, { company_id: null })
+                } catch {
+                  /* intentionally ignored */
+                }
+              }
+            }
           }
+        } else {
+          setCompany(null)
         }
 
         const startDate = `${selectedMonth}-01 00:00:00`

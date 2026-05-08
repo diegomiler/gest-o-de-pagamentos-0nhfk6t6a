@@ -39,10 +39,14 @@ export default function Configuracoes() {
               description:
                 'O registro da empresa não foi encontrado. Por favor, crie uma nova configuração.',
             })
-            // Reseta o estado sem disparar update no servidor para evitar recursividade
             setIsNotFound(true)
             invalidIdRef.current = user.company_id
             setCompanyId(null)
+            try {
+              await pb.collection('users').update(user.id, { company_id: null })
+            } catch {
+              /* intentionally ignored */
+            }
           } else {
             toast.error('Erro ao carregar', {
               description: 'Não foi possível carregar as configurações da empresa.',
