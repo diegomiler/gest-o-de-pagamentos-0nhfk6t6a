@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const INITIAL_TOTALS = {
   baseSalary: 0,
+  fixedValue: 0,
   additionalFixed: 0,
   overtime: 0,
   commissionBonus: 0,
@@ -113,11 +114,13 @@ export function FechamentoView() {
         const totalDiscounts =
           pharmacyStore + cashShortage + negativeHours + advances + otherDiscounts
         const netTotal = totalEarnings - totalDiscounts
+        const fixedValue = emp.additional_amount || 0
 
         return {
           id: emp.id,
           name: emp.name,
           role: emp.role || '',
+          fixedValue,
           baseSalary,
           additionalFixed,
           overtime,
@@ -140,6 +143,7 @@ export function FechamentoView() {
     return reportData.reduce(
       (acc, row) => ({
         baseSalary: acc.baseSalary + row.baseSalary,
+        fixedValue: acc.fixedValue + row.fixedValue,
         additionalFixed: acc.additionalFixed + row.additionalFixed,
         overtime: acc.overtime + row.overtime,
         commissionBonus: acc.commissionBonus + row.commissionBonus,
@@ -166,6 +170,7 @@ export function FechamentoView() {
       'Funcionário',
       'Cargo',
       'Salário Base',
+      'Valor Fixo',
       'Adicional Fixo',
       'Categoria',
       'Valor',
@@ -210,6 +215,7 @@ export function FechamentoView() {
 
       const empReport = reportData.find((r) => r.id === emp.id)
       const netTotalStr = (empReport?.netTotal || 0).toFixed(2)
+      const fixedValueStr = (emp.additional_amount || 0).toFixed(2)
 
       if (empEntries.length === 0) {
         rows.push([
@@ -217,6 +223,7 @@ export function FechamentoView() {
           `"${emp.name}"`,
           `"${emp.role || ''}"`,
           '0.00',
+          fixedValueStr,
           '0.00',
           '""',
           '0.00',
@@ -232,6 +239,7 @@ export function FechamentoView() {
             `"${emp.name}"`,
             `"${emp.role || ''}"`,
             baseSalary,
+            fixedValueStr,
             addFixed,
             `"${categoryMap[entry.category] || entry.category}"`,
             (entry.amount || 0).toFixed(2),
@@ -251,6 +259,7 @@ export function FechamentoView() {
       '""',
       '""',
       '""',
+      '""',
       '"TOTAL VENCIMENTOS"',
       totals.totalEarnings.toFixed(2),
       '""',
@@ -264,6 +273,7 @@ export function FechamentoView() {
       '""',
       '""',
       '""',
+      '""',
       '"TOTAL DESCONTOS"',
       totals.totalDiscounts.toFixed(2),
       '""',
@@ -272,6 +282,7 @@ export function FechamentoView() {
       '""',
     ])
     rows.push([
+      '""',
       '""',
       '""',
       '""',
@@ -442,6 +453,7 @@ export function FechamentoView() {
               <TableRow className="print:border-b-2 print:border-black">
                 <TableHead className="w-[180px]">Funcionário / Cargo</TableHead>
                 <TableHead className="text-right">Sal. Base</TableHead>
+                <TableHead className="text-right">Valor Fixo</TableHead>
                 <TableHead className="text-right">Adic. Fixo</TableHead>
                 <TableHead className="text-right">H. Extras</TableHead>
                 <TableHead className="text-right">Comis/Prêm</TableHead>
@@ -465,7 +477,7 @@ export function FechamentoView() {
             <TableBody>
               {reportData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="text-center py-8">
+                  <TableCell colSpan={15} className="text-center py-8">
                     Nenhum dado encontrado para o período.
                   </TableCell>
                 </TableRow>
@@ -481,6 +493,7 @@ export function FechamentoView() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(row.baseSalary)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(row.fixedValue)}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(row.additionalFixed)}
                     </TableCell>
@@ -524,6 +537,7 @@ export function FechamentoView() {
                 <TableRow className="font-bold bg-muted/50 print:bg-transparent print:border-t-2 print:border-black">
                   <TableCell className="uppercase text-[10px]">Total Geral</TableCell>
                   <TableCell className="text-right">{formatCurrency(totals.baseSalary)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(totals.fixedValue)}</TableCell>
                   <TableCell className="text-right">
                     {formatCurrency(totals.additionalFixed)}
                   </TableCell>
