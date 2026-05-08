@@ -1,43 +1,30 @@
 import { useState, useEffect, useRef } from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
-import { Plus, Edit2, Trash2, UploadCloud, Image as ImageIcon, X } from 'lucide-react'
-import { useRealtime } from '@/hooks/use-realtime'
+import { useAuth } from '@/hooks/use-auth'
+import { Plus, Trash2, UploadCloud, Image as ImageIcon, X, Loader2 } from 'lucide-react'
 
 export default function Configuracoes() {
+  const { user } = useAuth()
   const { toast } = useToast()
-  const [companies, setCompanies] = useState<any[]>([])
 
-  // Modal State
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingCompany, setEditingCompany] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [companyId, setCompanyId] = useState<string | null>(null)
 
-  // Delete Confirm State
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [companyToDelete, setCompanyToDelete] = useState<any>(null)
-
-  // Form State
   const [formData, setFormData] = useState({ name: '', tax_id: '' })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -47,79 +34,43 @@ export default function Configuracoes() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const fetchCompanies = async () => {
-    try {
-      const data = await pb.collection('companies').getFullList({ sort: 'name' })
-      setCompanies(data)
-    } catch {
-      // intentionally ignored
-    }
-  }
-
   useEffect(() => {
-    fetchCompanies()
-  }, [])
-
-  useRealtime('companies', fetchCompanies)
-
-  const openNew = () => {
-    setEditingCompany(null)
-    setFormData({ name: '', tax_id: '' })
-    setLogoFile(null)
-    setLogoPreview(null)
-    setOvertimeBrackets([])
-    setErrors({})
-    setIsDialogOpen(true)
-  }
-
-  const openEdit = (company: any) => {
-    setEditingCompany(company)
-    setFormData({ name: company.name, tax_id: company.tax_id || '' })
-    setLogoFile(null)
-    setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
-
-    let brackets = []
-    if (Array.isArray(company.overtime_config)) {
-      brackets = company.overtime_config.map((b: any) => ({
-        limit: b.limit === null ? '' : String(b.limit),
-        percentage: String(b.percentage),
-      }))
-    }
-    setOvertimeBrackets(brackets)
-
-    setErrors({})
-    setIsDialogOpen(true)
-  }
-
-  const addBracket = () =>
-    setOvertimeBrackets([...overtimeBrackets, { limit: '', percentage: '50' }])
-  const removeBracket = (index: number) =>
-    setOvertimeBrackets(overtimeBrackets.filter((_, i) => i !== index))
-  const updateBracket = (index: number, field: 'limit' | 'percentage', value: string) => {
-    const newBrackets = [...overtimeBrackets]
-    newBrackets[index][field] = value
-    setOvertimeBrackets(newBrackets)
-  }
-
-  const confirmDelete = (company: any) => {
-    setCompanyToDelete(company)
-    setIsDeleteDialogOpen(true)
-  }
-
-  const handleDelete = async () => {
-    if (!companyToDelete) return
-    try {
-      await pb.collection('companies').delete(companyToDelete.id)
-      toast({ title: 'Sucesso', description: 'Empresa removida com sucesso.' })
-      setIsDeleteDialogOpen(false)
-      setCompanyToDelete(null)
-    } catch (err: any) {
+    if (user?.company_id) {
+      loadCompany(user.company_id)
+    } else {
+      setIsLoading(false)
       toast({
-        title: 'Erro',
-        description: 'Não foi possível remover a empresa. Pode haver registros associados.',
+        title: 'Aviso',
+        description: 'Nenhuma empresa associada ao seu usuário.',
         variant: 'destructive',
       })
-      setIsDeleteDialogOpen(false)
+    }
+  }, [user?.company_id])
+
+  const loadCompany = async (id: string) => {
+    try {
+      setIsLoading(true)
+      const company = await pb.collection('companies').getOne(id)
+      setCompanyId(company.id)
+      setFormData({ name: company.name || '', tax_id: company.tax_id || '' })
+      setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
+
+      let brackets: { limit: string; percentage: string }[] = []
+      if (Array.isArray(company.overtime_config)) {
+        brackets = company.overtime_config.map((b: any) => ({
+          limit: b.limit === null || b.limit === undefined ? '' : String(b.limit),
+          percentage: String(b.percentage || ''),
+        }))
+      }
+      setOvertimeBrackets(brackets)
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível carregar os dados.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -127,11 +78,7 @@ export default function Configuracoes() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0]
       if (file.size > 5242880) {
-        toast({
-          title: 'Erro',
-          description: 'A imagem deve ter no máximo 5MB.',
-          variant: 'destructive',
-        })
+        toast({ title: 'Erro', description: 'Máximo 5MB.', variant: 'destructive' })
         return
       }
       setLogoFile(file)
@@ -142,17 +89,18 @@ export default function Configuracoes() {
   const handleRemoveLogo = () => {
     setLogoFile(null)
     setLogoPreview(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!companyId) return
     setErrors({})
+    setIsSaving(true)
 
     if (!formData.name.trim()) {
       setErrors({ name: 'Nome é obrigatório' })
+      setIsSaving(false)
       return
     }
 
@@ -167,276 +115,217 @@ export default function Configuracoes() {
         tax_id: formData.tax_id || '',
         overtime_config: parsedBrackets,
       }
+      if (logoFile) payload.logo = logoFile
+      else if (logoPreview === null) payload.logo = null
 
-      if (logoFile) {
-        payload.logo = logoFile
-      } else if (logoPreview === null && editingCompany?.logo) {
-        payload.logo = null
-      }
-
-      if (editingCompany) {
-        await pb.collection('companies').update(editingCompany.id, payload)
-        toast({ title: 'Sucesso', description: 'Empresa atualizada.' })
-      } else {
-        await pb.collection('companies').create(payload)
-        toast({ title: 'Sucesso', description: 'Empresa criada.' })
-      }
-      setIsDialogOpen(false)
+      await pb.collection('companies').update(companyId, payload)
+      toast({ title: 'Sucesso', description: 'Configurações salvas com sucesso.' })
+      await loadCompany(companyId)
     } catch (err: any) {
       const fieldErrors = extractFieldErrors(err)
-
-      if (fieldErrors.tax_id) {
-        fieldErrors.tax_id = 'Este CNPJ/CPF já está cadastrado'
-      }
-
+      if (fieldErrors.tax_id) fieldErrors.tax_id = 'Este CNPJ já está cadastrado'
       setErrors(fieldErrors)
-
-      const isNetwork = err.status === 0
-      const isServer = err.status >= 500
-
       toast({
         title: 'Erro ao salvar',
-        description: isNetwork
-          ? 'Erro de conexão. Verifique sua internet.'
-          : isServer
-            ? 'Erro interno no servidor.'
-            : 'Verifique os campos destacados e tente novamente.',
+        description: 'Verifique os campos.',
         variant: 'destructive',
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl space-y-6">
+        <div>
+          <Skeleton className="h-10 w-64 mb-2" />
+          <Skeleton className="h-5 w-96" />
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-48 mb-2" />
+            <Skeleton className="h-4 w-72" />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-4xl space-y-6 animate-fade-in">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Configurações</h2>
         <p className="text-muted-foreground">
-          Gerencie os dados globais e as empresas cadastradas.
+          Gerencie os dados e regras de negócio da sua empresa.
         </p>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Empresas</CardTitle>
-            <CardDescription>Lista de todas as empresas cadastradas no sistema.</CardDescription>
-          </div>
-          <Button onClick={openNew}>
-            <Plus className="mr-2 h-4 w-4" /> Nova Empresa
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="w-[80px]">Logo</TableHead>
-                  <TableHead>Razão Social</TableHead>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {companies.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                      Nenhuma empresa cadastrada.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {companies.map((company) => (
-                  <TableRow key={company.id}>
-                    <TableCell>
-                      {company.logo ? (
-                        <img
-                          src={pb.files.getURL(company, company.logo)}
-                          alt={company.name}
-                          className="w-10 h-10 object-contain rounded bg-muted/50 p-1"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{company.name}</TableCell>
-                    <TableCell>{company.tax_id || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(company)}>
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => confirmDelete(company)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleSave}>
-            <DialogHeader>
-              <DialogTitle>{editingCompany ? 'Editar Empresa' : 'Nova Empresa'}</DialogTitle>
-              <DialogDescription>Preencha os dados da empresa abaixo.</DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-6 py-4">
+      <form onSubmit={handleSave}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Dados da Empresa</CardTitle>
+            <CardDescription>
+              Atualize as informações cadastrais e configurações específicas.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="companyName">Razão Social *</Label>
                 <Input
                   id="companyName"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Nome da Empresa LTDA"
+                  placeholder="Empresa LTDA"
+                  disabled={!companyId}
                 />
                 {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tax_id">CNPJ</Label>
+                <Label htmlFor="tax_id">CNPJ / Identificação Fiscal</Label>
                 <Input
                   id="tax_id"
                   value={formData.tax_id}
                   onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
                   placeholder="00.000.000/0001-00"
+                  disabled={!companyId}
                 />
                 {errors.tax_id && <p className="text-sm text-destructive">{errors.tax_id}</p>}
               </div>
+            </div>
 
-              <div className="space-y-4 pt-4 border-t">
-                <div>
-                  <Label>Regras de Horas Extras</Label>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Exemplo: Até 2 horas = 50% (multiplicador 1.5); Acima de 2 horas (deixe limite
-                    vazio) = 100% (multiplicador 2.0).
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  {overtimeBrackets.map((b, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        placeholder="Limite (h)"
-                        value={b.limit}
-                        onChange={(e) => updateBracket(idx, 'limit', e.target.value)}
-                        className="w-24"
-                      />
-                      <span className="text-muted-foreground text-sm">h =</span>
-                      <Input
-                        type="number"
-                        placeholder="%"
-                        value={b.percentage}
-                        onChange={(e) => updateBracket(idx, 'percentage', e.target.value)}
-                        className="w-20"
-                      />
-                      <span className="text-muted-foreground text-sm">%</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeBracket(idx)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button type="button" variant="outline" size="sm" onClick={addBracket}>
-                    <Plus className="mr-2 h-4 w-4" /> Adicionar Regra
-                  </Button>
-                </div>
+            <div className="space-y-4 pt-4 border-t">
+              <div>
+                <Label className="text-base">Regras de Horas Extras</Label>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Exemplo: Até 2 horas = 50%; Acima (limite vazio) = 100%.
+                </p>
               </div>
-
-              <div className="space-y-2">
-                <Label>Logo da Empresa</Label>
-                <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted/50 relative overflow-hidden group">
-                    {logoPreview ? (
-                      <>
-                        <img
-                          src={logoPreview}
-                          alt="Logo"
-                          className="w-full h-full object-contain p-2"
-                        />
-                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="h-8 w-8 rounded-full"
-                            onClick={handleRemoveLogo}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 space-y-1">
+              <div className="space-y-3">
+                {overtimeBrackets.map((b, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      placeholder="Limite (h)"
+                      value={b.limit}
+                      onChange={(e) => {
+                        const n = [...overtimeBrackets]
+                        n[idx].limit = e.target.value
+                        setOvertimeBrackets(n)
+                      }}
+                      className="w-28"
+                      disabled={!companyId}
+                    />
+                    <span className="text-sm font-medium text-muted-foreground">h =</span>
+                    <Input
+                      type="number"
+                      placeholder="%"
+                      value={b.percentage}
+                      onChange={(e) => {
+                        const n = [...overtimeBrackets]
+                        n[idx].percentage = e.target.value
+                        setOvertimeBrackets(n)
+                      }}
+                      className="w-24"
+                      disabled={!companyId}
+                    />
+                    <span className="text-sm font-medium text-muted-foreground">%</span>
                     <Button
                       type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => fileInputRef.current?.click()}
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setOvertimeBrackets(overtimeBrackets.filter((_, i) => i !== idx))
+                      }
+                      disabled={!companyId}
+                      className="text-muted-foreground hover:text-destructive"
                     >
-                      <UploadCloud className="h-4 w-4" />
-                      {logoPreview ? 'Trocar' : 'Upload'}
+                      <Trash2 className="h-4 w-4" />
                     </Button>
-                    <p className="text-xs text-muted-foreground">JPG, PNG. Máx: 5MB.</p>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/jpeg, image/png, image/webp"
-                      onChange={handleFileChange}
-                    />
-                    {errors.logo && <p className="text-sm text-destructive">{errors.logo}</p>}
                   </div>
-                </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setOvertimeBrackets([...overtimeBrackets, { limit: '', percentage: '50' }])
+                  }
+                  disabled={!companyId}
+                  className="mt-2"
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar Regra
+                </Button>
               </div>
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit">Salvar</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Excluir Empresa</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir a empresa <strong>{companyToDelete?.name}</strong>?
-              Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancelar
+            <div className="space-y-4 pt-4 border-t">
+              <Label className="text-base">Logo da Empresa</Label>
+              <div className="flex items-center gap-6">
+                <div className="w-24 h-24 rounded-lg border-2 border-dashed flex items-center justify-center bg-muted/30 relative overflow-hidden group">
+                  {logoPreview ? (
+                    <>
+                      <img
+                        src={logoPreview}
+                        alt="Logo Preview"
+                        className="w-full h-full object-contain p-2"
+                      />
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={handleRemoveLogo}
+                          disabled={!companyId}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={!companyId}
+                  >
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    {logoPreview ? 'Trocar Logo' : 'Fazer Upload'}
+                  </Button>
+                  <p className="text-sm text-muted-foreground">
+                    Formatos: JPG, PNG, WEBP. Máx: 5MB.
+                  </p>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/jpeg, image/png, image/webp"
+                    onChange={handleFileChange}
+                    disabled={!companyId}
+                  />
+                  {errors.logo && <p className="text-sm text-destructive">{errors.logo}</p>}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end border-t pt-6 bg-muted/20">
+            <Button type="submit" disabled={isSaving || !companyId}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar Configurações
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Excluir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </CardFooter>
+        </Card>
+      </form>
     </div>
   )
 }
