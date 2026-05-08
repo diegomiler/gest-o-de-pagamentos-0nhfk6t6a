@@ -57,4 +57,25 @@ export default function Configuracoes() {
           <p className="text-muted-foreground">Gerencie as configurações da sua empresa.</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
- 
+          <Button variant="outline" asChild>
+            <Link to="/configuracoes/regras-horas-extras">Regras de Horas Extras</Link>
+          </Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="max-w-4xl space-y-6">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-64" />
+        </div>
+      ) : (
+        <CompanyForm
+          companyId={companyId}
+          onSaved={() => {
+            loadCompany()
+          }}
+        />
+      )}
+    </div>
+  )
+}
