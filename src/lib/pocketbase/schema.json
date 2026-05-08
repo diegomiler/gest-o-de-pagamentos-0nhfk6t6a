@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-08T14:46:34.023Z",
+  "generatedAt": "2026-05-08T14:49:10.730Z",
   "collections": [
     {
       "name": "users",
@@ -65,7 +65,7 @@
         {
           "name": "name",
           "type": "text",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
@@ -96,6 +96,18 @@
         },
         {
           "name": "address",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "overtime_rules",
           "type": "text",
           "required": false,
           "system": false
