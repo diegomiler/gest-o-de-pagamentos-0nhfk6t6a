@@ -207,29 +207,4 @@ export function CompanyForm({
                     {logoPreview ? 'Trocar Logo' : 'Fazer Upload'}
                   </Button>
                   <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        setLogoFile(e.target.files[0])
-                        setLogoPreview(URL.createObjectURL(e.target.files[0]))
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end border-t pt-6 bg-muted/20">
-            <Button type="submit" disabled={isSaving}>
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar
-            </Button>
-          </CardFooter>
-        </Card>
-      </form>
-    </div>
-  )
-}
+                    type="file
