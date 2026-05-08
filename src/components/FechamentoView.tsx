@@ -21,26 +21,43 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const INITIAL_TOTALS = {
-  fixedBaseSalary: 0,
-  baseSalary: 0,
-  fixedValue: 0,
-  additionalFixed: 0,
-  overtime: 0,
-  commissionBonus: 0,
-  otherAdditions: 0,
-  pharmacyStore: 0,
-  cashShortage: 0,
-  negativeHours: 0,
-  advances: 0,
-  otherDiscounts: 0,
-  totalEarnings: 0,
-  totalDiscounts: 0,
-  netTotal: 0,
+const CATEGORY_NAMES: Record<string, string> = {
+  base_net: 'Salário Base/Líquido',
+  commission: 'Comissão',
+  bonus: 'Prêmio/Bônus',
+  pharmacy_discount: 'Farmácia',
+  advance: 'Adiantamento',
+  additional: 'Adicional',
+  other: 'Outros',
+  overtime: 'Horas Extras',
+  cash_shortage: 'Furo de Caixa',
+  negative_hours: 'Horas Negativas',
+  partner_agreement: 'Convênio Parceiro',
+  store_agreement: 'Convênio Loja',
+  other_discount: 'Outros Descontos',
+  other_addition: 'Outros Vencimentos',
 }
 
+const isProvento = (cat: string) =>
+  ['base_net', 'commission', 'bonus', 'overtime', 'additional', 'other_addition', 'other'].includes(
+    cat,
+  )
+const isDesconto = (cat: string) =>
+  [
+    'pharmacy_discount',
+    'advance',
+    'cash_shortage',
+    'negative_hours',
+    'partner_agreement',
+    'store_agreement',
+    'other_discount',
+  ].includes(cat)
+
 export function FechamentoView() {
-  const [selectedMonth, setSelectedMonth] = useState('2026-04')
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  })
   const [selectedCompanyId, setSelectedCompanyId] = useState('all')
 
   const { employees, payrollEntries, companies, userCompany } = usePayrollData(selectedMonth)
@@ -62,70 +79,48 @@ export function FechamentoView() {
         const entries = payrollEntries.filter((e) => e.employee_id === emp.id)
 
         let baseSalary = 0
-        let additionalFixed = 0
         let overtime = 0
         let commissionBonus = 0
         let otherAdditions = 0
+
         let pharmacyStore = 0
         let cashShortage = 0
         let negativeHours = 0
         let advances = 0
         let otherDiscounts = 0
 
+        let totalEarnings = 0
+        let totalDiscounts = 0
+
         entries.forEach((entry) => {
-          switch (entry.category) {
-            case 'base_net':
-              baseSalary += entry.amount
-              break
-            case 'additional':
-              additionalFixed += entry.amount
-              break
-            case 'overtime':
-              overtime += entry.amount
-              break
-            case 'commission':
-            case 'bonus':
-              commissionBonus += entry.amount
-              break
-            case 'other_addition':
-            case 'other':
-              otherAdditions += entry.amount
-              break
-            case 'pharmacy_discount':
-            case 'store_agreement':
-            case 'partner_agreement':
-              pharmacyStore += entry.amount
-              break
-            case 'cash_shortage':
-              cashShortage += entry.amount
-              break
-            case 'negative_hours':
-              negativeHours += entry.amount
-              break
-            case 'advance':
-              advances += entry.amount
-              break
-            case 'other_discount':
-              otherDiscounts += entry.amount
-              break
+          const amount = entry.amount || 0
+          if (isProvento(entry.category)) {
+            totalEarnings += amount
+            if (entry.category === 'base_net') baseSalary += amount
+            else if (entry.category === 'overtime') overtime += amount
+            else if (entry.category === 'commission' || entry.category === 'bonus')
+              commissionBonus += amount
+            else otherAdditions += amount
+          } else if (isDesconto(entry.category)) {
+            totalDiscounts += amount
+            if (
+              ['pharmacy_discount', 'store_agreement', 'partner_agreement'].includes(entry.category)
+            )
+              pharmacyStore += amount
+            else if (entry.category === 'cash_shortage') cashShortage += amount
+            else if (entry.category === 'negative_hours') negativeHours += amount
+            else if (entry.category === 'advance') advances += amount
+            else otherDiscounts += amount
           }
         })
-        const totalEarnings =
-          baseSalary + additionalFixed + overtime + commissionBonus + otherAdditions
-        const totalDiscounts =
-          pharmacyStore + cashShortage + negativeHours + advances + otherDiscounts
+
         const netTotal = totalEarnings - totalDiscounts
-        const fixedValue = emp.additional_amount || 0
-        const fixedBaseSalary = emp.base_salary || 0
 
         return {
           id: emp.id,
           name: emp.name,
-          role: emp.role || '',
-          fixedBaseSalary,
-          fixedValue,
+          role: emp.role || emp.department || '',
           baseSalary,
-          additionalFixed,
           overtime,
           commissionBonus,
           otherAdditions,
@@ -137,31 +132,45 @@ export function FechamentoView() {
           otherDiscounts,
           totalDiscounts,
           netTotal,
+          entries: entries.sort(
+            (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime(),
+          ),
         }
       })
+      .filter((emp) => emp.entries.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [activeCompany, employees, payrollEntries])
 
   const totals = useMemo(() => {
     return reportData.reduce(
       (acc, row) => ({
-        fixedBaseSalary: (acc.fixedBaseSalary || 0) + row.fixedBaseSalary,
         baseSalary: acc.baseSalary + row.baseSalary,
-        fixedValue: acc.fixedValue + row.fixedValue,
-        additionalFixed: acc.additionalFixed + row.additionalFixed,
         overtime: acc.overtime + row.overtime,
         commissionBonus: acc.commissionBonus + row.commissionBonus,
         otherAdditions: acc.otherAdditions + row.otherAdditions,
+        totalEarnings: acc.totalEarnings + row.totalEarnings,
         pharmacyStore: acc.pharmacyStore + row.pharmacyStore,
         cashShortage: acc.cashShortage + row.cashShortage,
         negativeHours: acc.negativeHours + row.negativeHours,
         advances: acc.advances + row.advances,
         otherDiscounts: acc.otherDiscounts + row.otherDiscounts,
-        totalEarnings: acc.totalEarnings + row.totalEarnings,
         totalDiscounts: acc.totalDiscounts + row.totalDiscounts,
         netTotal: acc.netTotal + row.netTotal,
       }),
-      { ...INITIAL_TOTALS },
+      {
+        baseSalary: 0,
+        overtime: 0,
+        commissionBonus: 0,
+        otherAdditions: 0,
+        totalEarnings: 0,
+        pharmacyStore: 0,
+        cashShortage: 0,
+        negativeHours: 0,
+        advances: 0,
+        otherDiscounts: 0,
+        totalDiscounts: 0,
+        netTotal: 0,
+      },
     )
   }, [reportData])
 
@@ -169,63 +178,21 @@ export function FechamentoView() {
 
   const handleExportCSV = () => {
     if (!activeCompany) return
-    const headers = [
-      'Empresa',
-      'Funcionário',
-      'Cargo',
-      'Salário Lançado',
-      'Adicional',
-      'Horas Extras',
-      'Comissão/Prêmio',
-      'Outros Vencimentos',
-      'Total Vencimentos',
-      'Furos de Caixa',
-      'Horas Negativas',
-      'Convênios',
-      'Adiantamentos',
-      'Outros Descontos',
-      'Total Descontos',
-      'Salário Líquido (Mês)',
-    ]
+    const headers = ['Funcionário', 'Cargo', 'Categoria', 'Valor', 'Data']
 
-    const rows: string[][] = reportData.map((row) => [
-      `"${activeCompany.name}"`,
-      `"${row.name}"`,
-      `"${row.role}"`,
-      row.baseSalary.toFixed(2),
-      row.additionalFixed.toFixed(2),
-      row.overtime.toFixed(2),
-      row.commissionBonus.toFixed(2),
-      row.otherAdditions.toFixed(2),
-      row.totalEarnings.toFixed(2),
-      row.cashShortage.toFixed(2),
-      row.negativeHours.toFixed(2),
-      row.pharmacyStore.toFixed(2),
-      row.advances.toFixed(2),
-      row.otherDiscounts.toFixed(2),
-      row.totalDiscounts.toFixed(2),
-      row.netTotal.toFixed(2),
-    ])
+    const rows: string[][] = []
 
-    rows.push([])
-    rows.push([
-      '""',
-      '"TOTAL GERAL"',
-      '""',
-      totals.baseSalary.toFixed(2),
-      totals.additionalFixed.toFixed(2),
-      totals.overtime.toFixed(2),
-      totals.commissionBonus.toFixed(2),
-      totals.otherAdditions.toFixed(2),
-      totals.totalEarnings.toFixed(2),
-      totals.cashShortage.toFixed(2),
-      totals.negativeHours.toFixed(2),
-      totals.pharmacyStore.toFixed(2),
-      totals.advances.toFixed(2),
-      totals.otherDiscounts.toFixed(2),
-      totals.totalDiscounts.toFixed(2),
-      totals.netTotal.toFixed(2),
-    ])
+    reportData.forEach((emp) => {
+      emp.entries.forEach((entry) => {
+        rows.push([
+          `"${emp.name}"`,
+          `"${emp.role}"`,
+          `"${CATEGORY_NAMES[entry.category] || entry.category}"`,
+          entry.amount.toFixed(2),
+          `"${entry.entry_date.split(' ')[0]}"`,
+        ])
+      })
+    })
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -233,7 +200,7 @@ export function FechamentoView() {
     const link = document.createElement('a')
     link.href = url
     const [year, month] = selectedMonth.split('-')
-    link.download = `relatorio_detalhado_${activeCompany.name}_${month}_${year}.csv`
+    link.download = `lancamentos_${activeCompany.name.replace(/\s+/g, '_')}_${month}_${year}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -243,15 +210,13 @@ export function FechamentoView() {
       <style>{`
         @media print {
           @page {
-            size: A4 landscape;
-            margin: 8mm;
+            size: A4 portrait;
+            margin: 15mm;
           }
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            width: 100% !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            background: white;
           }
           .print-hidden {
             display: none !important;
@@ -263,28 +228,6 @@ export function FechamentoView() {
             padding: 0 !important;
             margin: 0 !important;
             max-width: 100% !important;
-          }
-          .print\\:text-\\[9px\\] {
-            font-size: 8.5px !important;
-          }
-          table { 
-            page-break-inside: auto; 
-            width: 100%; 
-            table-layout: fixed;
-          }
-          tr { 
-            page-break-inside: avoid; 
-            page-break-after: auto; 
-          }
-          thead { display: table-header-group; }
-          tfoot { display: table-footer-group; }
-          td, th {
-            white-space: normal !important;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-          }
-          th:first-child, td:first-child {
-            width: 12%;
           }
         }
       `}</style>
@@ -326,7 +269,7 @@ export function FechamentoView() {
               disabled={reportData.length === 0}
               className="gap-2"
             >
-              <Download className="h-4 w-4" /> CSV
+              <Download className="h-4 w-4" /> Exportar CSV
             </Button>
             <Button onClick={handlePrint} disabled={reportData.length === 0} className="gap-2">
               <Printer className="h-4 w-4" /> Imprimir PDF
@@ -337,7 +280,7 @@ export function FechamentoView() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print-hidden">
           <Card>
             <CardHeader className="py-4">
-              <CardTitle className="text-sm text-muted-foreground">Total Vencimentos</CardTitle>
+              <CardTitle className="text-sm text-muted-foreground">Total Proventos</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">
@@ -365,136 +308,87 @@ export function FechamentoView() {
           </Card>
         </div>
 
-        <div className="hidden print:block mb-6">
-          <div className="flex justify-between items-end border-b-2 border-black pb-4">
-            <div>
-              <h2 className="text-2xl font-bold uppercase tracking-wide">
-                Relatório de Fechamento Mensal
-              </h2>
-              <p className="text-lg text-muted-foreground mt-1">
-                Referência: {formatMonthYear(selectedMonth)}
-              </p>
-            </div>
-            {activeCompany && (
-              <div className="text-right">
-                <p className="font-bold text-xl">{activeCompany.name}</p>
-                <p className="text-sm mt-1">
-                  CNPJ: {activeCompany.cnpj ? formatCNPJ(activeCompany.cnpj) : 'N/A'}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex-1 bg-card border rounded-lg overflow-auto print:border-none print:shadow-none print:m-0 print:p-0 print:overflow-visible">
-          <Table className="print:text-[9px] text-xs whitespace-nowrap print:whitespace-normal [&_th]:print:p-1 [&_td]:print:p-1 min-w-[1200px] print:min-w-full print:w-full">
+        {/* Screen Table (Hidden in Print) */}
+        <div className="flex-1 bg-card border rounded-lg overflow-auto print-hidden">
+          <Table className="text-xs whitespace-nowrap min-w-[1000px]">
             <TableHeader>
-              <TableRow className="print:border-b-2 print:border-black">
+              <TableRow>
                 <TableHead className="w-[180px]">Funcionário / Cargo</TableHead>
-                <TableHead className="text-right print-hidden">Sal. Base (Fixo)</TableHead>
                 <TableHead className="text-right">Sal. Lançado</TableHead>
-                <TableHead className="text-right print-hidden">Valor Fixo</TableHead>
-                <TableHead className="text-right print-hidden">Adic. Fixo</TableHead>
                 <TableHead className="text-right">H. Extras</TableHead>
                 <TableHead className="text-right">Comis/Prêm</TableHead>
-                <TableHead className="text-right">Outros V.</TableHead>
-                <TableHead className="text-right font-bold bg-muted/30 print:bg-transparent">
-                  Tot. Venc.
-                </TableHead>
+                <TableHead className="text-right">Outros Venc.</TableHead>
+                <TableHead className="text-right font-bold bg-muted/30">Tot. Venc.</TableHead>
                 <TableHead className="text-right">Furos Cx.</TableHead>
                 <TableHead className="text-right">H. Neg.</TableHead>
                 <TableHead className="text-right">Convênios</TableHead>
                 <TableHead className="text-right">Adiant.</TableHead>
-                <TableHead className="text-right">Outros D.</TableHead>
-                <TableHead className="text-right font-bold bg-muted/30 print:bg-transparent">
-                  Tot. Desc.
-                </TableHead>
-                <TableHead className="text-right font-bold bg-primary/10 print:bg-transparent">
-                  Líquido
-                </TableHead>
+                <TableHead className="text-right">Outros Desc.</TableHead>
+                <TableHead className="text-right font-bold bg-muted/30">Tot. Desc.</TableHead>
+                <TableHead className="text-right font-bold bg-primary/10">Líquido</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reportData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={16} className="text-center py-8">
-                    Nenhum dado encontrado para o período.
+                  <TableCell colSpan={13} className="text-center py-8">
+                    Nenhum lançamento encontrado para o período.
                   </TableCell>
                 </TableRow>
               ) : (
                 reportData.map((row) => (
-                  <TableRow key={row.id} className="print:border-b print:border-gray-200">
-                    <TableCell className="font-medium whitespace-normal print:whitespace-nowrap">
+                  <TableRow key={row.id}>
+                    <TableCell className="font-medium whitespace-normal">
                       <div className="flex flex-col">
                         <span className="font-bold">{row.name}</span>
-                        <span className="text-[10px] text-muted-foreground print:text-black/70">
-                          {row.role || '-'}
-                        </span>
+                        <span className="text-[10px] text-muted-foreground">{row.role || '-'}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right print-hidden">
-                      {formatCurrency(row.fixedBaseSalary)}
-                    </TableCell>
                     <TableCell className="text-right">{formatCurrency(row.baseSalary)}</TableCell>
-                    <TableCell className="text-right print-hidden">
-                      {formatCurrency(row.fixedValue)}
-                    </TableCell>
-                    <TableCell className="text-right print-hidden">
-                      {formatCurrency(row.additionalFixed)}
-                    </TableCell>
-                    <TableCell className="text-right text-blue-600 print:text-black">
+                    <TableCell className="text-right text-blue-600">
                       {formatCurrency(row.overtime)}
                     </TableCell>
-                    <TableCell className="text-right text-green-600 print:text-black">
+                    <TableCell className="text-right text-green-600">
                       {formatCurrency(row.commissionBonus)}
                     </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(row.otherAdditions)}
                     </TableCell>
-                    <TableCell className="text-right font-semibold bg-muted/10 print:bg-transparent">
+                    <TableCell className="text-right font-semibold bg-muted/10">
                       {formatCurrency(row.totalEarnings)}
                     </TableCell>
-                    <TableCell className="text-right text-red-600 print:text-black">
+                    <TableCell className="text-right text-red-600">
                       {formatCurrency(row.cashShortage)}
                     </TableCell>
-                    <TableCell className="text-right text-red-600 print:text-black">
+                    <TableCell className="text-right text-red-600">
                       {formatCurrency(row.negativeHours)}
                     </TableCell>
-                    <TableCell className="text-right text-red-600 print:text-black">
+                    <TableCell className="text-right text-red-600">
                       {formatCurrency(row.pharmacyStore)}
                     </TableCell>
-                    <TableCell className="text-right text-red-600 print:text-black">
+                    <TableCell className="text-right text-red-600">
                       {formatCurrency(row.advances)}
                     </TableCell>
-                    <TableCell className="text-right text-red-600 print:text-black">
+                    <TableCell className="text-right text-red-600">
                       {formatCurrency(row.otherDiscounts)}
                     </TableCell>
-                    <TableCell className="text-right font-semibold bg-muted/10 print:bg-transparent">
+                    <TableCell className="text-right font-semibold bg-muted/10">
                       {formatCurrency(row.totalDiscounts)}
                     </TableCell>
-                    <TableCell className="text-right font-bold bg-primary/5 print:bg-transparent">
+                    <TableCell className="text-right font-bold bg-primary/5">
                       {formatCurrency(row.netTotal)}
                     </TableCell>
                   </TableRow>
                 ))
               )}
               {reportData.length > 0 && (
-                <TableRow className="font-bold bg-muted/50 print:bg-transparent print:border-t-2 print:border-black">
+                <TableRow className="font-bold bg-muted/50">
                   <TableCell className="uppercase text-[10px]">Total Geral</TableCell>
-                  <TableCell className="text-right print-hidden">
-                    {formatCurrency(totals.fixedBaseSalary || 0)}
-                  </TableCell>
                   <TableCell className="text-right">{formatCurrency(totals.baseSalary)}</TableCell>
-                  <TableCell className="text-right print-hidden">
-                    {formatCurrency(totals.fixedValue)}
-                  </TableCell>
-                  <TableCell className="text-right print-hidden">
-                    {formatCurrency(totals.additionalFixed)}
-                  </TableCell>
-                  <TableCell className="text-right text-blue-600 print:text-black">
+                  <TableCell className="text-right text-blue-600">
                     {formatCurrency(totals.overtime)}
                   </TableCell>
-                  <TableCell className="text-right text-green-600 print:text-black">
+                  <TableCell className="text-right text-green-600">
                     {formatCurrency(totals.commissionBonus)}
                   </TableCell>
                   <TableCell className="text-right">
@@ -503,25 +397,25 @@ export function FechamentoView() {
                   <TableCell className="text-right font-semibold">
                     {formatCurrency(totals.totalEarnings)}
                   </TableCell>
-                  <TableCell className="text-right text-red-600 print:text-black">
+                  <TableCell className="text-right text-red-600">
                     {formatCurrency(totals.cashShortage)}
                   </TableCell>
-                  <TableCell className="text-right text-red-600 print:text-black">
+                  <TableCell className="text-right text-red-600">
                     {formatCurrency(totals.negativeHours)}
                   </TableCell>
-                  <TableCell className="text-right text-red-600 print:text-black">
+                  <TableCell className="text-right text-red-600">
                     {formatCurrency(totals.pharmacyStore)}
                   </TableCell>
-                  <TableCell className="text-right text-red-600 print:text-black">
+                  <TableCell className="text-right text-red-600">
                     {formatCurrency(totals.advances)}
                   </TableCell>
-                  <TableCell className="text-right text-red-600 print:text-black">
+                  <TableCell className="text-right text-red-600">
                     {formatCurrency(totals.otherDiscounts)}
                   </TableCell>
                   <TableCell className="text-right font-semibold">
                     {formatCurrency(totals.totalDiscounts)}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-sm print:text-xs">
+                  <TableCell className="text-right font-bold text-sm">
                     {formatCurrency(totals.netTotal)}
                   </TableCell>
                 </TableRow>
@@ -530,29 +424,111 @@ export function FechamentoView() {
           </Table>
         </div>
 
-        <div className="hidden print:block mt-8 border-t-2 border-black pt-4">
-          <div className="flex justify-end gap-16 text-sm">
-            <div>
-              <p className="font-bold text-muted-foreground uppercase text-xs mb-1">
-                Total de Vencimentos
-              </p>
-              <p className="text-xl font-semibold">{formatCurrency(totals.totalEarnings)}</p>
-            </div>
-            <div>
-              <p className="font-bold text-muted-foreground uppercase text-xs mb-1">
-                Total de Descontos
-              </p>
-              <p className="text-xl font-semibold text-red-600 print:text-black">
-                {formatCurrency(totals.totalDiscounts)}
-              </p>
-            </div>
-            <div>
-              <p className="font-bold text-muted-foreground uppercase text-xs mb-1">
-                Total Líquido Geral
-              </p>
-              <p className="text-2xl font-black">{formatCurrency(totals.netTotal)}</p>
-            </div>
+        {/* Print Layout (Hidden on Screen) */}
+        <div className="hidden print:block w-full">
+          <div className="border-b-2 border-black pb-4 mb-6">
+            <h2 className="text-2xl font-bold uppercase tracking-wide">
+              Relatório de Fechamento Mensal
+            </h2>
+            <p className="text-lg text-gray-600 mt-1">
+              Referência: {formatMonthYear(selectedMonth)}
+            </p>
+            {activeCompany && (
+              <div className="mt-2">
+                <p className="font-bold text-xl">{activeCompany.name}</p>
+                <p className="text-sm">
+                  CNPJ: {activeCompany.cnpj ? formatCNPJ(activeCompany.cnpj) : 'N/A'}
+                </p>
+              </div>
+            )}
           </div>
+
+          <div className="space-y-8">
+            {reportData.map((row) => (
+              <div key={row.id} className="break-inside-avoid pb-6 border-b border-gray-200">
+                <h3 className="font-bold text-lg mb-4">
+                  {row.name} {row.role ? `- ${row.role}` : ''}
+                </h3>
+
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <p className="font-bold border-b border-gray-300 pb-1 mb-2 uppercase text-xs text-gray-500">
+                      Proventos
+                    </p>
+                    {row.entries
+                      .filter((e) => isProvento(e.category))
+                      .map((e) => (
+                        <div key={e.id} className="flex justify-between text-sm py-1">
+                          <span>{CATEGORY_NAMES[e.category] || e.category}</span>
+                          <span>{formatCurrency(e.amount)}</span>
+                        </div>
+                      ))}
+                    {row.entries.filter((e) => isProvento(e.category)).length === 0 && (
+                      <div className="text-sm py-1 text-gray-400 italic">Nenhum provento</div>
+                    )}
+                    <div className="flex justify-between font-bold text-sm mt-2 pt-2 border-t border-gray-300">
+                      <span>Total Proventos</span>
+                      <span>{formatCurrency(row.totalEarnings)}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="font-bold border-b border-gray-300 pb-1 mb-2 uppercase text-xs text-gray-500">
+                      Descontos
+                    </p>
+                    {row.entries
+                      .filter((e) => isDesconto(e.category))
+                      .map((e) => (
+                        <div key={e.id} className="flex justify-between text-sm py-1">
+                          <span>{CATEGORY_NAMES[e.category] || e.category}</span>
+                          <span>{formatCurrency(e.amount)}</span>
+                        </div>
+                      ))}
+                    {row.entries.filter((e) => isDesconto(e.category)).length === 0 && (
+                      <div className="text-sm py-1 text-gray-400 italic">Nenhum desconto</div>
+                    )}
+                    <div className="flex justify-between font-bold text-sm mt-2 pt-2 border-t border-gray-300">
+                      <span>Total Descontos</span>
+                      <span>{formatCurrency(row.totalDiscounts)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <div className="bg-gray-100 px-4 py-2 rounded-md font-bold text-lg border border-gray-200">
+                    Líquido a Pagar: {formatCurrency(row.netTotal)}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {reportData.length === 0 && (
+              <p className="text-center text-gray-500 py-8">
+                Nenhum lançamento encontrado para o período.
+              </p>
+            )}
+          </div>
+
+          {reportData.length > 0 && (
+            <div className="mt-8 border-t-2 border-black pt-4 flex justify-end gap-16 text-sm break-inside-avoid">
+              <div>
+                <p className="font-bold text-gray-500 uppercase text-xs mb-1">
+                  Total de Vencimentos
+                </p>
+                <p className="text-xl font-semibold">{formatCurrency(totals.totalEarnings)}</p>
+              </div>
+              <div>
+                <p className="font-bold text-gray-500 uppercase text-xs mb-1">Total de Descontos</p>
+                <p className="text-xl font-semibold">{formatCurrency(totals.totalDiscounts)}</p>
+              </div>
+              <div>
+                <p className="font-bold text-gray-500 uppercase text-xs mb-1">
+                  Total Líquido Geral
+                </p>
+                <p className="text-2xl font-black">{formatCurrency(totals.netTotal)}</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
