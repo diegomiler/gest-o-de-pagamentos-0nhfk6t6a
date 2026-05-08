@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-08T19:40:15.136Z",
+  "generatedAt": "2026-05-08T19:50:30.663Z",
   "collections": [
     {
       "name": "users",
@@ -95,7 +95,43 @@
           "system": false
         },
         {
-          "name": "overtime_rules",
+          "name": "zip_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "street",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complement",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "neighborhood",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "state",
           "type": "text",
           "required": false,
           "system": false

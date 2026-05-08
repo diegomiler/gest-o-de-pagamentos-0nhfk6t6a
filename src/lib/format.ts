@@ -47,6 +47,12 @@ export const timeToDecimal = (timeStr: string) => {
   return hours + (isNaN(minutes) ? 0 : minutes / 60)
 }
 
+export const formatCEP = (value: string) => {
+  const v = value.replace(/\D/g, '').slice(0, 8)
+  if (v.length <= 5) return v
+  return `${v.slice(0, 5)}-${v.slice(5)}`
+}
+
 export const formatCNPJ = (value: string) => {
   const v = value.replace(/\D/g, '').slice(0, 14)
   if (v.length <= 2) return v

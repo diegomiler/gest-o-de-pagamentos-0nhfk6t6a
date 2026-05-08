@@ -9,8 +9,7 @@ import pb from '@/lib/pocketbase/client'
 import { ClientResponseError } from 'pocketbase'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { UploadCloud, Image as ImageIcon, X, Loader2, ArrowLeft } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
-import { formatCNPJ } from '@/lib/format'
+import { formatCNPJ, formatCEP } from '@/lib/format'
 
 export function CompanyForm({
   companyId,
@@ -25,7 +24,17 @@ export function CompanyForm({
   const [localCompanyId, setLocalCompanyId] = useState<string | null>(companyId)
   const [isLoading, setIsLoading] = useState(!!companyId)
   const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState({ name: '', cnpj: '', overtime_rules: '' })
+  const [formData, setFormData] = useState({
+    name: '',
+    cnpj: '',
+    zip_code: '',
+    street: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+  })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -44,17 +53,30 @@ export function CompanyForm({
           setFormData({
             name: company.name || '',
             cnpj: formatCNPJ(company.cnpj || ''),
-            overtime_rules:
-              typeof company.overtime_rules === 'object'
-                ? JSON.stringify(company.overtime_rules)
-                : String(company.overtime_rules || ''),
+            zip_code: formatCEP(company.zip_code || ''),
+            street: company.street || '',
+            number: company.number || '',
+            complement: company.complement || '',
+            neighborhood: company.neighborhood || '',
+            city: company.city || '',
+            state: company.state || '',
           })
           setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
           setIsLoading(false)
         })
         .catch((err: any) => {
           if (err instanceof ClientResponseError && err.status === 404) {
-            setFormData({ name: '', cnpj: '', overtime_rules: '' })
+            setFormData({
+              name: '',
+              cnpj: '',
+              zip_code: '',
+              street: '',
+              number: '',
+              complement: '',
+              neighborhood: '',
+              city: '',
+              state: '',
+            })
             setLogoPreview(null)
             setLocalCompanyId(null)
           } else {
@@ -67,7 +89,17 @@ export function CompanyForm({
           setIsLoading(false)
         })
     } else {
-      setFormData({ name: '', cnpj: '', overtime_rules: '' })
+      setFormData({
+        name: '',
+        cnpj: '',
+        zip_code: '',
+        street: '',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+      })
       setLogoPreview(null)
       setIsLoading(false)
       setLocalCompanyId(null)
@@ -100,12 +132,13 @@ export function CompanyForm({
       const payload = new FormData()
       payload.append('name', formData.name)
       payload.append('cnpj', unmaskedCnpj)
-
-      const parsedOvertimeRules =
-        typeof formData.overtime_rules === 'object'
-          ? JSON.stringify(formData.overtime_rules)
-          : String(formData.overtime_rules || '')
-      payload.append('overtime_rules', parsedOvertimeRules)
+      payload.append('zip_code', formData.zip_code.replace(/\D/g, ''))
+      payload.append('street', formData.street)
+      payload.append('number', formData.number)
+      payload.append('complement', formData.complement)
+      payload.append('neighborhood', formData.neighborhood)
+      payload.append('city', formData.city)
+      payload.append('state', formData.state)
 
       if (logoFile) {
         payload.append('logo', logoFile)
@@ -220,21 +253,89 @@ export function CompanyForm({
                 />
                 {errors.cnpj && <p className="text-sm text-destructive">{errors.cnpj}</p>}
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Regras para Horas Extras</Label>
-                <Textarea
-                  value={formData.overtime_rules}
-                  onChange={(e) => setFormData({ ...formData, overtime_rules: e.target.value })}
-                  placeholder="Descreva as regras para horas extras da empresa..."
-                  className="resize-none min-h-[100px]"
-                />
-                {errors.overtime_rules && (
-                  <p className="text-sm text-destructive">{errors.overtime_rules}</p>
-                )}
+            </div>
+
+            <div className="space-y-4 pt-4 border-t">
+              <Label className="text-base font-semibold">Endereço</Label>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="space-y-2 md:col-span-3">
+                  <Label>CEP</Label>
+                  <Input
+                    value={formData.zip_code}
+                    onChange={(e) =>
+                      setFormData({ ...formData, zip_code: formatCEP(e.target.value) })
+                    }
+                    placeholder="00000-000"
+                    maxLength={9}
+                  />
+                  {errors.zip_code && <p className="text-sm text-destructive">{errors.zip_code}</p>}
+                </div>
+                <div className="space-y-2 md:col-span-7">
+                  <Label>Logradouro</Label>
+                  <Input
+                    value={formData.street}
+                    onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                    placeholder="Rua, Avenida, etc."
+                  />
+                  {errors.street && <p className="text-sm text-destructive">{errors.street}</p>}
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Número</Label>
+                  <Input
+                    value={formData.number}
+                    onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                    placeholder="123"
+                  />
+                  {errors.number && <p className="text-sm text-destructive">{errors.number}</p>}
+                </div>
+                <div className="space-y-2 md:col-span-3">
+                  <Label>Complemento</Label>
+                  <Input
+                    value={formData.complement}
+                    onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
+                    placeholder="Apto, Sala, etc."
+                  />
+                  {errors.complement && (
+                    <p className="text-sm text-destructive">{errors.complement}</p>
+                  )}
+                </div>
+                <div className="space-y-2 md:col-span-5">
+                  <Label>Bairro</Label>
+                  <Input
+                    value={formData.neighborhood}
+                    onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                    placeholder="Bairro"
+                  />
+                  {errors.neighborhood && (
+                    <p className="text-sm text-destructive">{errors.neighborhood}</p>
+                  )}
+                </div>
+                <div className="space-y-2 md:col-span-3">
+                  <Label>Cidade</Label>
+                  <Input
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    placeholder="Cidade"
+                  />
+                  {errors.city && <p className="text-sm text-destructive">{errors.city}</p>}
+                </div>
+                <div className="space-y-2 md:col-span-1">
+                  <Label>UF</Label>
+                  <Input
+                    value={formData.state}
+                    onChange={(e) =>
+                      setFormData({ ...formData, state: e.target.value.toUpperCase() })
+                    }
+                    placeholder="UF"
+                    maxLength={2}
+                  />
+                  {errors.state && <p className="text-sm text-destructive">{errors.state}</p>}
+                </div>
               </div>
             </div>
+
             <div className="space-y-4 pt-4 border-t">
-              <Label className="text-base">Logo da Empresa</Label>
+              <Label className="text-base font-semibold">Logo da Empresa</Label>
               <div className="flex items-center gap-6">
                 <div className="w-24 h-24 rounded-lg border flex items-center justify-center bg-muted/30 relative group">
                   {logoPreview ? (
