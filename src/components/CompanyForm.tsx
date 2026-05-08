@@ -17,7 +17,7 @@ export function CompanyForm({
   onSaved,
 }: {
   companyId: string | null
-  onBack: () => void
+  onBack?: () => void
   onSaved: () => void
 }) {
   const { toast } = useToast()
@@ -48,7 +48,7 @@ export function CompanyForm({
             description: 'Não foi possível carregar.',
             variant: 'destructive',
           })
-          onBack()
+          if (onBack) onBack()
         })
     }
   }, [companyId])
@@ -58,9 +58,27 @@ export function CompanyForm({
     setErrors({})
     setIsSaving(true)
     try {
+      const unmaskedCnpj = formData.cnpj ? formData.cnpj.replace(/\D/g, '') : ''
+
+      if (unmaskedCnpj) {
+        const existing = await pb.collection('companies').getList(1, 1, {
+          filter: `cnpj = "${unmaskedCnpj}"${companyId ? ` && id != "${companyId}"` : ''}`,
+        })
+        if (existing.items.length > 0) {
+          setErrors({ cnpj: 'Este CNPJ já está cadastrado.' })
+          toast({
+            title: 'Erro',
+            description: 'Falha ao salvar as configurações. Verifique os campos e tente novamente.',
+            variant: 'destructive',
+          })
+          setIsSaving(false)
+          return
+        }
+      }
+
       const payload = new FormData()
       payload.append('name', formData.name)
-      payload.append('cnpj', formData.cnpj || '')
+      payload.append('cnpj', unmaskedCnpj)
       payload.append('overtime_rules', formData.overtime_rules || '')
 
       if (logoFile) {
@@ -75,7 +93,7 @@ export function CompanyForm({
         await pb.collection('companies').create(payload)
       }
 
-      toast({ title: 'Sucesso', description: 'Empresa salva com sucesso!' })
+      toast({ title: 'Sucesso', description: 'Configurações salvas com sucesso' })
       onSaved()
     } catch (err: any) {
       const fieldErrors = extractFieldErrors(err)
@@ -99,7 +117,7 @@ export function CompanyForm({
       setErrors(translatedErrors)
       toast({
         title: 'Erro',
-        description: 'Erro ao salvar empresa. Verifique os campos.',
+        description: 'Falha ao salvar as configurações. Verifique os campos e tente novamente.',
         variant: 'destructive',
       })
     } finally {
@@ -119,12 +137,14 @@ export function CompanyForm({
   return (
     <div className="max-w-4xl space-y-6 animate-fade-in">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+        {onBack && (
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            {companyId ? 'Editar Empresa' : 'Nova Empresa'}
+            {companyId ? 'Configurações da Empresa' : 'Nova Empresa'}
           </h2>
         </div>
       </div>
