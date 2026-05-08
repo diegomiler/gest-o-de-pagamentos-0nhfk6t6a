@@ -44,11 +44,15 @@ export default function Configuracoes() {
             setCompanyId(null)
             try {
               const activeUserId = pb.authStore.record?.id || (pb.authStore as any).model?.id
-              if (activeUserId) {
+              if (activeUserId && pb.authStore.isValid && activeUserId === user?.id) {
                 await pb.collection('users').update(activeUserId, { company_id: null })
               }
             } catch (patchErr) {
-              /* intentionally ignored to prevent 404 bubbling */
+              if (patchErr instanceof ClientResponseError && patchErr.status === 404) {
+                /* silently ignore 404 to prevent console errors and bubbling */
+              } else {
+                console.error('Failed to clear user company_id:', patchErr)
+              }
             }
           } else {
             toast.error('Erro ao carregar', {
