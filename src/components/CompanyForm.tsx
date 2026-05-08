@@ -58,21 +58,45 @@ export function CompanyForm({
     setErrors({})
     setIsSaving(true)
     try {
-      const payload: any = {
-        name: formData.name,
-        cnpj: formData.cnpj || '',
-        overtime_rules: formData.overtime_rules || '',
-      }
-      if (logoFile) payload.logo = logoFile
-      else if (logoPreview === null) payload.logo = null
+      const payload = new FormData()
+      payload.append('name', formData.name)
+      payload.append('cnpj', formData.cnpj || '')
+      payload.append('overtime_rules', formData.overtime_rules || '')
 
-      if (companyId) await pb.collection('companies').update(companyId, payload)
-      else await pb.collection('companies').create(payload)
+      if (logoFile) {
+        payload.append('logo', logoFile)
+      } else if (logoPreview === null) {
+        payload.append('logo', '')
+      }
+
+      if (companyId) {
+        await pb.collection('companies').update(companyId, payload)
+      } else {
+        await pb.collection('companies').create(payload)
+      }
+
       toast({ title: 'Sucesso', description: 'Empresa salva com sucesso!' })
       onSaved()
     } catch (err: any) {
       const fieldErrors = extractFieldErrors(err)
-      setErrors(fieldErrors)
+
+      const translatedErrors: Record<string, string> = {}
+      for (const [field, message] of Object.entries(fieldErrors)) {
+        const lowerMsg = message.toLowerCase()
+        if (lowerMsg.includes('unique') || lowerMsg.includes('já existe')) {
+          translatedErrors[field] = 'Este valor já está em uso.'
+        } else if (lowerMsg.includes('required') || lowerMsg.includes('blank')) {
+          translatedErrors[field] = 'Este campo é obrigatório.'
+        } else {
+          translatedErrors[field] = message
+        }
+      }
+
+      if (translatedErrors.cnpj === 'Este valor já está em uso.') {
+        translatedErrors.cnpj = 'Este CNPJ já está cadastrado.'
+      }
+
+      setErrors(translatedErrors)
       toast({
         title: 'Erro',
         description: 'Erro ao salvar empresa. Verifique os campos.',
