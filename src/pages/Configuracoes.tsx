@@ -2,12 +2,22 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Plus, Building2 } from 'lucide-react'
+import { Plus, Building2, Pencil, Trash2 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { CompanyForm } from '@/components/CompanyForm'
 import { useRealtime } from '@/hooks/use-realtime'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { useToast } from '@/hooks/use-toast'
 
 export default function Configuracoes() {
+  const { toast } = useToast()
   const [view, setView] = useState<'list' | 'form'>('list')
   const [companies, setCompanies] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -32,6 +42,18 @@ export default function Configuracoes() {
   useRealtime('companies', () => {
     loadCompanies()
   })
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!window.confirm('Tem certeza que deseja excluir esta empresa?')) return
+    try {
+      await pb.collection('companies').delete(id)
+      toast({ title: 'Sucesso', description: 'Empresa excluída.' })
+      loadCompanies()
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Erro ao excluir empresa.', variant: 'destructive' })
+    }
+  }
 
   if (view === 'form') {
     return (
@@ -86,40 +108,79 @@ export default function Configuracoes() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {companies.map((company) => (
-            <Card
-              key={company.id}
-              className="cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => {
-                setSelectedCompanyId(company.id)
-                setView('form')
-              }}
-            >
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center overflow-hidden shrink-0 border">
-                  {company.logo ? (
-                    <img
-                      src={pb.files.getURL(company, company.logo)}
-                      alt={company.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Building2 className="h-8 w-8 text-muted-foreground/50" />
-                  )}
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <h3 className="font-semibold text-lg truncate" title={company.name}>
-                    {company.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {company.tax_id || 'CNPJ não informado'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[80px]">Logo</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>CNPJ</TableHead>
+                  <TableHead>Endereço</TableHead>
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {companies.map((company) => (
+                  <TableRow
+                    key={company.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => {
+                      setSelectedCompanyId(company.id)
+                      setView('form')
+                    }}
+                  >
+                    <TableCell>
+                      <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center overflow-hidden border">
+                        {company.logo ? (
+                          <img
+                            src={pb.files.getURL(company, company.logo)}
+                            alt={company.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Building2 className="h-5 w-5 text-muted-foreground/50" />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{company.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{company.tax_id || '-'}</TableCell>
+                    <TableCell
+                      className="text-muted-foreground max-w-[200px] truncate"
+                      title={company.address}
+                    >
+                      {company.address || '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedCompanyId(company.id)
+                            setView('form')
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => handleDelete(company.id, e)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       )}
     </div>
   )

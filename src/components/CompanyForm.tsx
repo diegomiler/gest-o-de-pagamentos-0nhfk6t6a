@@ -7,7 +7,18 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
-import { Plus, Trash2, UploadCloud, Image as ImageIcon, X, Loader2, ArrowLeft } from 'lucide-react'
+import {
+  Plus,
+  Trash2,
+  UploadCloud,
+  Image as ImageIcon,
+  X,
+  Loader2,
+  ArrowLeft,
+  HelpCircle,
+} from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function CompanyForm({
   companyId,
@@ -21,12 +32,10 @@ export function CompanyForm({
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(!!companyId)
   const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState({ name: '', tax_id: '' })
+  const [formData, setFormData] = useState({ name: '', tax_id: '', address: '' })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [overtimeBrackets, setOvertimeBrackets] = useState<{ limit: string; percentage: string }[]>(
-    [],
-  )
+  const [overtimeRules, setOvertimeRules] = useState<{ rule: string; percentage: string }[]>([])
   const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -35,16 +44,27 @@ export function CompanyForm({
       pb.collection('companies')
         .getOne(companyId)
         .then((company) => {
-          setFormData({ name: company.name || '', tax_id: company.tax_id || '' })
+          setFormData({
+            name: company.name || '',
+            tax_id: company.tax_id || '',
+            address: company.address || '',
+          })
           setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
-          let brackets: any[] = []
-          if (Array.isArray(company.overtime_config)) {
-            brackets = company.overtime_config.map((b: any) => ({
-              limit: b.limit ?? '',
-              percentage: b.percentage || '',
-            }))
+          let rules: { rule: string; percentage: string }[] = []
+          if (company.overtime_config) {
+            if (Array.isArray(company.overtime_config)) {
+              rules = company.overtime_config.map((b: any) => ({
+                rule: b.rule || b.limit?.toString() || '',
+                percentage: b.percentage?.toString() || '',
+              }))
+            } else if (typeof company.overtime_config === 'object') {
+              rules = Object.entries(company.overtime_config).map(([k, v]) => ({
+                rule: k,
+                percentage: v?.toString() || '',
+              }))
+            }
           }
-          setOvertimeBrackets(brackets)
+          setOvertimeRules(rules)
           setIsLoading(false)
         })
         .catch(() => {
@@ -68,13 +88,18 @@ export function CompanyForm({
       return
     }
     try {
+      const configObj: Record<string, number> = {}
+      overtimeRules.forEach((r) => {
+        if (r.rule.trim()) {
+          configObj[r.rule.trim()] = Number(r.percentage) || 0
+        }
+      })
+
       const payload: any = {
         name: formData.name,
         tax_id: formData.tax_id || '',
-        overtime_config: overtimeBrackets.map((b) => ({
-          limit: String(b.limit).trim() ? Number(b.limit) : null,
-          percentage: Number(b.percentage) || 0,
-        })),
+        address: formData.address || '',
+        overtime_config: configObj,
       }
       if (logoFile) payload.logo = logoFile
       else if (logoPreview === null) payload.logo = null
@@ -126,10 +151,11 @@ export function CompanyForm({
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Razão Social *</Label>
+                <Label>Nome / Razão Social *</Label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Ex: Empresa XYZ LTDA"
                 />
                 {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
               </div>
@@ -138,35 +164,59 @@ export function CompanyForm({
                 <Input
                   value={formData.tax_id}
                   onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
+                  placeholder="00.000.000/0000-00"
                 />
                 {errors.tax_id && <p className="text-sm text-destructive">{errors.tax_id}</p>}
               </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label>Endereço</Label>
+                <Textarea
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Rua, Número, Bairro, Cidade - UF"
+                  className="resize-none"
+                />
+                {errors.address && <p className="text-sm text-destructive">{errors.address}</p>}
+              </div>
             </div>
             <div className="space-y-4 pt-4 border-t">
-              <Label className="text-base">Regras de Horas Extras</Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-base">Regras de Horas Extras</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[300px] text-sm">
+                    <p>
+                      Configuração de Horas Extras: Defina os percentuais para dias úteis e finais
+                      de semana (ex: {"{'semana': 50, 'domingo': 100}"}).
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <div className="space-y-3">
-                {overtimeBrackets.map((b, idx) => (
+                {overtimeRules.map((b, idx) => (
                   <div key={idx} className="flex items-center gap-3">
                     <Input
-                      type="number"
-                      placeholder="Limite (h)"
-                      value={b.limit}
+                      type="text"
+                      placeholder="Regra (ex: semana, domingo)"
+                      value={b.rule}
                       onChange={(e) => {
-                        const n = [...overtimeBrackets]
-                        n[idx].limit = e.target.value
-                        setOvertimeBrackets(n)
+                        const n = [...overtimeRules]
+                        n[idx].rule = e.target.value
+                        setOvertimeRules(n)
                       }}
-                      className="w-28"
+                      className="flex-1"
                     />
-                    <span className="text-sm text-muted-foreground">h =</span>
+                    <span className="text-sm text-muted-foreground"> = </span>
                     <Input
                       type="number"
                       placeholder="%"
                       value={b.percentage}
                       onChange={(e) => {
-                        const n = [...overtimeBrackets]
+                        const n = [...overtimeRules]
                         n[idx].percentage = e.target.value
-                        setOvertimeBrackets(n)
+                        setOvertimeRules(n)
                       }}
                       className="w-24"
                     />
@@ -175,10 +225,8 @@ export function CompanyForm({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() =>
-                        setOvertimeBrackets(overtimeBrackets.filter((_, i) => i !== idx))
-                      }
-                      className="text-destructive"
+                      onClick={() => setOvertimeRules(overtimeRules.filter((_, i) => i !== idx))}
+                      className="text-destructive shrink-0"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -189,7 +237,7 @@ export function CompanyForm({
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    setOvertimeBrackets([...overtimeBrackets, { limit: '', percentage: '50' }])
+                    setOvertimeRules([...overtimeRules, { rule: '', percentage: '50' }])
                   }
                 >
                   <Plus className="mr-2 h-4 w-4" /> Adicionar Regra
