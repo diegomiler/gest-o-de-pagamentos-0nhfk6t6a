@@ -34,8 +34,12 @@ export default function Relatorios() {
         setEmployees(emps)
 
         if (user?.company_id) {
-          const c = await pb.collection('companies').getOne(user.company_id)
-          setCompany({ id: c.id, name: c.name, tax_id: c.tax_id || '', logo: c.logo })
+          try {
+            const c = await pb.collection('companies').getOne(user.company_id)
+            setCompany({ id: c.id, name: c.name, tax_id: c.tax_id || '', logo: c.logo })
+          } catch {
+            setCompany(null)
+          }
         }
 
         const startDate = `${selectedMonth}-01 00:00:00`

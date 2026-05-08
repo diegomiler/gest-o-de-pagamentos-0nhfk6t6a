@@ -43,13 +43,14 @@ export function CompanyForm({
           setIsLoading(false)
         })
         .catch(() => {
-          toast({
-            title: 'Erro',
-            description: 'Não foi possível carregar.',
-            variant: 'destructive',
-          })
-          if (onBack) onBack()
+          setFormData({ name: '', cnpj: '', overtime_rules: '' })
+          setLogoPreview(null)
+          setIsLoading(false)
         })
+    } else {
+      setFormData({ name: '', cnpj: '', overtime_rules: '' })
+      setLogoPreview(null)
+      setIsLoading(false)
     }
   }, [companyId])
 
@@ -88,9 +89,27 @@ export function CompanyForm({
       }
 
       if (companyId) {
-        await pb.collection('companies').update(companyId, payload)
+        try {
+          await pb.collection('companies').update(companyId, payload)
+        } catch (updateErr: any) {
+          if (updateErr.status === 404) {
+            const newCompany = await pb.collection('companies').create(payload)
+            if (pb.authStore.record) {
+              await pb
+                .collection('users')
+                .update(pb.authStore.record.id, { company_id: newCompany.id })
+              await pb.collection('users').authRefresh()
+            }
+          } else {
+            throw updateErr
+          }
+        }
       } else {
-        await pb.collection('companies').create(payload)
+        const newCompany = await pb.collection('companies').create(payload)
+        if (pb.authStore.record) {
+          await pb.collection('users').update(pb.authStore.record.id, { company_id: newCompany.id })
+          await pb.collection('users').authRefresh()
+        }
       }
 
       toast({ title: 'Sucesso', description: 'Configurações salvas com sucesso' })
