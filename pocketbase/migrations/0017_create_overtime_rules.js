@@ -1,5 +1,7 @@
 migrate(
   (app) => {
+    const companiesCollection = app.findCollectionByNameOrId('companies')
+
     const collection = new Collection({
       name: 'overtime_rules',
       type: 'base',
@@ -13,7 +15,7 @@ migrate(
           name: 'company_id',
           type: 'relation',
           required: true,
-          collectionId: 'companies',
+          collectionId: companiesCollection.id,
           cascadeDelete: true,
           maxSelect: 1,
         },
