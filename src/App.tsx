@@ -10,6 +10,7 @@ import Funcionarios from './pages/Funcionarios'
 import Folha from './pages/Folha'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
+import RegrasHorasExtras from './pages/RegrasHorasExtras'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/folha" element={<Folha />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
+            <Route path="/configuracoes/regras-horas-extras" element={<RegrasHorasExtras />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

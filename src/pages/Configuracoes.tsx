@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Building2, Pencil, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 import { CompanyForm } from '@/components/CompanyForm'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -76,14 +77,19 @@ export default function Configuracoes() {
           <h2 className="text-3xl font-bold tracking-tight">Empresas</h2>
           <p className="text-muted-foreground">Gerencie as empresas cadastradas no sistema.</p>
         </div>
-        <Button
-          onClick={() => {
-            setSelectedCompanyId(null)
-            setView('form')
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Nova Empresa
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" asChild>
+            <Link to="/configuracoes/regras-horas-extras">Regras de Horas Extras</Link>
+          </Button>
+          <Button
+            onClick={() => {
+              setSelectedCompanyId(null)
+              setView('form')
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" /> Nova Empresa
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
