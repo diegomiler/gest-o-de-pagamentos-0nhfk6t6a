@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Building2 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { CompanyForm } from '@/components/CompanyForm'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Configuracoes() {
   const [view, setView] = useState<'list' | 'form'>('list')
@@ -27,6 +28,10 @@ export default function Configuracoes() {
   useEffect(() => {
     loadCompanies()
   }, [])
+
+  useRealtime('companies', () => {
+    loadCompanies()
+  })
 
   if (view === 'form') {
     return (

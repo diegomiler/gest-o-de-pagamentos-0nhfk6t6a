@@ -63,7 +63,7 @@ export function CompanyForm({
     setErrors({})
     setIsSaving(true)
     if (!formData.name.trim()) {
-      setErrors({ name: 'Nome é obrigatório' })
+      setErrors({ name: 'O nome da empresa é obrigatório' })
       setIsSaving(false)
       return
     }
@@ -81,13 +81,17 @@ export function CompanyForm({
 
       if (companyId) await pb.collection('companies').update(companyId, payload)
       else await pb.collection('companies').create(payload)
-      toast({ title: 'Sucesso', description: 'Empresa salva com sucesso.' })
+      toast({ title: 'Sucesso', description: 'Empresa salva com sucesso!' })
       onSaved()
     } catch (err: any) {
       const fieldErrors = extractFieldErrors(err)
-      if (fieldErrors.tax_id) fieldErrors.tax_id = 'Este CNPJ já está cadastrado'
+      if (fieldErrors.tax_id) fieldErrors.tax_id = 'Este CNPJ/CPF já está cadastrado'
       setErrors(fieldErrors)
-      toast({ title: 'Erro', description: 'Verifique os campos.', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: 'Erro ao salvar empresa. Verifique os campos.',
+        variant: 'destructive',
+      })
     } finally {
       setIsSaving(false)
     }
