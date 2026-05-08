@@ -13,6 +13,7 @@ import { HoleritePrint } from '@/components/HoleritePrint'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { ClientResponseError } from 'pocketbase'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Relatorios() {
   const { user, signOut } = useAuth()
@@ -28,6 +29,7 @@ export default function Relatorios() {
     tax_id: string
     logo?: string
   } | null>(null)
+  const [updateTrigger, setUpdateTrigger] = useState(0)
 
   useEffect(() => {
     const loadData = async () => {
@@ -41,7 +43,7 @@ export default function Relatorios() {
           } else {
             try {
               const c = await pb.collection('companies').getOne(user.company_id)
-              setCompany({ id: c.id, name: c.name, tax_id: c.tax_id || '', logo: c.logo })
+              setCompany({ id: c.id, name: c.name, tax_id: c.cnpj || '', logo: c.logo })
             } catch (err: any) {
               setCompany(null)
               if (err instanceof ClientResponseError && err.status === 404) {
@@ -71,7 +73,11 @@ export default function Relatorios() {
       }
     }
     loadData()
-  }, [selectedMonth, user])
+  }, [selectedMonth, user, updateTrigger])
+
+  useRealtime('employees', () => setUpdateTrigger((prev) => prev + 1))
+  useRealtime('payroll_entries', () => setUpdateTrigger((prev) => prev + 1))
+  useRealtime('companies', () => setUpdateTrigger((prev) => prev + 1))
 
   const printableData = useMemo(() => {
     const grouped = employees
@@ -79,20 +85,10 @@ export default function Relatorios() {
         const empEntries = payrollEntries.filter((e) => e.employee_id === emp.id)
         if (empEntries.length === 0 && emp.status === 'inactive') return null
 
-        let commissions = 0,
-          bonuses = 0,
-          pharmacy = 0,
-          advances = 0
-        empEntries.forEach((e) => {
-          if (e.category === 'commission') commissions += e.amount
-          if (e.category === 'bonus') bonuses += e.amount
-          if (e.category === 'pharmacy_discount') pharmacy += e.amount
-          if (e.category === 'advance') advances += e.amount
-        })
-
         return {
           employee: emp,
-          entry: { month: selectedMonth, commissions, bonuses, pharmacy, advances },
+          entries: empEntries,
+          month: selectedMonth,
         }
       })
       .filter(Boolean)
@@ -164,7 +160,12 @@ export default function Relatorios() {
                 key={data.employee.id}
                 className="print:page-break-after-always last:print:page-break-after-auto shrink-0"
               >
-                <HoleritePrint employee={data.employee} entry={data.entry} company={company} />
+                <HoleritePrint
+                  employee={data.employee}
+                  entries={data.entries}
+                  month={data.month}
+                  company={company}
+                />
               </div>
             ))}
         </div>
