@@ -22,7 +22,15 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const EARNINGS = ['commission', 'bonus', 'additional', 'overtime', 'base_net', 'other_addition']
+const EARNINGS = [
+  'commission',
+  'bonus',
+  'additional',
+  'overtime',
+  'base_net',
+  'other_addition',
+  'fixed_additional',
+]
 const DEDUCTIONS = [
   'pharmacy_discount',
   'advance',
@@ -49,6 +57,7 @@ const getCategoryLabel = (cat: string) => {
     store_agreement: 'Convênio Loja',
     other_discount: 'Outros Descontos',
     other_addition: 'Outros Acréscimos',
+    fixed_additional: 'Adicional Fixo',
   }
   return labels[cat] || cat
 }
@@ -62,15 +71,20 @@ const chartConfig = {
 
 export function EmployeePaymentHistory({ employeeId }: { employeeId: string }) {
   const [entries, setEntries] = useState<any[]>([])
+  const [employee, setEmployee] = useState<any>(null)
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
   const [selectedMonthDetail, setSelectedMonthDetail] = useState<any | null>(null)
 
   const loadData = async () => {
     try {
-      const records = await pb.collection('payroll_entries').getFullList({
-        filter: `employee_id = "${employeeId}"`,
-        sort: '-entry_date',
-      })
+      const [emp, records] = await Promise.all([
+        pb.collection('employees').getOne(employeeId),
+        pb.collection('payroll_entries').getFullList({
+          filter: `employee_id = "${employeeId}"`,
+          sort: '-entry_date',
+        }),
+      ])
+      setEmployee(emp)
       setEntries(records)
     } catch (e) {
       console.error(e)
@@ -82,6 +96,7 @@ export function EmployeePaymentHistory({ employeeId }: { employeeId: string }) {
   }, [employeeId])
 
   useRealtime('payroll_entries', loadData)
+  useRealtime('employees', loadData)
 
   const availableYears = useMemo(() => {
     const years = new Set<string>()
@@ -96,11 +111,18 @@ export function EmployeePaymentHistory({ employeeId }: { employeeId: string }) {
 
   const monthlyData = useMemo(() => {
     const groups: Record<string, any> = {}
+    const additionalAmount = employee?.additional_amount || 0
 
     entries.forEach((e) => {
       const month = e.entry_date.substring(0, 7)
       if (!groups[month]) {
-        groups[month] = { month, earnings: 0, deductions: 0, details: [] }
+        groups[month] = { month, earnings: additionalAmount, deductions: 0, details: [] }
+        groups[month].details.push({
+          id: `fixed-${month}`,
+          category: 'fixed_additional',
+          description: 'Adicional Fixo',
+          amount: additionalAmount,
+        })
       }
 
       if (EARNINGS.includes(e.category)) groups[month].earnings += e.amount
@@ -115,7 +137,7 @@ export function EmployeePaymentHistory({ employeeId }: { employeeId: string }) {
         ...g,
         net: g.earnings - g.deductions,
       }))
-  }, [entries])
+  }, [entries, employee])
 
   const last12Months = useMemo(() => {
     const data = []
