@@ -11,6 +11,7 @@ import Folha from './pages/Folha'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
 import RegrasHorasExtras from './pages/RegrasHorasExtras'
+import Empresas from './pages/Empresas'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -39,6 +40,7 @@ const App = () => (
             }
           >
             <Route path="/" element={<Index />} />
+            <Route path="/empresas" element={<Empresas />} />
             <Route path="/funcionarios" element={<Funcionarios />} />
             <Route path="/folha" element={<Folha />} />
             <Route path="/relatorios" element={<Relatorios />} />

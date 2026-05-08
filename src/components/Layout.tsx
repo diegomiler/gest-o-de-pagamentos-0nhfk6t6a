@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/sidebar'
 import {
   LayoutDashboard,
+  Building2,
   Users,
   Calculator,
   FileText,
@@ -25,6 +26,7 @@ import { useAuth } from '@/hooks/use-auth'
 
 const NAV_ITEMS = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
+  { title: 'Empresas', url: '/empresas', icon: Building2 },
   { title: 'Funcionários', url: '/funcionarios', icon: Users },
   { title: 'Folha de Pagamento', url: '/folha', icon: Calculator },
   { title: 'Holerites e Relatórios', url: '/relatorios', icon: FileText },
