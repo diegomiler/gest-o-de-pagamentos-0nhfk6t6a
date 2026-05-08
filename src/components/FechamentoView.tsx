@@ -173,116 +173,58 @@ export function FechamentoView() {
       'Empresa',
       'Funcionário',
       'Cargo',
-      'Salário Base (Fixo)',
-      'Valor Fixo Adicional',
-      'Categoria do Lançamento',
-      'Descrição do Lançamento',
-      'Quantidade',
-      'Valor do Lançamento',
-      'Data',
-      'Salário Líquido Final (Mês)',
+      'Salário Lançado',
+      'Adicional',
+      'Horas Extras',
+      'Comissão/Prêmio',
+      'Outros Vencimentos',
+      'Total Vencimentos',
+      'Furos de Caixa',
+      'Horas Negativas',
+      'Convênios',
+      'Adiantamentos',
+      'Outros Descontos',
+      'Total Descontos',
+      'Salário Líquido (Mês)',
     ]
 
-    const categoryMap: Record<string, string> = {
-      commission: 'Comissão',
-      bonus: 'Prêmio',
-      pharmacy_discount: 'Farmácia',
-      advance: 'Adiantamento',
-      additional: 'Adicional',
-      other: 'Outro',
-      overtime: 'Hora Extra',
-      base_net: 'Base Líquida',
-      cash_shortage: 'Furo de Caixa',
-      negative_hours: 'Hora Negativa',
-      partner_agreement: 'Convênio Parceiro',
-      store_agreement: 'Convênio Loja',
-      other_discount: 'Outro Desconto',
-      other_addition: 'Outro Acréscimo',
-    }
-
-    const companyEmployees = employees.filter((e) => e.company_id === activeCompany.id)
-    const rows: string[][] = []
-
-    companyEmployees.forEach((emp) => {
-      const empEntries = payrollEntries.filter((e) => e.employee_id === emp.id)
-
-      const empReport = reportData.find((r) => r.id === emp.id)
-      const netTotalStr = (empReport?.netTotal || 0).toFixed(2)
-      const fixedBaseSalaryStr = (emp.base_salary || 0).toFixed(2)
-      const fixedValueStr = (emp.additional_amount || 0).toFixed(2)
-
-      if (empEntries.length === 0) {
-        rows.push([
-          `"${activeCompany.name}"`,
-          `"${emp.name}"`,
-          `"${emp.role || ''}"`,
-          fixedBaseSalaryStr,
-          fixedValueStr,
-          '""',
-          '""',
-          '0.00',
-          '0.00',
-          '""',
-          netTotalStr,
-        ])
-      } else {
-        empEntries.forEach((entry) => {
-          rows.push([
-            `"${activeCompany.name}"`,
-            `"${emp.name}"`,
-            `"${emp.role || ''}"`,
-            fixedBaseSalaryStr,
-            fixedValueStr,
-            `"${categoryMap[entry.category] || entry.category}"`,
-            `"${entry.description || ''}"`,
-            (entry.quantity || 0).toFixed(2),
-            (entry.amount || 0).toFixed(2),
-            `"${entry.entry_date ? entry.entry_date.split(' ')[0] : ''}"`,
-            netTotalStr,
-          ])
-        })
-      }
-    })
+    const rows: string[][] = reportData.map((row) => [
+      `"${activeCompany.name}"`,
+      `"${row.name}"`,
+      `"${row.role}"`,
+      row.baseSalary.toFixed(2),
+      row.additionalFixed.toFixed(2),
+      row.overtime.toFixed(2),
+      row.commissionBonus.toFixed(2),
+      row.otherAdditions.toFixed(2),
+      row.totalEarnings.toFixed(2),
+      row.cashShortage.toFixed(2),
+      row.negativeHours.toFixed(2),
+      row.pharmacyStore.toFixed(2),
+      row.advances.toFixed(2),
+      row.otherDiscounts.toFixed(2),
+      row.totalDiscounts.toFixed(2),
+      row.netTotal.toFixed(2),
+    ])
 
     rows.push([])
     rows.push([
       '""',
+      '"TOTAL GERAL"',
       '""',
-      '""',
-      '""',
-      '""',
-      '""',
-      '"TOTAL VENCIMENTOS"',
-      '""',
+      totals.baseSalary.toFixed(2),
+      totals.additionalFixed.toFixed(2),
+      totals.overtime.toFixed(2),
+      totals.commissionBonus.toFixed(2),
+      totals.otherAdditions.toFixed(2),
       totals.totalEarnings.toFixed(2),
-      '""',
-      '""',
-    ])
-    rows.push([
-      '""',
-      '""',
-      '""',
-      '""',
-      '""',
-      '""',
-      '"TOTAL DESCONTOS"',
-      '""',
+      totals.cashShortage.toFixed(2),
+      totals.negativeHours.toFixed(2),
+      totals.pharmacyStore.toFixed(2),
+      totals.advances.toFixed(2),
+      totals.otherDiscounts.toFixed(2),
       totals.totalDiscounts.toFixed(2),
-      '""',
-      '""',
-    ])
-    rows.push([
-      '""',
-      '""',
-      '""',
-      '""',
-      '""',
-      '""',
-      '"TOTAL LÍQUIDO GERAL"',
-      '""',
       totals.netTotal.toFixed(2),
-      '""',
-      '""',
     ])
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
@@ -449,10 +391,10 @@ export function FechamentoView() {
             <TableHeader>
               <TableRow className="print:border-b-2 print:border-black">
                 <TableHead className="w-[180px]">Funcionário / Cargo</TableHead>
-                <TableHead className="text-right">Sal. Base (Fixo)</TableHead>
+                <TableHead className="text-right print-hidden">Sal. Base (Fixo)</TableHead>
                 <TableHead className="text-right">Sal. Lançado</TableHead>
-                <TableHead className="text-right">Valor Fixo</TableHead>
-                <TableHead className="text-right">Adic. Fixo</TableHead>
+                <TableHead className="text-right print-hidden">Valor Fixo</TableHead>
+                <TableHead className="text-right print-hidden">Adic. Fixo</TableHead>
                 <TableHead className="text-right">H. Extras</TableHead>
                 <TableHead className="text-right">Comis/Prêm</TableHead>
                 <TableHead className="text-right">Outros V.</TableHead>
@@ -490,12 +432,14 @@ export function FechamentoView() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right print-hidden">
                       {formatCurrency(row.fixedBaseSalary)}
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(row.baseSalary)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.fixedValue)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right print-hidden">
+                      {formatCurrency(row.fixedValue)}
+                    </TableCell>
+                    <TableCell className="text-right print-hidden">
                       {formatCurrency(row.additionalFixed)}
                     </TableCell>
                     <TableCell className="text-right text-blue-600 print:text-black">
@@ -537,12 +481,14 @@ export function FechamentoView() {
               {reportData.length > 0 && (
                 <TableRow className="font-bold bg-muted/50 print:bg-transparent print:border-t-2 print:border-black">
                   <TableCell className="uppercase text-[10px]">Total Geral</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right print-hidden">
                     {formatCurrency(totals.fixedBaseSalary || 0)}
                   </TableCell>
                   <TableCell className="text-right">{formatCurrency(totals.baseSalary)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(totals.fixedValue)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right print-hidden">
+                    {formatCurrency(totals.fixedValue)}
+                  </TableCell>
+                  <TableCell className="text-right print-hidden">
                     {formatCurrency(totals.additionalFixed)}
                   </TableCell>
                   <TableCell className="text-right text-blue-600 print:text-black">
