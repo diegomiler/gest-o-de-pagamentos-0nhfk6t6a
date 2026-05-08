@@ -21,6 +21,7 @@ export function CompanyForm({
   onSaved: () => void
 }) {
   const { toast } = useToast()
+  const [localCompanyId, setLocalCompanyId] = useState<string | null>(companyId)
   const [isLoading, setIsLoading] = useState(!!companyId)
   const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState({ name: '', cnpj: '', overtime_rules: '' })
@@ -30,14 +31,22 @@ export function CompanyForm({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    setLocalCompanyId(companyId)
+  }, [companyId])
+
+  useEffect(() => {
     if (companyId) {
+      setIsLoading(true)
       pb.collection('companies')
         .getOne(companyId)
         .then((company) => {
           setFormData({
             name: company.name || '',
             cnpj: formatCNPJ(company.cnpj || ''),
-            overtime_rules: company.overtime_rules || '',
+            overtime_rules:
+              typeof company.overtime_rules === 'object'
+                ? JSON.stringify(company.overtime_rules)
+                : String(company.overtime_rules || ''),
           })
           setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
           setIsLoading(false)
@@ -46,11 +55,13 @@ export function CompanyForm({
           setFormData({ name: '', cnpj: '', overtime_rules: '' })
           setLogoPreview(null)
           setIsLoading(false)
+          setLocalCompanyId(null)
         })
     } else {
       setFormData({ name: '', cnpj: '', overtime_rules: '' })
       setLogoPreview(null)
       setIsLoading(false)
+      setLocalCompanyId(null)
     }
   }, [companyId])
 
@@ -63,7 +74,7 @@ export function CompanyForm({
 
       if (unmaskedCnpj) {
         const existing = await pb.collection('companies').getList(1, 1, {
-          filter: `cnpj = "${unmaskedCnpj}"${companyId ? ` && id != "${companyId}"` : ''}`,
+          filter: `cnpj = "${unmaskedCnpj}"${localCompanyId ? ` && id != "${localCompanyId}"` : ''}`,
         })
         if (existing.items.length > 0) {
           setErrors({ cnpj: 'Este CNPJ já está cadastrado.' })
@@ -80,7 +91,12 @@ export function CompanyForm({
       const payload = new FormData()
       payload.append('name', formData.name)
       payload.append('cnpj', unmaskedCnpj)
-      payload.append('overtime_rules', formData.overtime_rules || '')
+
+      const parsedOvertimeRules =
+        typeof formData.overtime_rules === 'object'
+          ? JSON.stringify(formData.overtime_rules)
+          : String(formData.overtime_rules || '')
+      payload.append('overtime_rules', parsedOvertimeRules)
 
       if (logoFile) {
         payload.append('logo', logoFile)
@@ -88,12 +104,13 @@ export function CompanyForm({
         payload.append('logo', '')
       }
 
-      if (companyId) {
+      if (localCompanyId) {
         try {
-          await pb.collection('companies').update(companyId, payload)
+          await pb.collection('companies').update(localCompanyId, payload)
         } catch (updateErr: any) {
           if (updateErr.status === 404) {
             const newCompany = await pb.collection('companies').create(payload)
+            setLocalCompanyId(newCompany.id)
             if (pb.authStore.record) {
               await pb
                 .collection('users')
@@ -106,6 +123,7 @@ export function CompanyForm({
         }
       } else {
         const newCompany = await pb.collection('companies').create(payload)
+        setLocalCompanyId(newCompany.id)
         if (pb.authStore.record) {
           await pb.collection('users').update(pb.authStore.record.id, { company_id: newCompany.id })
           await pb.collection('users').authRefresh()
@@ -163,7 +181,7 @@ export function CompanyForm({
         )}
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            {companyId ? 'Configurações da Empresa' : 'Nova Empresa'}
+            {localCompanyId ? 'Configurações da Empresa' : 'Nova Empresa'}
           </h2>
         </div>
       </div>
