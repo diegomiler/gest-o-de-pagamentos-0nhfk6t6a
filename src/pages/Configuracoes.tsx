@@ -157,27 +157,28 @@ export default function Configuracoes() {
     }
 
     try {
-      const data = new FormData()
-      data.append('name', formData.name)
-      data.append('tax_id', formData.tax_id)
-
-      if (logoFile) {
-        data.append('logo', logoFile)
-      } else if (logoPreview === null && editingCompany?.logo) {
-        data.append('logo', '')
-      }
-
       const parsedBrackets = overtimeBrackets.map((b) => ({
         limit: (b.limit || '').trim() ? Number(b.limit) : null,
         percentage: Number(b.percentage) || 0,
       }))
-      data.append('overtime_config', JSON.stringify(parsedBrackets))
+
+      const payload: any = {
+        name: formData.name,
+        tax_id: formData.tax_id || '',
+        overtime_config: parsedBrackets,
+      }
+
+      if (logoFile) {
+        payload.logo = logoFile
+      } else if (logoPreview === null && editingCompany?.logo) {
+        payload.logo = null
+      }
 
       if (editingCompany) {
-        await pb.collection('companies').update(editingCompany.id, data)
+        await pb.collection('companies').update(editingCompany.id, payload)
         toast({ title: 'Sucesso', description: 'Empresa atualizada.' })
       } else {
-        await pb.collection('companies').create(data)
+        await pb.collection('companies').create(payload)
         toast({ title: 'Sucesso', description: 'Empresa criada.' })
       }
       setIsDialogOpen(false)
