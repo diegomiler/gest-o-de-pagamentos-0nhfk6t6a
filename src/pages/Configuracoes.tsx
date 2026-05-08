@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Link } from 'react-router-dom'
@@ -12,27 +12,36 @@ export default function Configuracoes() {
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(true)
   const [companyId, setCompanyId] = useState<string | null>(null)
+  const [isNotFound, setIsNotFound] = useState(false)
+  const invalidIdRef = useRef<string | null>(null)
 
   const loadCompany = async () => {
     if (!user) return
+
+    // Evita loop recursivo de chamadas se o ID já for conhecido como inválido (404)
+    if (user.company_id && user.company_id === invalidIdRef.current && isNotFound) {
+      setCompanyId(null)
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     try {
       if (user.company_id) {
         try {
           await pb.collection('companies').getOne(user.company_id)
           setCompanyId(user.company_id)
+          setIsNotFound(false)
+          invalidIdRef.current = null
         } catch (err: any) {
           if (err instanceof ClientResponseError && err.status === 404) {
             toast.error('Empresa não encontrada', {
               description:
                 'O registro da empresa não foi encontrado. Por favor, crie uma nova configuração.',
             })
-            try {
-              await pb.collection('users').update(user.id, { company_id: null })
-              await pb.collection('users').authRefresh()
-            } catch (updateErr) {
-              console.error('Falha ao limpar company_id do usuário', updateErr)
-            }
+            // Reseta o estado sem disparar update no servidor para evitar recursividade
+            setIsNotFound(true)
+            invalidIdRef.current = user.company_id
             setCompanyId(null)
           } else {
             toast.error('Erro ao carregar', {
