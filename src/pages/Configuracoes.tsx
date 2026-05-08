@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
+import { formatCNPJ } from '@/lib/format'
 
 export default function Configuracoes() {
   const { toast } = useToast()
@@ -143,7 +144,9 @@ export default function Configuracoes() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{company.name || '-'}</TableCell>
-                    <TableCell className="text-muted-foreground">{company.cnpj || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {company.cnpj ? formatCNPJ(company.cnpj) : '-'}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button

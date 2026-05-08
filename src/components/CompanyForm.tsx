@@ -9,6 +9,7 @@ import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { UploadCloud, Image as ImageIcon, X, Loader2, ArrowLeft } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
+import { formatCNPJ } from '@/lib/format'
 
 export function CompanyForm({
   companyId,
@@ -35,7 +36,7 @@ export function CompanyForm({
         .then((company) => {
           setFormData({
             name: company.name || '',
-            cnpj: company.cnpj || '',
+            cnpj: formatCNPJ(company.cnpj || ''),
             overtime_rules: company.overtime_rules || '',
           })
           setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
@@ -123,8 +124,9 @@ export function CompanyForm({
                 <Label>CNPJ</Label>
                 <Input
                   value={formData.cnpj}
-                  onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, cnpj: formatCNPJ(e.target.value) })}
                   placeholder="00.000.000/0000-00"
+                  maxLength={18}
                 />
                 {errors.cnpj && <p className="text-sm text-destructive">{errors.cnpj}</p>}
               </div>
