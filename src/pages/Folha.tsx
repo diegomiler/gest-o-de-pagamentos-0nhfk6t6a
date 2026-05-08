@@ -709,25 +709,4 @@ export default function Folha() {
                   -{formatCurrency(totals.cash_shortage)}
                 </TableCell>
                 <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.negative_hours)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.partner_agreement)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.store_agreement)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.other_discount)}
-                </TableCell>
-                <TableCell className="text-right font-bold text-lg sticky right-0 bg-muted shadow-[-1px_0_0_0_#e5e7eb] z-20">
-                  {formatCurrency(totals.net)}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+              

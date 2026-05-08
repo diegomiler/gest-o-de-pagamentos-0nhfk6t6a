@@ -164,11 +164,4 @@ export default function Relatorios() {
                 key={data.employee.id}
                 className="print:page-break-after-always last:print:page-break-after-auto shrink-0"
               >
-                <HoleritePrint employee={data.employee} entry={data.entry} company={company} />
-              </div>
-            ))}
-        </div>
-      </div>
-    </div>
-  )
-}
+                <HoleritePrint employee={da
