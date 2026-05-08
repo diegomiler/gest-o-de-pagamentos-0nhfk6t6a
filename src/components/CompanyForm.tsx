@@ -83,7 +83,7 @@ export function CompanyForm({
     setErrors({})
     setIsSaving(true)
     if (!formData.name.trim()) {
-      setErrors({ name: 'O nome da empresa é obrigatório' })
+      setErrors({ name: 'O campo Nome é obrigatório.' })
       setIsSaving(false)
       return
     }
@@ -110,7 +110,8 @@ export function CompanyForm({
       onSaved()
     } catch (err: any) {
       const fieldErrors = extractFieldErrors(err)
-      if (fieldErrors.tax_id) fieldErrors.tax_id = 'Este CNPJ/CPF já está cadastrado'
+      if (fieldErrors.tax_id) fieldErrors.tax_id = 'Este CNPJ já está cadastrado.'
+      if (fieldErrors.name) fieldErrors.name = 'O campo Nome é obrigatório.'
       setErrors(fieldErrors)
       toast({
         title: 'Erro',
