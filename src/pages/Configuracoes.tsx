@@ -116,7 +116,6 @@ export default function Configuracoes() {
                   <TableHead className="w-[80px]">Logo</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>CNPJ</TableHead>
-                  <TableHead>Endereço</TableHead>
                   <TableHead className="w-[100px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -143,14 +142,8 @@ export default function Configuracoes() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{company.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{company.tax_id || '-'}</TableCell>
-                    <TableCell
-                      className="text-muted-foreground max-w-[200px] truncate"
-                      title={company.address}
-                    >
-                      {company.address || '-'}
-                    </TableCell>
+                    <TableCell className="font-medium">{company.name || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">{company.cnpj || '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
                         <Button

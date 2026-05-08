@@ -22,7 +22,7 @@ export function CompanyForm({
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(!!companyId)
   const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState({ name: '', tax_id: '', address: '' })
+  const [formData, setFormData] = useState({ name: '', cnpj: '', overtime_rules: '' })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -35,8 +35,8 @@ export function CompanyForm({
         .then((company) => {
           setFormData({
             name: company.name || '',
-            tax_id: company.tax_id || '',
-            address: company.address || '',
+            cnpj: company.cnpj || '',
+            overtime_rules: company.overtime_rules || '',
           })
           setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
           setIsLoading(false)
@@ -56,16 +56,11 @@ export function CompanyForm({
     e.preventDefault()
     setErrors({})
     setIsSaving(true)
-    if (!formData.name.trim()) {
-      setErrors({ name: 'O campo Nome é obrigatório.' })
-      setIsSaving(false)
-      return
-    }
     try {
       const payload: any = {
         name: formData.name,
-        tax_id: formData.tax_id || '',
-        address: formData.address || '',
+        cnpj: formData.cnpj || '',
+        overtime_rules: formData.overtime_rules || '',
       }
       if (logoFile) payload.logo = logoFile
       else if (logoPreview === null) payload.logo = null
@@ -76,8 +71,6 @@ export function CompanyForm({
       onSaved()
     } catch (err: any) {
       const fieldErrors = extractFieldErrors(err)
-      if (fieldErrors.tax_id) fieldErrors.tax_id = 'Este CNPJ já está cadastrado.'
-      if (fieldErrors.name) fieldErrors.name = 'O campo Nome é obrigatório.'
       setErrors(fieldErrors)
       toast({
         title: 'Erro',
@@ -118,7 +111,7 @@ export function CompanyForm({
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Nome / Razão Social *</Label>
+                <Label>Nome / Razão Social</Label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -129,21 +122,23 @@ export function CompanyForm({
               <div className="space-y-2">
                 <Label>CNPJ</Label>
                 <Input
-                  value={formData.tax_id}
-                  onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
+                  value={formData.cnpj}
+                  onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
                   placeholder="00.000.000/0000-00"
                 />
-                {errors.tax_id && <p className="text-sm text-destructive">{errors.tax_id}</p>}
+                {errors.cnpj && <p className="text-sm text-destructive">{errors.cnpj}</p>}
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Endereço</Label>
+                <Label>Regras para Horas Extras</Label>
                 <Textarea
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="Rua, Número, Bairro, Cidade - UF"
-                  className="resize-none"
+                  value={formData.overtime_rules}
+                  onChange={(e) => setFormData({ ...formData, overtime_rules: e.target.value })}
+                  placeholder="Descreva as regras para horas extras da empresa..."
+                  className="resize-none min-h-[100px]"
                 />
-                {errors.address && <p className="text-sm text-destructive">{errors.address}</p>}
+                {errors.overtime_rules && (
+                  <p className="text-sm text-destructive">{errors.overtime_rules}</p>
+                )}
               </div>
             </div>
             <div className="space-y-4 pt-4 border-t">
