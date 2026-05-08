@@ -315,10 +315,17 @@ export default function Folha() {
         headers: { 'Content-Type': 'application/json' },
       })
       toast({ title: 'Folha Salva', description: `Folha de ${selectedMonth} salva com sucesso.` })
-    } catch (err) {
+    } catch (err: any) {
+      const isNetwork = err.status === 0
+      const isServer = err.status >= 500
+
       toast({
         title: 'Erro',
-        description: 'Não foi possível salvar a folha.',
+        description: isNetwork
+          ? 'Erro de conexão. Verifique sua internet.'
+          : isServer
+            ? 'Erro interno no servidor.'
+            : 'Não foi possível salvar a folha. Verifique os dados e tente novamente.',
         variant: 'destructive',
       })
     }

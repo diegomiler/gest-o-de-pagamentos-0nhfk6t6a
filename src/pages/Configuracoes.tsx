@@ -182,10 +182,24 @@ export default function Configuracoes() {
       }
       setIsDialogOpen(false)
     } catch (err: any) {
-      setErrors(extractFieldErrors(err))
+      const fieldErrors = extractFieldErrors(err)
+
+      if (fieldErrors.tax_id) {
+        fieldErrors.tax_id = 'Este CNPJ/CPF já está cadastrado'
+      }
+
+      setErrors(fieldErrors)
+
+      const isNetwork = err.status === 0
+      const isServer = err.status >= 500
+
       toast({
-        title: 'Erro',
-        description: 'Verifique os campos obrigatórios.',
+        title: 'Erro ao salvar',
+        description: isNetwork
+          ? 'Erro de conexão. Verifique sua internet.'
+          : isServer
+            ? 'Erro interno no servidor.'
+            : 'Verifique os campos destacados e tente novamente.',
         variant: 'destructive',
       })
     }

@@ -1,93 +1,91 @@
-// sync payroll entries for multiple employees in a single transaction
 routerAdd(
   'POST',
   '/backend/v1/payroll/sync',
   (e) => {
     const body = e.requestInfo().body
-    const month = body.month // "YYYY-MM"
-    const entries = body.entries // array of objects
-
-    if (!month || !Array.isArray(entries)) {
-      return e.badRequestError('Invalid payload')
+    if (!body || !body.month || !body.entries) {
+      return e.badRequestError('Dados inválidos.')
     }
 
-    const startDate = month + '-01 00:00:00'
-    const endDate = month + '-31 23:59:59'
+    const month = body.month // "YYYY-MM"
+    const entries = body.entries
+
+    const startDate = month + '-01 00:00:00.000Z'
+    const startObj = new Date(month + '-01T00:00:00Z')
+    const nextMonthObj = new Date(startObj)
+    nextMonthObj.setUTCMonth(nextMonthObj.getUTCMonth() + 1)
+    const endDate = nextMonthObj.toISOString().substring(0, 10) + ' 00:00:00.000Z'
 
     $app.runInTransaction((txApp) => {
-      for (const emp of entries) {
-        const employeeId = emp.employee_id
-        if (!employeeId) continue
-
-        let employee
+      for (const empData of entries) {
+        const empId = empData.employee_id
+        let emp
         try {
-          employee = txApp.findRecordById('employees', employeeId)
-        } catch (_) {
+          emp = txApp.findRecordById('employees', empId)
+        } catch (err) {
           continue
         }
-        const companyId = employee.get('company_id')
 
-        // Build categories map based on the new schema and payload
+        const companyId = emp.get('company_id')
+
+        const existing = txApp.findRecordsByFilter(
+          'payroll_entries',
+          'employee_id = {:empId} && entry_date >= {:start} && entry_date < {:end}',
+          '-created',
+          1000,
+          0,
+          { empId: empId, start: startDate, end: endDate },
+        )
+
+        for (const rec of existing) {
+          txApp.delete(rec)
+        }
+
         const categories = [
-          { key: 'base_net', val: emp.base_net },
-          { key: 'commission', val: emp.commissions },
-          { key: 'bonus', val: emp.bonuses },
-          { key: 'pharmacy_discount', val: emp.pharmacy },
-          { key: 'advance', val: emp.advances },
-          { key: 'overtime', val: 0, qty: emp.overtime_hours },
-          { key: 'cash_shortage', val: emp.cash_shortage, desc: emp.cash_shortage_desc },
-          { key: 'negative_hours', val: emp.negative_hours, desc: emp.negative_hours_desc },
-          {
-            key: 'partner_agreement',
-            val: emp.partner_agreement,
-            desc: emp.partner_agreement_desc,
-          },
-          { key: 'store_agreement', val: emp.store_agreement, desc: emp.store_agreement_desc },
-          { key: 'other_discount', val: emp.other_discount, desc: emp.other_discount_desc },
-          { key: 'other_addition', val: emp.other_addition, desc: emp.other_addition_desc },
+          { key: 'commissions', cat: 'commission', descKey: '' },
+          { key: 'bonuses', cat: 'bonus', descKey: '' },
+          { key: 'pharmacy', cat: 'pharmacy_discount', descKey: '' },
+          { key: 'advances', cat: 'advance', descKey: '' },
+          { key: 'base_net', cat: 'base_net', descKey: '' },
+          { key: 'cash_shortage', cat: 'cash_shortage', descKey: 'cash_shortage_desc' },
+          { key: 'negative_hours', cat: 'negative_hours', descKey: 'negative_hours_desc' },
+          { key: 'partner_agreement', cat: 'partner_agreement', descKey: 'partner_agreement_desc' },
+          { key: 'store_agreement', cat: 'store_agreement', descKey: 'store_agreement_desc' },
+          { key: 'other_discount', cat: 'other_discount', descKey: 'other_discount_desc' },
+          { key: 'other_addition', cat: 'other_addition', descKey: 'other_addition_desc' },
         ]
 
-        for (const cat of categories) {
-          const val = Number(cat.val) || 0
-          const qty = Number(cat.qty) || 0
-          const desc = cat.desc || ''
+        const payrollCol = txApp.findCollectionByNameOrId('payroll_entries')
+        const entryDate = month + '-01 12:00:00.000Z'
 
-          let record
-          try {
-            const records = txApp.findRecordsByFilter(
-              'payroll_entries',
-              `employee_id = {:emp} && category = {:cat} && entry_date >= {:start} && entry_date <= {:end}`,
-              '',
-              1,
-              0,
-              { emp: employeeId, cat: cat.key, start: startDate, end: endDate },
-            )
-            if (records.length > 0) {
-              record = records[0]
+        for (const map of categories) {
+          const rawValue = empData[map.key]
+          const amount = Number(rawValue) || 0
+
+          if (amount !== 0 || map.cat === 'base_net') {
+            const rec = new Record(payrollCol)
+            rec.set('employee_id', empId)
+            rec.set('company_id', companyId)
+            rec.set('category', map.cat)
+            rec.set('amount', amount)
+            rec.set('entry_date', entryDate)
+            if (map.descKey && empData[map.descKey]) {
+              rec.set('description', String(empData[map.descKey]))
             }
-          } catch (_) {}
-
-          // If no value, quantity or description, delete or skip
-          if (val === 0 && qty === 0 && desc === '') {
-            if (record) {
-              txApp.delete(record)
-            }
-            continue
+            txApp.save(rec)
           }
+        }
 
-          if (!record) {
-            const collection = txApp.findCollectionByNameOrId('payroll_entries')
-            record = new Record(collection)
-            record.set('employee_id', employeeId)
-            record.set('company_id', companyId)
-            record.set('category', cat.key)
-            record.set('entry_date', month + '-01 12:00:00')
-          }
-
-          record.set('amount', val)
-          record.set('quantity', qty)
-          record.set('description', desc)
-          txApp.save(record)
+        const otHours = Number(empData.overtime_hours) || 0
+        if (otHours !== 0) {
+          const rec = new Record(payrollCol)
+          rec.set('employee_id', empId)
+          rec.set('company_id', companyId)
+          rec.set('category', 'overtime')
+          rec.set('amount', 0)
+          rec.set('quantity', otHours)
+          rec.set('entry_date', entryDate)
+          txApp.save(rec)
         }
       }
     })
