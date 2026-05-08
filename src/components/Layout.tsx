@@ -44,7 +44,7 @@ export default function Layout() {
           <SidebarHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-4">
             <div className="font-bold text-lg text-sidebar-primary-foreground truncate w-full flex items-center gap-2">
               <Calculator className="h-5 w-5 text-primary" />
-              <span>GestãoPay</span>
+              <span>Esfhera Folhas</span>
             </div>
           </SidebarHeader>
           <SidebarContent>
