@@ -64,8 +64,11 @@ export function CompanyForm({
           .getList(1, 1, {
             filter: `cnpj = "${unmaskedCnpj}"${company ? ` && id != "${company.id}"` : ''}`,
           })
-        if (exist.items.length > 0)
-          return (setErrors({ cnpj: 'CNPJ já cadastrado.' }), setIsSaving(false))
+        if (exist.items.length > 0) {
+          setErrors({ cnpj: 'CNPJ já cadastrado.' })
+          setIsSaving(false)
+          return
+        }
       }
       const payload = new FormData()
       Object.entries(formData).forEach(([k, v]) =>
@@ -74,9 +77,11 @@ export function CompanyForm({
       if (logoFile) payload.append('logo', logoFile)
       else if (logoPreview === null) payload.append('logo', '')
 
-      company
-        ? await pb.collection('companies').update(company.id, payload)
-        : await pb.collection('companies').create(payload)
+      if (company) {
+        await pb.collection('companies').update(company.id, payload)
+      } else {
+        await pb.collection('companies').create(payload)
+      }
       toast({ title: 'Sucesso', description: 'Empresa salva com sucesso' })
       onSaved()
     } catch (err: any) {
