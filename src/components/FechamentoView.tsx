@@ -59,6 +59,8 @@ export function FechamentoView() {
       .map((emp) => {
         const entries = payrollEntries.filter((e) => e.employee_id === emp.id)
 
+        let baseSalary = 0
+        let additionalFixed = 0
         let overtime = 0
         let commissionBonus = 0
         let otherAdditions = 0
@@ -70,6 +72,12 @@ export function FechamentoView() {
 
         entries.forEach((entry) => {
           switch (entry.category) {
+            case 'base_net':
+              baseSalary += entry.amount
+              break
+            case 'additional':
+              additionalFixed += entry.amount
+              break
             case 'overtime':
               overtime += entry.amount
               break
@@ -77,7 +85,6 @@ export function FechamentoView() {
             case 'bonus':
               commissionBonus += entry.amount
               break
-            case 'additional':
             case 'other_addition':
             case 'other':
               otherAdditions += entry.amount
@@ -101,9 +108,6 @@ export function FechamentoView() {
               break
           }
         })
-
-        const baseSalary = emp.base_salary || 0
-        const additionalFixed = emp.additional_amount || 0
         const totalEarnings =
           baseSalary + additionalFixed + overtime + commissionBonus + otherAdditions
         const totalDiscounts =
@@ -168,6 +172,7 @@ export function FechamentoView() {
       'Quantidade',
       'Data',
       'Descrição',
+      'Salário Líquido (Mês)',
     ]
 
     const categoryMap: Record<string, string> = {
@@ -192,21 +197,33 @@ export function FechamentoView() {
 
     companyEmployees.forEach((emp) => {
       const empEntries = payrollEntries.filter((e) => e.employee_id === emp.id)
-      const baseSalary = (emp.base_salary || 0).toFixed(2)
-      const addFixed = (emp.additional_amount || 0).toFixed(2)
+
+      const baseSalaryAmount = empEntries
+        .filter((e) => e.category === 'base_net')
+        .reduce((acc, curr) => acc + curr.amount, 0)
+      const additionalAmount = empEntries
+        .filter((e) => e.category === 'additional')
+        .reduce((acc, curr) => acc + curr.amount, 0)
+
+      const baseSalary = baseSalaryAmount.toFixed(2)
+      const addFixed = additionalAmount.toFixed(2)
+
+      const empReport = reportData.find((r) => r.id === emp.id)
+      const netTotalStr = (empReport?.netTotal || 0).toFixed(2)
 
       if (empEntries.length === 0) {
         rows.push([
           `"${activeCompany.name}"`,
           `"${emp.name}"`,
           `"${emp.role || ''}"`,
-          baseSalary,
-          addFixed,
+          '0.00',
+          '0.00',
           '""',
           '0.00',
           '0.00',
           '""',
           '""',
+          '0.00',
         ])
       } else {
         empEntries.forEach((entry) => {
@@ -221,6 +238,7 @@ export function FechamentoView() {
             (entry.quantity || 0).toFixed(2),
             `"${entry.entry_date ? entry.entry_date.split(' ')[0] : ''}"`,
             `"${entry.description || ''}"`,
+            netTotalStr,
           ])
         })
       }
@@ -238,6 +256,7 @@ export function FechamentoView() {
       '""',
       '""',
       '""',
+      '""',
     ])
     rows.push([
       '""',
@@ -250,6 +269,7 @@ export function FechamentoView() {
       '""',
       '""',
       '""',
+      '""',
     ])
     rows.push([
       '""',
@@ -259,6 +279,7 @@ export function FechamentoView() {
       '""',
       '"TOTAL LÍQUIDO GERAL"',
       totals.netTotal.toFixed(2),
+      '""',
       '""',
       '""',
       '""',
