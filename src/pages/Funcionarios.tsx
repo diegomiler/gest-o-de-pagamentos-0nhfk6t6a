@@ -16,6 +16,7 @@ import { Search, Plus } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
 import { EmployeeForm } from '@/components/EmployeeForm'
 import { EmployeeHistory } from '@/components/EmployeeHistory'
+import { EmployeePaymentHistory } from '@/components/EmployeePaymentHistory'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -162,7 +163,7 @@ export default function Funcionarios() {
       </div>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>
               {editingEmployee ? 'Detalhes do Funcionário' : 'Novo Funcionário'}
@@ -171,9 +172,10 @@ export default function Funcionarios() {
 
           {editingEmployee ? (
             <Tabs defaultValue="dados" className="w-full mt-4">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="dados">Dados</TabsTrigger>
-                <TabsTrigger value="historico">Histórico</TabsTrigger>
+                <TabsTrigger value="historico">Cadastral</TabsTrigger>
+                <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
               </TabsList>
               <TabsContent value="dados" className="mt-4">
                 <EmployeeForm
@@ -184,6 +186,9 @@ export default function Funcionarios() {
               </TabsContent>
               <TabsContent value="historico" className="mt-4">
                 <EmployeeHistory employeeId={editingEmployee.id} />
+              </TabsContent>
+              <TabsContent value="pagamentos" className="mt-4">
+                <EmployeePaymentHistory employeeId={editingEmployee.id} />
               </TabsContent>
             </Tabs>
           ) : (
