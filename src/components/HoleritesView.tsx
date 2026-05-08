@@ -7,16 +7,22 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Printer } from 'lucide-react'
 import { HoleritePrint } from '@/components/HoleritePrint'
 import { usePayrollData } from '@/hooks/use-payroll-data'
+import { usePeriod } from '@/hooks/use-period'
+import { PeriodSelector } from '@/components/PeriodSelector'
 
 export function HoleritesView() {
-  const [selectedMonth, setSelectedMonth] = useState('2026-04')
+  const { selectedMonth } = usePeriod()
   const [selectedEmp, setSelectedEmp] = useState('all')
 
-  const { employees, payrollEntries, userCompany: company } = usePayrollData(selectedMonth)
+  const {
+    employees,
+    payrollEntries,
+    userCompany: company,
+    isLoading,
+  } = usePayrollData(selectedMonth)
 
   const printableData = useMemo(() => {
     const grouped = employees
@@ -45,12 +51,7 @@ export function HoleritesView() {
         <div className="flex gap-4 items-end flex-wrap">
           <div className="space-y-1">
             <label className="text-sm font-medium">Mês/Ano</label>
-            <Input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-40"
-            />
+            <PeriodSelector />
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium">Funcionário</label>
@@ -85,15 +86,21 @@ export function HoleritesView() {
         Visualização em formato 80mm (bobina térmica). Clique em imprimir para gerar os recibos.
       </div>
 
-      <div className="flex-1 overflow-auto print:overflow-visible pb-10">
+      <div className="flex-1 overflow-auto print:overflow-visible pb-10 relative">
+        {isLoading && (
+          <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-start pt-20 justify-center print-hidden">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-8 print:block print:w-[80mm] print:m-0 print:p-0">
-          {printableData.length === 0 && (
+          {printableData.length === 0 && !isLoading && (
             <div className="text-center p-12 bg-card border rounded-lg w-full print-hidden">
               Nenhum dado encontrado para os filtros selecionados.
             </div>
           )}
 
           {company &&
+            !isLoading &&
             printableData.map((data: any) => (
               <div
                 key={data.employee.id}

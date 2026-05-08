@@ -38,6 +38,8 @@ import { ClientResponseError } from 'pocketbase'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { usePeriod } from '@/hooks/use-period'
+import { PeriodSelector } from '@/components/PeriodSelector'
 
 function EntryInput({
   value,
@@ -134,14 +136,16 @@ function calculateOvertimeValue(
 export default function Folha() {
   const { toast } = useToast()
   const { user, signOut } = useAuth()
+  const { selectedMonth } = usePeriod()
   const invalidCompanyIdRef = useRef<string | null>(null)
 
-  const [selectedMonth, setSelectedMonth] = useState('2026-04')
+  const [isLoading, setIsLoading] = useState(true)
   const [employees, setEmployees] = useState<any[]>([])
   const [companies, setCompanies] = useState<any[]>([])
   const [entries, setEntries] = useState<any[]>([])
 
   const loadData = async () => {
+    setIsLoading(true)
     try {
       if (user?.company_id && user.id) {
         if (user.company_id !== invalidCompanyIdRef.current) {
@@ -258,6 +262,8 @@ export default function Folha() {
       setEntries(merged)
     } catch {
       /* intentionally ignored */
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -460,12 +466,7 @@ export default function Folha() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="w-40 bg-card"
-          />
+          <PeriodSelector />
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
@@ -498,6 +499,11 @@ export default function Folha() {
 
       <Card>
         <CardContent className="p-0 overflow-x-auto relative">
+          {isLoading && (
+            <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          )}
           <Table className="min-w-[1000px]">
             <TableHeader className="bg-muted/50">
               <TableRow>

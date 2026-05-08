@@ -7,10 +7,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Download, Printer } from 'lucide-react'
 import { usePayrollData } from '@/hooks/use-payroll-data'
 import { formatCurrency, formatCNPJ, formatMonthYear } from '@/lib/format'
+import { usePeriod } from '@/hooks/use-period'
+import { PeriodSelector } from '@/components/PeriodSelector'
 import {
   Table,
   TableBody,
@@ -54,13 +55,11 @@ const isDesconto = (cat: string) =>
   ].includes(cat)
 
 export function FechamentoView() {
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const today = new Date()
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-  })
+  const { selectedMonth } = usePeriod()
   const [selectedCompanyId, setSelectedCompanyId] = useState('all')
 
-  const { employees, payrollEntries, companies, userCompany } = usePayrollData(selectedMonth)
+  const { employees, payrollEntries, companies, userCompany, isLoading } =
+    usePayrollData(selectedMonth)
 
   const activeCompany = useMemo(() => {
     if (selectedCompanyId !== 'all') {
@@ -115,6 +114,8 @@ export function FechamentoView() {
         })
 
         const netTotal = totalEarnings - totalDiscounts
+        const pdfTotalEarnings = totalEarnings - baseSalary
+        const pdfNetTotal = pdfTotalEarnings - totalDiscounts
 
         return {
           id: emp.id,
@@ -125,6 +126,7 @@ export function FechamentoView() {
           commissionBonus,
           otherAdditions,
           totalEarnings,
+          pdfTotalEarnings,
           pharmacyStore,
           cashShortage,
           negativeHours,
@@ -132,6 +134,7 @@ export function FechamentoView() {
           otherDiscounts,
           totalDiscounts,
           netTotal,
+          pdfNetTotal,
           entries: entries.sort(
             (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime(),
           ),
@@ -178,13 +181,14 @@ export function FechamentoView() {
 
   const handleExportCSV = () => {
     if (!activeCompany) return
-    const headers = ['Funcionário', 'Cargo', 'Categoria', 'Valor', 'Data']
+    const headers = ['Período', 'Funcionário', 'Cargo', 'Categoria', 'Valor', 'Data']
 
     const rows: string[][] = []
 
     reportData.forEach((emp) => {
       emp.entries.forEach((entry) => {
         rows.push([
+          `"${formatMonthYear(selectedMonth)}"`,
           `"${emp.name}"`,
           `"${emp.role}"`,
           `"${CATEGORY_NAMES[entry.category] || entry.category}"`,
@@ -236,12 +240,7 @@ export function FechamentoView() {
           <div className="flex gap-4 items-end flex-wrap">
             <div className="space-y-1">
               <label className="text-sm font-medium">Mês/Ano</label>
-              <Input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-40"
-              />
+              <PeriodSelector />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Empresa</label>
@@ -309,7 +308,12 @@ export function FechamentoView() {
         </div>
 
         {/* Screen Table (Hidden in Print) */}
-        <div className="flex-1 bg-card border rounded-lg overflow-auto print-hidden">
+        <div className="flex-1 bg-card border rounded-lg overflow-auto print-hidden relative">
+          {isLoading && (
+            <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-start pt-20 justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          )}
           <Table className="text-xs whitespace-nowrap min-w-[1000px]">
             <TableHeader>
               <TableRow>
@@ -453,22 +457,34 @@ export function FechamentoView() {
                 <div className="grid grid-cols-2 gap-8">
                   <div>
                     <p className="font-bold border-b border-gray-300 pb-1 mb-2 uppercase text-xs text-gray-500">
-                      Proventos
+                      Proventos Variáveis
                     </p>
                     {row.entries
-                      .filter((e) => isProvento(e.category))
+                      .filter(
+                        (e) =>
+                          isProvento(e.category) &&
+                          e.category !== 'base_net' &&
+                          e.category !== 'additional',
+                      )
                       .map((e) => (
                         <div key={e.id} className="flex justify-between text-sm py-1">
                           <span>{CATEGORY_NAMES[e.category] || e.category}</span>
                           <span>{formatCurrency(e.amount)}</span>
                         </div>
                       ))}
-                    {row.entries.filter((e) => isProvento(e.category)).length === 0 && (
-                      <div className="text-sm py-1 text-gray-400 italic">Nenhum provento</div>
+                    {row.entries.filter(
+                      (e) =>
+                        isProvento(e.category) &&
+                        e.category !== 'base_net' &&
+                        e.category !== 'additional',
+                    ).length === 0 && (
+                      <div className="text-sm py-1 text-gray-400 italic">
+                        Nenhum provento variável
+                      </div>
                     )}
                     <div className="flex justify-between font-bold text-sm mt-2 pt-2 border-t border-gray-300">
-                      <span>Total Proventos</span>
-                      <span>{formatCurrency(row.totalEarnings)}</span>
+                      <span>Total Proventos Variáveis</span>
+                      <span>{formatCurrency(row.pdfTotalEarnings)}</span>
                     </div>
                   </div>
 
@@ -496,7 +512,7 @@ export function FechamentoView() {
 
                 <div className="mt-4 flex justify-end">
                   <div className="bg-gray-100 px-4 py-2 rounded-md font-bold text-lg border border-gray-200">
-                    Líquido a Pagar: {formatCurrency(row.netTotal)}
+                    Líquido Variável a Pagar: {formatCurrency(row.pdfNetTotal)}
                   </div>
                 </div>
               </div>
@@ -513,9 +529,11 @@ export function FechamentoView() {
             <div className="mt-8 border-t-2 border-black pt-4 flex justify-end gap-16 text-sm break-inside-avoid">
               <div>
                 <p className="font-bold text-gray-500 uppercase text-xs mb-1">
-                  Total de Vencimentos
+                  Total Vencimentos (Variáveis)
                 </p>
-                <p className="text-xl font-semibold">{formatCurrency(totals.totalEarnings)}</p>
+                <p className="text-xl font-semibold">
+                  {formatCurrency(totals.totalEarnings - totals.baseSalary)}
+                </p>
               </div>
               <div>
                 <p className="font-bold text-gray-500 uppercase text-xs mb-1">Total de Descontos</p>
@@ -523,9 +541,11 @@ export function FechamentoView() {
               </div>
               <div>
                 <p className="font-bold text-gray-500 uppercase text-xs mb-1">
-                  Total Líquido Geral
+                  Total Líquido Geral (Variável)
                 </p>
-                <p className="text-2xl font-black">{formatCurrency(totals.netTotal)}</p>
+                <p className="text-2xl font-black">
+                  {formatCurrency(totals.netTotal - totals.baseSalary)}
+                </p>
               </div>
             </div>
           )}

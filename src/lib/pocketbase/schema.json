@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-08T21:47:41.037Z",
+  "generatedAt": "2026-05-08T22:05:33.714Z",
   "collections": [
     {
       "name": "users",
@@ -303,7 +303,7 @@
           "system": false
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE INDEX `idx_payroll_entries_date` ON `payroll_entries` (entry_date)"]
     },
     {
       "name": "employee_history",

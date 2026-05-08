@@ -3,6 +3,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
+import { PeriodProvider } from '@/hooks/use-period'
 
 import Layout from './components/Layout'
 import Index from './pages/Index'
@@ -26,30 +27,32 @@ const RequireAuth = ({ children }: { children: React.ReactNode }) => {
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route
-            element={
-              <RequireAuth>
-                <Layout />
-              </RequireAuth>
-            }
-          >
-            <Route path="/" element={<Index />} />
-            <Route path="/empresas" element={<Empresas />} />
-            <Route path="/funcionarios" element={<Funcionarios />} />
-            <Route path="/folha" element={<Folha />} />
-            <Route path="/relatorios" element={<Relatorios />} />
-            <Route path="/configuracoes" element={<Configuracoes />} />
-            <Route path="/configuracoes/regras-horas-extras" element={<RegrasHorasExtras />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
+      <PeriodProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route
+              element={
+                <RequireAuth>
+                  <Layout />
+                </RequireAuth>
+              }
+            >
+              <Route path="/" element={<Index />} />
+              <Route path="/empresas" element={<Empresas />} />
+              <Route path="/funcionarios" element={<Funcionarios />} />
+              <Route path="/folha" element={<Folha />} />
+              <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/configuracoes" element={<Configuracoes />} />
+              <Route path="/configuracoes/regras-horas-extras" element={<RegrasHorasExtras />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </PeriodProvider>
     </AuthProvider>
   </BrowserRouter>
 )

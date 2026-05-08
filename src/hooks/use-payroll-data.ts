@@ -10,6 +10,7 @@ export function usePayrollData(selectedMonth: string) {
   const [payrollEntries, setPayrollEntries] = useState<any[]>([])
   const [companies, setCompanies] = useState<any[]>([])
   const [userCompany, setUserCompany] = useState<any | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [updateTrigger, setUpdateTrigger] = useState(0)
   const invalidCompanyIdRef = useRef<string | null>(null)
 
@@ -61,6 +62,7 @@ export function usePayrollData(selectedMonth: string) {
 
   useEffect(() => {
     const loadEntries = async () => {
+      setIsLoading(true)
       try {
         const startDate = `${selectedMonth}-01 00:00:00`
         const endDate = `${selectedMonth}-31 23:59:59`
@@ -70,6 +72,8 @@ export function usePayrollData(selectedMonth: string) {
         setPayrollEntries(entries)
       } catch {
         /* intentionally ignored */
+      } finally {
+        setIsLoading(false)
       }
     }
     if (selectedMonth) loadEntries()
@@ -79,5 +83,5 @@ export function usePayrollData(selectedMonth: string) {
   useRealtime('payroll_entries', () => setUpdateTrigger((p) => p + 1))
   useRealtime('companies', () => setUpdateTrigger((p) => p + 1))
 
-  return { employees, payrollEntries, companies, userCompany }
+  return { employees, payrollEntries, companies, userCompany, isLoading }
 }
