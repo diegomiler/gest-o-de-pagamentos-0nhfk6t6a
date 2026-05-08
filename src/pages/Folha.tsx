@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -33,6 +33,8 @@ import { useToast } from '@/hooks/use-toast'
 import { Save, MessageSquareText, Eraser } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useAuth } from '@/hooks/use-auth'
+import { ClientResponseError } from 'pocketbase'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
@@ -131,6 +133,8 @@ function calculateOvertimeValue(
 
 export default function Folha() {
   const { toast } = useToast()
+  const { user, signOut } = useAuth()
+  const invalidCompanyIdRef = useRef<string | null>(null)
 
   const [selectedMonth, setSelectedMonth] = useState('2026-04')
   const [employees, setEmployees] = useState<any[]>([])
@@ -139,6 +143,25 @@ export default function Folha() {
 
   const loadData = async () => {
     try {
+      if (user?.company_id && user.id) {
+        if (user.company_id !== invalidCompanyIdRef.current) {
+          try {
+            await pb.collection('companies').getOne(user.company_id)
+          } catch (err: any) {
+            if (err instanceof ClientResponseError && err.status === 404) {
+              invalidCompanyIdRef.current = user.company_id
+              try {
+                await pb.collection('users').update(user.id, { company_id: null })
+              } catch (updateErr: any) {
+                if (updateErr instanceof ClientResponseError && updateErr.status === 404) {
+                  signOut()
+                }
+              }
+            }
+          }
+        }
+      }
+
       const [emps, comps] = await Promise.all([
         pb.collection('employees').getFullList({ sort: 'name' }),
         pb.collection('companies').getFullList(),
@@ -240,7 +263,7 @@ export default function Folha() {
 
   useEffect(() => {
     loadData()
-  }, [selectedMonth])
+  }, [selectedMonth, user])
 
   useRealtime('employees', loadData)
   useRealtime('payroll_entries', loadData)

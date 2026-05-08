@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { ClientResponseError } from 'pocketbase'
 
 export default function Relatorios() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [selectedMonth, setSelectedMonth] = useState('2026-04')
   const [selectedEmp, setSelectedEmp] = useState('all')
 
@@ -35,7 +35,7 @@ export default function Relatorios() {
         const emps = await pb.collection('employees').getFullList()
         setEmployees(emps)
 
-        if (user?.company_id) {
+        if (user?.company_id && user.id) {
           if (user.company_id === invalidCompanyIdRef.current) {
             setCompany(null)
           } else {
@@ -48,8 +48,10 @@ export default function Relatorios() {
                 invalidCompanyIdRef.current = user.company_id
                 try {
                   await pb.collection('users').update(user.id, { company_id: null })
-                } catch {
-                  /* intentionally ignored */
+                } catch (updateErr: any) {
+                  if (updateErr instanceof ClientResponseError && updateErr.status === 404) {
+                    signOut()
+                  }
                 }
               }
             }
