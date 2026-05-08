@@ -43,9 +43,12 @@ export default function Configuracoes() {
             invalidIdRef.current = user.company_id
             setCompanyId(null)
             try {
-              await pb.collection('users').update(user.id, { company_id: null })
-            } catch {
-              /* intentionally ignored */
+              const activeUserId = pb.authStore.record?.id || (pb.authStore as any).model?.id
+              if (activeUserId) {
+                await pb.collection('users').update(activeUserId, { company_id: null })
+              }
+            } catch (patchErr) {
+              /* intentionally ignored to prevent 404 bubbling */
             }
           } else {
             toast.error('Erro ao carregar', {
