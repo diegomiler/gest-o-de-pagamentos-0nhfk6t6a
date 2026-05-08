@@ -173,7 +173,7 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
       </div>
 
       <div className="text-center text-[9px] mt-4 text-gray-500 print:text-black">
-        Gerado por GestãoPay
+        Gerado por Esfhera Folhas
       </div>
     </div>
   )
