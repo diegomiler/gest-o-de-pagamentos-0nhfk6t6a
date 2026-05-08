@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Link } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
+import { ClientResponseError } from 'pocketbase'
 import { CompanyForm } from '@/components/CompanyForm'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -21,18 +22,24 @@ export default function Configuracoes() {
           await pb.collection('companies').getOne(user.company_id)
           setCompanyId(user.company_id)
         } catch (err: any) {
-          if (err.status === 404) {
+          if (err instanceof ClientResponseError && err.status === 404) {
             toast.error('Empresa não encontrada', {
               description:
                 'O registro da empresa não foi encontrado. Por favor, crie uma nova configuração.',
             })
             try {
               await pb.collection('users').update(user.id, { company_id: null })
+              await pb.collection('users').authRefresh()
             } catch (updateErr) {
               console.error('Falha ao limpar company_id do usuário', updateErr)
             }
+            setCompanyId(null)
+          } else {
+            toast.error('Erro ao carregar', {
+              description: 'Não foi possível carregar as configurações da empresa.',
+            })
+            setCompanyId(user.company_id)
           }
-          setCompanyId(null)
         }
       } else {
         setCompanyId(null)

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { ClientResponseError } from 'pocketbase'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { UploadCloud, Image as ImageIcon, X, Loader2, ArrowLeft } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
@@ -51,11 +52,19 @@ export function CompanyForm({
           setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
           setIsLoading(false)
         })
-        .catch(() => {
-          setFormData({ name: '', cnpj: '', overtime_rules: '' })
-          setLogoPreview(null)
+        .catch((err: any) => {
+          if (err instanceof ClientResponseError && err.status === 404) {
+            setFormData({ name: '', cnpj: '', overtime_rules: '' })
+            setLogoPreview(null)
+            setLocalCompanyId(null)
+          } else {
+            toast({
+              title: 'Erro de conexão',
+              description: 'Não foi possível carregar os dados da empresa.',
+              variant: 'destructive',
+            })
+          }
           setIsLoading(false)
-          setLocalCompanyId(null)
         })
     } else {
       setFormData({ name: '', cnpj: '', overtime_rules: '' })
@@ -108,7 +117,7 @@ export function CompanyForm({
         try {
           await pb.collection('companies').update(localCompanyId, payload)
         } catch (updateErr: any) {
-          if (updateErr.status === 404) {
+          if (updateErr instanceof ClientResponseError && updateErr.status === 404) {
             const newCompany = await pb.collection('companies').create(payload)
             setLocalCompanyId(newCompany.id)
             if (pb.authStore.record) {
