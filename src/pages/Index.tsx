@@ -1,36 +1,51 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
-import { Users, Banknote, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react'
+import {
+  Users,
+  Banknote,
+  TrendingUp,
+  TrendingDown,
+  ArrowRight,
+  CalendarClock,
+  Info,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { formatCurrency, formatMonthYear } from '@/lib/format'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useAuth } from '@/hooks/use-auth'
+import { differenceInMonths, isValid, parseISO } from 'date-fns'
 
 export default function Index() {
+  const { user } = useAuth()
   const [employees, setEmployees] = useState<any[]>([])
   const [payrollEntries, setPayrollEntries] = useState<any[]>([])
   const currentMonth = '2026-04'
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (!user?.company_id) return
     try {
-      const emps = await pb.collection('employees').getFullList()
+      const emps = await pb.collection('employees').getFullList({
+        filter: `company_id = '${user.company_id}'`,
+      })
       setEmployees(emps)
 
       const entries = await pb.collection('payroll_entries').getFullList({
-        filter: `entry_date >= '2025-11-01 00:00:00'`,
+        filter: `entry_date >= '2025-11-01 00:00:00' && company_id = '${user.company_id}'`,
       })
       setPayrollEntries(entries)
     } catch {
       /* intentionally ignored */
     }
-  }
+  }, [user?.company_id])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
   useRealtime('employees', loadData)
   useRealtime('payroll_entries', loadData)
@@ -70,6 +85,7 @@ export default function Index() {
       const monthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(m))
       let totalBase = 0
       let vars = 0
+      let overtime = 0
 
       employees.forEach((emp) => {
         if (emp.status === 'active' || emp.status === 'on_leave') totalBase += emp.base_salary
@@ -77,15 +93,28 @@ export default function Index() {
 
       monthEntries.forEach((e) => {
         if (e.category === 'commission' || e.category === 'bonus') vars += e.amount
+        if (e.category === 'overtime') overtime += e.amount
       })
 
       return {
         month: formatMonthYear(m).split('/')[0].trim(),
         base: totalBase,
         variaveis: vars,
+        horasExtras: overtime,
       }
     })
   }, [employees, payrollEntries])
+
+  const vacationAlerts = useMemo(() => {
+    const today = new Date()
+    return employees.filter((emp) => {
+      if (emp.status !== 'active' || !emp.admission_date) return false
+      const admission = parseISO(emp.admission_date)
+      if (!isValid(admission)) return false
+      const months = differenceInMonths(today, admission)
+      return months > 0 && months % 12 === 11
+    })
+  }, [employees])
 
   return (
     <div className="space-y-8">
@@ -107,6 +136,43 @@ export default function Index() {
           </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CalendarClock className="h-5 w-5 text-primary" />
+            Central de Notificações - Alertas de Férias
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {vacationAlerts.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {vacationAlerts.map((emp) => {
+                const admission = parseISO(emp.admission_date)
+                const years = Math.ceil(differenceInMonths(new Date(), admission) / 12)
+                return (
+                  <Alert
+                    key={emp.id}
+                    className="border-amber-500/50 bg-amber-500/10 text-amber-800 dark:text-amber-500"
+                  >
+                    <CalendarClock className="h-4 w-4" color="currentColor" />
+                    <AlertTitle>Férias Próximas</AlertTitle>
+                    <AlertDescription className="text-sm mt-1">
+                      Funcionário <strong>{emp.name}</strong> está próximo de completar {years} ano
+                      {years > 1 ? 's' : ''} de admissão. Planejar férias.
+                    </AlertDescription>
+                  </Alert>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              Nenhum funcionário com período concessivo de férias vencendo no momento.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -159,7 +225,8 @@ export default function Index() {
           <ChartContainer
             config={{
               base: { label: 'Salário Base', color: 'hsl(var(--primary))' },
-              variaveis: { label: 'Variáveis (Comissões/Bônus)', color: 'hsl(var(--success))' },
+              variaveis: { label: 'Variáveis (Comissões/Bônus)', color: 'hsl(var(--chart-2))' },
+              horasExtras: { label: 'Horas Extras Pagas (R$)', color: 'hsl(var(--destructive))' },
             }}
             className="h-[300px] w-full"
           >
@@ -180,6 +247,12 @@ export default function Index() {
                   dataKey="variaveis"
                   stackId="a"
                   fill="var(--color-variaveis)"
+                  radius={[0, 0, 0, 0]}
+                />
+                <Bar
+                  dataKey="horasExtras"
+                  stackId="a"
+                  fill="var(--color-horasExtras)"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
