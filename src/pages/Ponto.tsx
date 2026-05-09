@@ -50,8 +50,54 @@ function TimeCell({ value, onChange }: { value: string; onChange: (v: string) =>
     setVal(value || '')
   }, [value])
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value
+
+    let hh = ''
+    let mm = ''
+
+    if (input.includes(':')) {
+      const parts = input.split(':')
+      hh = parts[0].replace(/\D/g, '').slice(0, 2)
+      mm = parts[1].replace(/\D/g, '').slice(0, 2)
+    } else {
+      let digits = input.replace(/\D/g, '')
+      // Detect if user just deleted the colon
+      if (val.includes(':') && input === val.replace(':', '')) {
+        const colonIndex = val.indexOf(':')
+        if (colonIndex > 0) {
+          digits = digits.slice(0, colonIndex - 1) + digits.slice(colonIndex)
+        }
+      }
+      hh = digits.slice(0, 2)
+      mm = digits.slice(2, 4)
+    }
+
+    if (hh.length === 2 && parseInt(hh, 10) > 23) hh = '23'
+    if (mm.length === 2 && parseInt(mm, 10) > 59) mm = '59'
+
+    let formatted = hh
+    if (mm.length > 0) {
+      formatted = `${hh.padStart(2, '0')}:${mm}`
+    } else if (hh.length === 2 && (val.length === 1 || input.includes(':'))) {
+      formatted = `${hh}:`
+    } else if (input.includes(':')) {
+      formatted = `${hh}:`
+    }
+
+    setVal(formatted)
+  }
+
   const handleBlur = () => {
-    const formatted = val.trim() === '' ? '' : formatTimeOnBlur(val)
+    let formatted = val.trim() === '' ? '' : formatTimeOnBlur(val)
+
+    if (formatted.length === 5) {
+      const [h, m] = formatted.split(':')
+      if (parseInt(h, 10) > 23 || parseInt(m, 10) > 59) {
+        formatted = ''
+      }
+    }
+
     setVal(formatted)
     if (formatted !== (value || '')) {
       onChange(formatted)
@@ -62,9 +108,10 @@ function TimeCell({ value, onChange }: { value: string; onChange: (v: string) =>
     <Input
       className="w-16 h-8 px-1 text-center text-xs tabular-nums"
       value={val}
-      onChange={(e) => setVal(e.target.value)}
+      onChange={handleChange}
       onBlur={handleBlur}
       placeholder="--:--"
+      maxLength={5}
     />
   )
 }
