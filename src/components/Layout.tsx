@@ -40,7 +40,7 @@ export default function Layout() {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-background overflow-hidden text-foreground">
-        <Sidebar className="print-hidden">
+        <Sidebar className="print-hidden print:hidden">
           <SidebarHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-4">
             <div className="font-bold text-lg text-sidebar-primary-foreground truncate w-full flex items-center gap-2">
               <Calculator className="h-5 w-5 text-primary" />
@@ -68,7 +68,7 @@ export default function Layout() {
         </Sidebar>
 
         <div className="flex-1 flex flex-col h-full overflow-hidden print:overflow-visible print:h-auto">
-          <header className="h-16 border-b bg-card flex items-center justify-between px-6 print-hidden shrink-0">
+          <header className="h-16 border-b bg-card flex items-center justify-between px-6 print-hidden print:hidden shrink-0">
             <div className="flex items-center gap-4 flex-1">
               <div className="relative w-full max-w-sm hidden md:flex">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
