@@ -39,7 +39,7 @@ export default function Layout() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-background overflow-hidden text-foreground">
+      <div className="flex h-screen print:h-auto print:block w-full bg-background print:bg-white overflow-hidden print:overflow-visible text-foreground">
         <Sidebar className="print-hidden print:hidden">
           <SidebarHeader className="h-16 flex items-center justify-center border-b border-sidebar-border px-4">
             <div className="font-bold text-lg text-sidebar-primary-foreground truncate w-full flex items-center gap-2">
@@ -92,8 +92,8 @@ export default function Layout() {
               </Button>
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-4 md:p-8 relative print:overflow-visible print:p-0">
-            <div className="animate-fade-in-up h-full print:h-auto print:animate-none">
+          <main className="flex-1 overflow-auto p-4 md:p-8 relative print:overflow-visible print:p-0 print:block print:w-full">
+            <div className="animate-fade-in-up h-full print:h-auto print:animate-none print:block print:w-full">
               <Outlet />
             </div>
           </main>

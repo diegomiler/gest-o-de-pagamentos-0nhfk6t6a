@@ -206,14 +206,14 @@ export function FechamentoView() {
       <style>{`
         @media print {
           @page {
-            size: A4 landscape;
+            size: landscape;
             margin: 10mm;
           }
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
-            background: white;
-            font-size: 8pt;
+            background: white !important;
+            font-size: 10pt !important;
           }
           .print-hidden {
             display: none !important;
@@ -225,13 +225,15 @@ export function FechamentoView() {
             padding: 0 !important;
             margin: 0 !important;
             max-width: 100% !important;
+            width: 100% !important;
+            display: block !important;
           }
-          table { page-break-inside: auto; width: 100%; border-collapse: collapse; }
+          table { page-break-inside: auto; width: 100% !important; border-collapse: collapse; }
           tr { page-break-inside: avoid; page-break-after: auto; }
-          th, td { padding: 4px; font-size: 8pt; }
+          th, td { padding: 4px; font-size: 10pt !important; }
         }
       `}</style>
-      <div className="space-y-6 flex flex-col h-full">
+      <div className="space-y-6 flex flex-col h-full print:block print:w-full print:space-y-4">
         <div className="flex flex-col sm:flex-row justify-between gap-4 print-hidden bg-card p-4 rounded-lg border">
           <div className="flex gap-4 items-end flex-wrap">
             <div className="space-y-1">
@@ -305,14 +307,12 @@ export function FechamentoView() {
 
         <div className="hidden print:block mb-4">
           <div className="border-b-2 border-black pb-2">
-            <h2 className="text-xl font-bold uppercase tracking-wide">
-              Relatório de Fechamento Mensal
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <h2 className="text-xl font-bold uppercase tracking-wide">Relatório de Fechamento</h2>
+            <p className="text-sm text-gray-800 mt-1">
               Referência: {formatMonthYear(selectedMonth)}
             </p>
             {activeCompany && (
-              <div className="mt-1">
+              <div className="mt-1 text-gray-800">
                 <p className="font-bold text-md">{activeCompany.name}</p>
                 <p className="text-xs">
                   CNPJ: {activeCompany.cnpj ? formatCNPJ(activeCompany.cnpj) : 'N/A'}
@@ -322,35 +322,41 @@ export function FechamentoView() {
           </div>
         </div>
 
-        <div className="flex-1 bg-card border print:border-none print:bg-transparent rounded-lg print:rounded-none overflow-auto print:overflow-visible relative">
+        <div className="flex-1 bg-card border print:border-none print:bg-transparent rounded-lg print:rounded-none overflow-auto print:overflow-visible relative print:block print:w-full">
           {isLoading && (
-            <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-start pt-20 justify-center">
+            <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-start pt-20 justify-center print-hidden">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           )}
-          <Table className="text-[11px] print:text-[8px] whitespace-nowrap min-w-max">
+          <Table className="text-[11px] print:text-[10pt] whitespace-nowrap print:whitespace-normal print:w-full print:min-w-full">
             <TableHeader>
               <TableRow className="print:border-b-2 print:border-black">
                 <TableHead className="w-[150px] print:w-auto p-2">Funcionário</TableHead>
-                <TableHead className="text-right p-2">Sal. Base</TableHead>
-                <TableHead className="text-right p-2">Adic. Fixo</TableHead>
+                <TableHead className="text-right p-2 print:whitespace-nowrap">Sal. Base</TableHead>
+                <TableHead className="text-right p-2 print:whitespace-nowrap">Adic. Fixo</TableHead>
                 {CATEGORIES.proventos.map((c) => (
-                  <TableHead key={c} className="text-right p-2 text-blue-700 print:text-black">
+                  <TableHead
+                    key={c}
+                    className="text-right p-2 text-blue-700 print:text-black print:whitespace-nowrap"
+                  >
                     {CAT_LABELS[c]}
                   </TableHead>
                 ))}
-                <TableHead className="text-right font-bold bg-muted/30 print:bg-transparent p-2 text-green-700 print:text-black">
+                <TableHead className="text-right font-bold bg-muted/30 print:bg-transparent p-2 text-green-700 print:text-black print:whitespace-nowrap">
                   Tot. Prov.
                 </TableHead>
                 {CATEGORIES.descontos.map((c) => (
-                  <TableHead key={c} className="text-right p-2 text-red-700 print:text-black">
+                  <TableHead
+                    key={c}
+                    className="text-right p-2 text-red-700 print:text-black print:whitespace-nowrap"
+                  >
                     {CAT_LABELS[c]}
                   </TableHead>
                 ))}
-                <TableHead className="text-right font-bold bg-muted/30 print:bg-transparent p-2 text-red-700 print:text-black">
+                <TableHead className="text-right font-bold bg-muted/30 print:bg-transparent p-2 text-red-700 print:text-black print:whitespace-nowrap">
                   Tot. Desc.
                 </TableHead>
-                <TableHead className="text-right font-bold bg-primary/10 print:bg-transparent p-2 text-black">
+                <TableHead className="text-right font-bold bg-primary/10 print:bg-transparent p-2 text-black print:whitespace-nowrap">
                   Líquido
                 </TableHead>
               </TableRow>
@@ -368,40 +374,40 @@ export function FechamentoView() {
                     <TableCell className="font-medium whitespace-normal p-2 min-w-[120px]">
                       <div className="flex flex-col">
                         <span className="font-bold print:font-semibold">{row.name}</span>
-                        <span className="text-[9px] print:text-[7px] text-muted-foreground">
+                        <span className="text-[9px] print:text-[8pt] text-muted-foreground print:text-black">
                           {row.role || '-'}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right p-2">
+                    <TableCell className="text-right p-2 print:whitespace-nowrap">
                       {formatCurrency(row.empBaseSalary)}
                     </TableCell>
-                    <TableCell className="text-right p-2">
+                    <TableCell className="text-right p-2 print:whitespace-nowrap">
                       {formatCurrency(row.fixedAdditional)}
                     </TableCell>
                     {CATEGORIES.proventos.map((c) => (
                       <TableCell
                         key={c}
-                        className={`text-right p-2 ${row.cats[c] ? 'text-blue-600 print:text-black' : 'text-gray-300 print:text-gray-400'}`}
+                        className={`text-right p-2 print:whitespace-nowrap ${row.cats[c] ? 'text-blue-600 print:text-black' : 'text-gray-300 print:text-gray-400'}`}
                       >
                         {formatCurrency(row.cats[c] || 0)}
                       </TableCell>
                     ))}
-                    <TableCell className="text-right font-semibold bg-muted/10 print:bg-transparent p-2 text-green-600 print:text-black">
+                    <TableCell className="text-right font-semibold bg-muted/10 print:bg-transparent p-2 text-green-600 print:text-black print:whitespace-nowrap">
                       {formatCurrency(row.totalEarnings)}
                     </TableCell>
                     {CATEGORIES.descontos.map((c) => (
                       <TableCell
                         key={c}
-                        className={`text-right p-2 ${row.cats[c] ? 'text-red-500 print:text-black' : 'text-gray-300 print:text-gray-400'}`}
+                        className={`text-right p-2 print:whitespace-nowrap ${row.cats[c] ? 'text-red-500 print:text-black' : 'text-gray-300 print:text-gray-400'}`}
                       >
                         {formatCurrency(row.cats[c] || 0)}
                       </TableCell>
                     ))}
-                    <TableCell className="text-right font-semibold bg-muted/10 print:bg-transparent p-2 text-red-600 print:text-black">
+                    <TableCell className="text-right font-semibold bg-muted/10 print:bg-transparent p-2 text-red-600 print:text-black print:whitespace-nowrap">
                       {formatCurrency(row.totalDiscounts)}
                     </TableCell>
-                    <TableCell className="text-right font-bold bg-primary/5 print:bg-transparent p-2 text-black">
+                    <TableCell className="text-right font-bold bg-primary/5 print:bg-transparent p-2 text-black print:whitespace-nowrap">
                       {formatCurrency(row.netTotal)}
                     </TableCell>
                   </TableRow>
@@ -409,32 +415,38 @@ export function FechamentoView() {
               )}
               {reportData.length > 0 && (
                 <TableRow className="font-bold bg-muted/50 print:bg-transparent print:border-t-2 print:border-black">
-                  <TableCell className="uppercase text-[10px] print:text-[8px] p-2">
+                  <TableCell className="uppercase text-[10px] print:text-[10pt] p-2">
                     Total Geral
                   </TableCell>
-                  <TableCell className="text-right p-2">
+                  <TableCell className="text-right p-2 print:whitespace-nowrap">
                     {formatCurrency(totals.empBaseSalary)}
                   </TableCell>
-                  <TableCell className="text-right p-2">
+                  <TableCell className="text-right p-2 print:whitespace-nowrap">
                     {formatCurrency(totals.fixedAdditional)}
                   </TableCell>
                   {CATEGORIES.proventos.map((c) => (
-                    <TableCell key={c} className="text-right p-2 text-blue-700 print:text-black">
+                    <TableCell
+                      key={c}
+                      className="text-right p-2 text-blue-700 print:text-black print:whitespace-nowrap"
+                    >
                       {formatCurrency(totals.cats[c] || 0)}
                     </TableCell>
                   ))}
-                  <TableCell className="text-right font-semibold p-2 text-green-700 print:text-black">
+                  <TableCell className="text-right font-semibold p-2 text-green-700 print:text-black print:whitespace-nowrap">
                     {formatCurrency(totals.totalEarnings)}
                   </TableCell>
                   {CATEGORIES.descontos.map((c) => (
-                    <TableCell key={c} className="text-right p-2 text-red-700 print:text-black">
+                    <TableCell
+                      key={c}
+                      className="text-right p-2 text-red-700 print:text-black print:whitespace-nowrap"
+                    >
                       {formatCurrency(totals.cats[c] || 0)}
                     </TableCell>
                   ))}
-                  <TableCell className="text-right font-semibold p-2 text-red-700 print:text-black">
+                  <TableCell className="text-right font-semibold p-2 text-red-700 print:text-black print:whitespace-nowrap">
                     {formatCurrency(totals.totalDiscounts)}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-sm print:text-[9px] p-2">
+                  <TableCell className="text-right font-bold text-sm print:text-[10pt] p-2 print:whitespace-nowrap">
                     {formatCurrency(totals.netTotal)}
                   </TableCell>
                 </TableRow>
