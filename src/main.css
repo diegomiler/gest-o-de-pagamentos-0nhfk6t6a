@@ -78,7 +78,8 @@
 
   @media print {
     @page {
-      margin: 1cm;
+      margin: 8mm;
+      size: A4 portrait;
     }
     .print-hidden {
       display: none !important;
