@@ -81,7 +81,7 @@ function TimeCell({ value, onChange }: { value: string; onChange: (v: string) =>
     if (formatted.length === 5) {
       const [h, m] = formatted.split(':')
       if (parseInt(h, 10) > 23 || parseInt(m, 10) > 59) {
-        formatted = ''
+        formatted = value || ''
       }
     }
 
@@ -111,17 +111,34 @@ function DayRow({
   onTotalChange,
 }: {
   dateStr: string
-  initialRecord: any
+  initialRecord?: any
   selectedEmployee: string
   companyId: string
   onTotalChange: (dateStr: string, total: number, extra: number) => void
 }) {
-  const [record, setRecord] = useState(initialRecord)
+  const defaultRecord = {
+    entry_1: '',
+    exit_1: '',
+    entry_2: '',
+    exit_2: '',
+    entry_3: '',
+    exit_3: '',
+    total_minutes: 0,
+    overtime_minutes: 0,
+  }
+  const [record, setRecord] = useState(() => initialRecord || defaultRecord)
   const { toast } = useToast()
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const recordIdRef = useRef<string | null>(initialRecord?.id || null)
 
   useEffect(() => {
-    setRecord(initialRecord)
+    if (initialRecord) {
+      setRecord(initialRecord)
+      recordIdRef.current = initialRecord.id || null
+    } else {
+      setRecord(defaultRecord)
+      recordIdRef.current = null
+    }
   }, [initialRecord])
 
   const dateObj = new Date(dateStr + 'T12:00:00Z')
@@ -192,10 +209,11 @@ function DayRow({
         overtime_minutes: data.overtime_minutes,
       }
 
-      if (data.id) {
-        await pb.collection('time_records').update(data.id, payload)
+      if (recordIdRef.current) {
+        await pb.collection('time_records').update(recordIdRef.current, payload)
       } else {
         const saved = await pb.collection('time_records').create(payload)
+        recordIdRef.current = saved.id
         setRecord((prev: any) => ({ ...prev, id: saved.id }))
       }
     } catch (err: any) {
@@ -431,21 +449,11 @@ export default function Ponto() {
                   </TableRow>
                 ) : (
                   days.map((dateStr) => {
-                    const record = records[dateStr] || {
-                      entry_1: '',
-                      exit_1: '',
-                      entry_2: '',
-                      exit_2: '',
-                      entry_3: '',
-                      exit_3: '',
-                      total_minutes: 0,
-                      overtime_minutes: 0,
-                    }
                     return (
                       <DayRow
                         key={dateStr}
                         dateStr={dateStr}
-                        initialRecord={record}
+                        initialRecord={records[dateStr]}
                         selectedEmployee={selectedEmployee}
                         companyId={employee?.company_id}
                         onTotalChange={handleTotalChange}

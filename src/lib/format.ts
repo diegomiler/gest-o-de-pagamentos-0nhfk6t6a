@@ -72,6 +72,5 @@ export const formatTimeOnBlur = (value: string) => {
   let hrs = parts[0] || '0'
   let mins = parts[1] || '00'
   mins = mins.padEnd(2, '0').slice(0, 2)
-  if (parseInt(mins) >= 60) mins = '59'
   return `${hrs.padStart(2, '0')}:${mins}`
 }
