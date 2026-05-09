@@ -22,26 +22,37 @@ import {
 } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const CATEGORIES = {
-  proventos: [
-    'base_net',
-    'overtime',
-    'commission',
-    'bonus',
-    'additional',
-    'other_addition',
-    'other',
-  ],
-  descontos: [
-    'pharmacy_discount',
-    'store_agreement',
-    'partner_agreement',
-    'cash_shortage',
-    'negative_hours',
-    'advance',
-    'other_discount',
-  ],
-}
+const ALL_PROVENTOS = [
+  'base_net',
+  'overtime',
+  'commission',
+  'bonus',
+  'additional',
+  'other_addition',
+  'other',
+]
+
+const DISPLAY_PROVENTOS = ['base_net', 'overtime', 'commission', 'bonus', 'other_addition']
+
+const ALL_DESCONTOS = [
+  'pharmacy_discount',
+  'store_agreement',
+  'partner_agreement',
+  'cash_shortage',
+  'negative_hours',
+  'advance',
+  'other_discount',
+]
+
+const DISPLAY_DESCONTOS = [
+  'pharmacy_discount',
+  'store_agreement',
+  'partner_agreement',
+  'cash_shortage',
+  'negative_hours',
+  'advance',
+  'other_discount',
+]
 
 const CAT_LABELS: Record<string, string> = {
   base_net: 'Sal. Lanç.',
@@ -60,8 +71,8 @@ const CAT_LABELS: Record<string, string> = {
   other_discount: 'Out. Desc.',
 }
 
-const isProvento = (cat: string) => CATEGORIES.proventos.includes(cat)
-const isDesconto = (cat: string) => CATEGORIES.descontos.includes(cat)
+const isProvento = (cat: string) => ALL_PROVENTOS.includes(cat)
+const isDesconto = (cat: string) => ALL_DESCONTOS.includes(cat)
 
 export function FechamentoView() {
   const { selectedMonth } = usePeriod()
@@ -125,15 +136,15 @@ export function FechamentoView() {
 
   const totals = useMemo(() => {
     const initCats: Record<string, number> = {}
-    CATEGORIES.proventos.forEach((c) => (initCats[c] = 0))
-    CATEGORIES.descontos.forEach((c) => (initCats[c] = 0))
+    DISPLAY_PROVENTOS.forEach((c) => (initCats[c] = 0))
+    DISPLAY_DESCONTOS.forEach((c) => (initCats[c] = 0))
 
     return reportData.reduce(
       (acc, row) => {
         acc.empBaseSalary += row.empBaseSalary
         acc.fixedAdditional += row.fixedAdditional
-        CATEGORIES.proventos.forEach((c) => (acc.cats[c] += row.cats[c] || 0))
-        CATEGORIES.descontos.forEach((c) => (acc.cats[c] += row.cats[c] || 0))
+        DISPLAY_PROVENTOS.forEach((c) => (acc.cats[c] += row.cats[c] || 0))
+        DISPLAY_DESCONTOS.forEach((c) => (acc.cats[c] += row.cats[c] || 0))
         acc.totalEarnings += row.totalEarnings
         acc.totalDiscounts += row.totalDiscounts
         acc.netTotal += row.netTotal
@@ -159,9 +170,9 @@ export function FechamentoView() {
       'Cargo',
       'Sal. Base',
       'Adic. Fixo',
-      ...CATEGORIES.proventos.map((c) => CAT_LABELS[c]),
+      ...DISPLAY_PROVENTOS.map((c) => CAT_LABELS[c]),
       'Tot. Proventos',
-      ...CATEGORIES.descontos.map((c) => CAT_LABELS[c]),
+      ...DISPLAY_DESCONTOS.map((c) => CAT_LABELS[c]),
       'Tot. Descontos',
       'Líquido',
     ]
@@ -171,9 +182,9 @@ export function FechamentoView() {
       `"${row.role}"`,
       `"${row.empBaseSalary.toFixed(2).replace('.', ',')}"`,
       `"${row.fixedAdditional.toFixed(2).replace('.', ',')}"`,
-      ...CATEGORIES.proventos.map((c) => `"${(row.cats[c] || 0).toFixed(2).replace('.', ',')}"`),
+      ...DISPLAY_PROVENTOS.map((c) => `"${(row.cats[c] || 0).toFixed(2).replace('.', ',')}"`),
       `"${row.totalEarnings.toFixed(2).replace('.', ',')}"`,
-      ...CATEGORIES.descontos.map((c) => `"${(row.cats[c] || 0).toFixed(2).replace('.', ',')}"`),
+      ...DISPLAY_DESCONTOS.map((c) => `"${(row.cats[c] || 0).toFixed(2).replace('.', ',')}"`),
       `"${row.totalDiscounts.toFixed(2).replace('.', ',')}"`,
       `"${row.netTotal.toFixed(2).replace('.', ',')}"`,
     ])
@@ -183,9 +194,9 @@ export function FechamentoView() {
       `""`,
       `"${totals.empBaseSalary.toFixed(2).replace('.', ',')}"`,
       `"${totals.fixedAdditional.toFixed(2).replace('.', ',')}"`,
-      ...CATEGORIES.proventos.map((c) => `"${(totals.cats[c] || 0).toFixed(2).replace('.', ',')}"`),
+      ...DISPLAY_PROVENTOS.map((c) => `"${(totals.cats[c] || 0).toFixed(2).replace('.', ',')}"`),
       `"${totals.totalEarnings.toFixed(2).replace('.', ',')}"`,
-      ...CATEGORIES.descontos.map((c) => `"${(totals.cats[c] || 0).toFixed(2).replace('.', ',')}"`),
+      ...DISPLAY_DESCONTOS.map((c) => `"${(totals.cats[c] || 0).toFixed(2).replace('.', ',')}"`),
       `"${totals.totalDiscounts.toFixed(2).replace('.', ',')}"`,
       `"${totals.netTotal.toFixed(2).replace('.', ',')}"`,
     ])
@@ -356,7 +367,7 @@ export function FechamentoView() {
                 </TableHead>
                 <TableHead className="text-right p-2">Sal. Base</TableHead>
                 <TableHead className="text-right p-2">Adic. Fixo</TableHead>
-                {CATEGORIES.proventos.map((c) => (
+                {DISPLAY_PROVENTOS.map((c) => (
                   <TableHead key={c} className="text-right p-2 text-blue-700 print:text-black">
                     {CAT_LABELS[c]}
                   </TableHead>
@@ -364,7 +375,7 @@ export function FechamentoView() {
                 <TableHead className="text-right font-bold bg-muted/30 print:bg-transparent p-2 text-green-700 print:text-black">
                   Tot. Prov.
                 </TableHead>
-                {CATEGORIES.descontos.map((c) => (
+                {DISPLAY_DESCONTOS.map((c) => (
                   <TableHead key={c} className="text-right p-2 text-red-700 print:text-black">
                     {CAT_LABELS[c]}
                   </TableHead>
@@ -403,7 +414,7 @@ export function FechamentoView() {
                     <TableCell className="text-right p-2">
                       {formatCurrency(row.fixedAdditional)}
                     </TableCell>
-                    {CATEGORIES.proventos.map((c) => (
+                    {DISPLAY_PROVENTOS.map((c) => (
                       <TableCell
                         key={c}
                         className={`text-right p-2 ${row.cats[c] ? 'text-blue-600 print:text-black' : 'text-gray-300 print:text-gray-400'}`}
@@ -414,7 +425,7 @@ export function FechamentoView() {
                     <TableCell className="text-right font-semibold bg-muted/10 print:bg-transparent p-2 text-green-600 print:text-black">
                       {formatCurrency(row.totalEarnings)}
                     </TableCell>
-                    {CATEGORIES.descontos.map((c) => (
+                    {DISPLAY_DESCONTOS.map((c) => (
                       <TableCell
                         key={c}
                         className={`text-right p-2 ${row.cats[c] ? 'text-red-500 print:text-black' : 'text-gray-300 print:text-gray-400'}`}
@@ -442,7 +453,7 @@ export function FechamentoView() {
                   <TableCell className="text-right p-2">
                     {formatCurrency(totals.fixedAdditional)}
                   </TableCell>
-                  {CATEGORIES.proventos.map((c) => (
+                  {DISPLAY_PROVENTOS.map((c) => (
                     <TableCell key={c} className="text-right p-2 text-blue-700 print:text-black">
                       {formatCurrency(totals.cats[c] || 0)}
                     </TableCell>
@@ -450,7 +461,7 @@ export function FechamentoView() {
                   <TableCell className="text-right font-semibold p-2 text-green-700 print:text-black">
                     {formatCurrency(totals.totalEarnings)}
                   </TableCell>
-                  {CATEGORIES.descontos.map((c) => (
+                  {DISPLAY_DESCONTOS.map((c) => (
                     <TableCell key={c} className="text-right p-2 text-red-700 print:text-black">
                       {formatCurrency(totals.cats[c] || 0)}
                     </TableCell>
