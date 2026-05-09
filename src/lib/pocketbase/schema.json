@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-09T21:33:46.138Z",
+  "generatedAt": "2026-05-09T21:46:37.522Z",
   "collections": [
     {
       "name": "users",
@@ -387,6 +387,102 @@
           "name": "percentage",
           "type": "number",
           "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "time_records",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "employee_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "employees"
+        },
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "record_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "entry_1",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exit_1",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "entry_2",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exit_2",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "entry_3",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "exit_3",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_minutes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "overtime_minutes",
+          "type": "number",
+          "required": false,
           "system": false
         },
         {

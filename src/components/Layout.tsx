@@ -19,6 +19,7 @@ import {
   Settings,
   Search,
   LogOut,
+  Clock,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Empresas', url: '/empresas', icon: Building2 },
   { title: 'Funcionários', url: '/funcionarios', icon: Users },
+  { title: 'Folha de Ponto', url: '/ponto', icon: Clock },
   { title: 'Folha de Pagamento', url: '/folha', icon: Calculator },
   { title: 'Holerites e Relatórios', url: '/relatorios', icon: FileText },
   { title: 'Configurações', url: '/configuracoes', icon: Settings },

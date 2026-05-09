@@ -9,6 +9,7 @@ import Layout from './components/Layout'
 import Index from './pages/Index'
 import Funcionarios from './pages/Funcionarios'
 import Folha from './pages/Folha'
+import Ponto from './pages/Ponto'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
 import RegrasHorasExtras from './pages/RegrasHorasExtras'
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/empresas" element={<Empresas />} />
               <Route path="/funcionarios" element={<Funcionarios />} />
+              <Route path="/ponto" element={<Ponto />} />
               <Route path="/folha" element={<Folha />} />
               <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
