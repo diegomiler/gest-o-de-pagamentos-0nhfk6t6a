@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-09T23:00:44.352Z",
+  "generatedAt": "2026-05-09T23:09:52.957Z",
   "collections": [
     {
       "name": "users",
@@ -211,6 +211,66 @@
         {
           "name": "additional_amount",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "zip_code",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "street",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complement",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "neighborhood",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "state",
+          "type": "text",
           "required": false,
           "system": false
         }
