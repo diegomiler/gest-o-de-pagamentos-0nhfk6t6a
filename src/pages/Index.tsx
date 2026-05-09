@@ -111,23 +111,17 @@ export default function Index() {
 
     return months.map((m) => {
       const monthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(m))
-      let baseNet = 0
-      let proventos = 0
+      let salarioLiquido = 0
 
       monthEntries.forEach((e) => {
         if (e.category === 'base_net') {
-          baseNet += e.amount
-        } else if (
-          ['commission', 'bonus', 'additional', 'overtime', 'other_addition'].includes(e.category)
-        ) {
-          proventos += e.amount
+          salarioLiquido += e.amount
         }
       })
 
       return {
         month: formatMonthYear(m).split('/')[0].trim(),
-        baseNet,
-        proventos,
+        total: salarioLiquido,
       }
     })
   }, [payrollEntries, currentMonth, availableMonths])
@@ -263,8 +257,7 @@ export default function Index() {
         <CardContent className="pl-0">
           <ChartContainer
             config={{
-              baseNet: { label: 'Salário Líq.', color: 'hsl(var(--primary))' },
-              proventos: { label: 'Proventos', color: 'hsl(var(--chart-2))' },
+              total: { label: 'Salário Líquido', color: 'hsl(var(--primary))' },
             }}
             className="h-[300px] w-full"
           >
@@ -279,19 +272,7 @@ export default function Index() {
                   axisLine={false}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Legend verticalAlign="top" height={36} />
-                <Bar
-                  dataKey="baseNet"
-                  stackId="a"
-                  fill="var(--color-baseNet)"
-                  radius={[0, 0, 4, 4]}
-                />
-                <Bar
-                  dataKey="proventos"
-                  stackId="a"
-                  fill="var(--color-proventos)"
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
