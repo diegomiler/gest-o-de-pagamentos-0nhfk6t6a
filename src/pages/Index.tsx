@@ -1,5 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import {
@@ -24,7 +31,16 @@ export default function Index() {
   const { user } = useAuth()
   const [employees, setEmployees] = useState<any[]>([])
   const [payrollEntries, setPayrollEntries] = useState<any[]>([])
-  const currentMonth = '2026-04'
+  const [currentMonth, setCurrentMonth] = useState('2026-04')
+
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>()
+    months.add('2026-04') // Default
+    payrollEntries.forEach((e) => {
+      if (e.entry_date) months.add(e.entry_date.substring(0, 7))
+    })
+    return Array.from(months).sort().reverse()
+  }, [payrollEntries])
 
   const loadData = useCallback(async () => {
     if (!user?.company_id) return
@@ -53,57 +69,68 @@ export default function Index() {
   const stats = useMemo(() => {
     const currentMonthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(currentMonth))
 
-    let totalBase = 0
+    let totalNet = 0
     let totalAdditions = 0
     let totalDeductions = 0
 
-    employees.forEach((emp) => {
-      if (emp.status === 'active') {
-        totalBase += emp.base_salary
-      }
-    })
-
     currentMonthEntries.forEach((entry) => {
-      if (entry.category === 'commission' || entry.category === 'bonus') {
+      if (entry.category === 'base_net') {
+        totalNet += entry.amount
+      } else if (
+        ['commission', 'bonus', 'additional', 'overtime', 'other_addition'].includes(entry.category)
+      ) {
         totalAdditions += entry.amount
-      } else if (entry.category === 'pharmacy_discount' || entry.category === 'advance') {
+      } else if (
+        [
+          'pharmacy_discount',
+          'advance',
+          'negative_hours',
+          'cash_shortage',
+          'partner_agreement',
+          'store_agreement',
+          'other_discount',
+        ].includes(entry.category)
+      ) {
         totalDeductions += entry.amount
       }
     })
 
     return {
       activeEmployees: employees.filter((e) => e.status === 'active').length,
-      totalPayroll: totalBase + totalAdditions - totalDeductions,
-      totalCommissions: totalAdditions,
+      totalNet,
+      totalAdditions,
       totalDiscounts: totalDeductions,
     }
   }, [employees, payrollEntries, currentMonth])
 
   const chartData = useMemo(() => {
-    const months = ['2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04']
+    const currentIdx =
+      availableMonths.indexOf(currentMonth) >= 0 ? availableMonths.indexOf(currentMonth) : 0
+    const months = availableMonths.slice(currentIdx, currentIdx + 6).reverse()
+    if (months.length === 0) months.push(currentMonth)
+
     return months.map((m) => {
       const monthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(m))
-      let totalBase = 0
-      let vars = 0
-      let overtime = 0
-
-      employees.forEach((emp) => {
-        if (emp.status === 'active' || emp.status === 'on_leave') totalBase += emp.base_salary
-      })
+      let baseNet = 0
+      let proventos = 0
 
       monthEntries.forEach((e) => {
-        if (e.category === 'commission' || e.category === 'bonus') vars += e.amount
-        if (e.category === 'overtime') overtime += e.amount
+        if (e.category === 'base_net') {
+          baseNet += e.amount
+        } else if (
+          ['commission', 'bonus', 'additional', 'overtime', 'other_addition'].includes(e.category)
+        ) {
+          proventos += e.amount
+        }
       })
 
       return {
         month: formatMonthYear(m).split('/')[0].trim(),
-        base: totalBase,
-        variaveis: vars,
-        horasExtras: overtime,
+        baseNet,
+        proventos,
       }
     })
-  }, [employees, payrollEntries])
+  }, [payrollEntries, currentMonth, availableMonths])
 
   const vacationAlerts = useMemo(() => {
     const today = new Date()
@@ -121,11 +148,21 @@ export default function Index() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Visão geral da folha de pagamento ({formatMonthYear(currentMonth)})
-          </p>
+          <p className="text-muted-foreground">Visão geral da folha de pagamento</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <Select value={currentMonth} onValueChange={setCurrentMonth}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Selecione o mês" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableMonths.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {formatMonthYear(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button asChild variant="outline">
             <Link to="/funcionarios">Gerenciar Equipe</Link>
           </Button>
@@ -177,12 +214,14 @@ export default function Index() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Custo Total Folha</CardTitle>
+            <CardTitle className="text-sm font-medium">Salário Líq.</CardTitle>
             <Banknote className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalPayroll)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Líquido estimado neste mês</p>
+            <div className="text-2xl font-bold">
+              {stats.totalNet > 0 ? formatCurrency(stats.totalNet) : 'R$ 0,00'}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Total de salários líquidos</p>
           </CardContent>
         </Card>
         <Card>
@@ -197,12 +236,12 @@ export default function Index() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Variáveis</CardTitle>
+            <CardTitle className="text-sm font-medium">Proventos</CardTitle>
             <TrendingUp className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalCommissions)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Comissões e Bônus</p>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalAdditions)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Ganhos e adicionais</p>
           </CardContent>
         </Card>
         <Card>
@@ -212,7 +251,7 @@ export default function Index() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalDiscounts)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Adiantamentos e Farmácia</p>
+            <p className="text-xs text-muted-foreground mt-1">Descontos no período</p>
           </CardContent>
         </Card>
       </div>
@@ -224,9 +263,8 @@ export default function Index() {
         <CardContent className="pl-0">
           <ChartContainer
             config={{
-              base: { label: 'Salário Base', color: 'hsl(var(--primary))' },
-              variaveis: { label: 'Variáveis (Comissões/Bônus)', color: 'hsl(var(--chart-2))' },
-              horasExtras: { label: 'Horas Extras Pagas (R$)', color: 'hsl(var(--destructive))' },
+              baseNet: { label: 'Salário Líq.', color: 'hsl(var(--primary))' },
+              proventos: { label: 'Proventos', color: 'hsl(var(--chart-2))' },
             }}
             className="h-[300px] w-full"
           >
@@ -242,17 +280,16 @@ export default function Index() {
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend verticalAlign="top" height={36} />
-                <Bar dataKey="base" stackId="a" fill="var(--color-base)" radius={[0, 0, 4, 4]} />
                 <Bar
-                  dataKey="variaveis"
+                  dataKey="baseNet"
                   stackId="a"
-                  fill="var(--color-variaveis)"
-                  radius={[0, 0, 0, 0]}
+                  fill="var(--color-baseNet)"
+                  radius={[0, 0, 4, 4]}
                 />
                 <Bar
-                  dataKey="horasExtras"
+                  dataKey="proventos"
                   stackId="a"
-                  fill="var(--color-horasExtras)"
+                  fill="var(--color-proventos)"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
