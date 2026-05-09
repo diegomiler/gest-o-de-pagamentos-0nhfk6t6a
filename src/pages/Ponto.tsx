@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { format } from 'date-fns'
-import { Clock } from 'lucide-react'
+import { Clock, Printer } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -19,6 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { formatTimeOnBlur } from '@/lib/format'
@@ -26,7 +33,6 @@ import { usePeriod } from '@/hooks/use-period'
 import { PeriodSelector } from '@/components/PeriodSelector'
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-// Mock of common brazilian holidays for the logic (month-day)
 const HOLIDAYS = ['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '12-25']
 
 const calcDiff = (entry?: string, exit?: string) => {
@@ -93,7 +99,7 @@ function TimeCell({ value, onChange }: { value: string; onChange: (v: string) =>
 
   return (
     <Input
-      className="w-16 h-8 px-1 text-center text-xs tabular-nums focus:ring-primary/40"
+      className="w-16 h-8 px-1 text-center text-xs tabular-nums focus:ring-primary/40 print:w-auto print:border-0 print:bg-transparent print:p-0 print:shadow-none print:text-black"
       value={val}
       onChange={handleChange}
       onBlur={handleBlur}
@@ -125,6 +131,7 @@ function DayRow({
     exit_3: '',
     total_minutes: 0,
     overtime_minutes: 0,
+    day_type: 'regular',
   }
   const [record, setRecord] = useState(() => initialRecord || defaultRecord)
   const { toast } = useToast()
@@ -146,8 +153,12 @@ function DayRow({
   const isSunday = dayOfWeek === 0
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
   const monthDay = dateStr.substring(5) // MM-DD
-  const isHoliday = HOLIDAYS.includes(monthDay)
-  const isSpecialDay = isSunday || isHoliday
+
+  const currentDayType = record.day_type || 'regular'
+  const isDayOff = currentDayType === 'day_off'
+  const isHolidayOverride = currentDayType === 'holiday'
+  const isHoliday = HOLIDAYS.includes(monthDay) || isHolidayOverride
+  const isSpecialDay = isSunday || isHoliday || isDayOff
 
   const displayDate = format(dateObj, 'dd/MM')
   const displayDay = WEEKDAYS[dayOfWeek]
@@ -170,11 +181,21 @@ function DayRow({
         updated.entry_3 ||
         updated.exit_3
 
-      if (hasAnyEntry) {
-        if (isSpecialDay) {
-          overtime_minutes = total_minutes
-        } else {
+      const currentType = updated.day_type || 'regular'
+      const isOff = currentType === 'day_off'
+      const isHolOverride = currentType === 'holiday'
+      const isEffSpecial = isSunday || HOLIDAYS.includes(monthDay) || isHolOverride || isOff
+
+      const todayStr = format(new Date(), 'yyyy-MM-dd')
+      const isPastOrToday = dateStr <= todayStr
+
+      if (isEffSpecial) {
+        overtime_minutes = total_minutes
+      } else {
+        if (hasAnyEntry || isPastOrToday) {
           overtime_minutes = total_minutes - 440 // 440 mins = 07:20
+        } else {
+          overtime_minutes = 0
         }
       }
 
@@ -207,6 +228,7 @@ function DayRow({
         exit_3: data.exit_3,
         total_minutes: data.total_minutes,
         overtime_minutes: data.overtime_minutes,
+        day_type: data.day_type || 'regular',
       }
 
       if (recordIdRef.current) {
@@ -232,50 +254,72 @@ function DayRow({
     <TableRow
       className={
         isSpecialDay
-          ? 'bg-red-50/50 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30'
+          ? 'bg-red-50/50 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30 print:bg-transparent'
           : isWeekend
-            ? 'bg-muted/30'
+            ? 'bg-muted/30 print:bg-transparent'
             : ''
       }
     >
-      <TableCell className="font-medium whitespace-nowrap">
-        {displayDate}
-        {isHoliday && (
-          <span className="ml-2 text-[10px] uppercase tracking-wider text-red-500 font-semibold bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">
-            Feriado
-          </span>
-        )}
+      <TableCell className="font-medium whitespace-nowrap p-0">
+        <ContextMenu>
+          <ContextMenuTrigger className="flex items-center h-full w-full px-4 py-3 cursor-context-menu">
+            {displayDate}
+            {isHoliday && !isDayOff && (
+              <span className="ml-2 text-[10px] uppercase tracking-wider text-red-500 font-semibold bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded print:border print:border-red-500">
+                Feriado
+              </span>
+            )}
+            {isDayOff && (
+              <span className="ml-2 text-[10px] uppercase tracking-wider text-blue-500 font-semibold bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 rounded print:border print:border-blue-500">
+                Folga
+              </span>
+            )}
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem onClick={() => handleChange('day_type', 'regular')}>
+              Dia Normal
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => handleChange('day_type', 'day_off')}>
+              Atribuir Folga
+            </ContextMenuItem>
+            <ContextMenuItem onClick={() => handleChange('day_type', 'holiday')}>
+              Atribuir Feriado
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </TableCell>
       <TableCell
-        className={`text-muted-foreground ${isSpecialDay ? 'text-red-600 dark:text-red-400 font-semibold' : isWeekend ? 'text-muted-foreground font-medium' : ''}`}
+        className={`text-muted-foreground ${isSpecialDay ? 'text-red-600 dark:text-red-400 font-semibold print:text-black' : isWeekend ? 'text-muted-foreground font-medium print:text-black' : 'print:text-black'}`}
       >
         {displayDay}
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
           <TimeCell value={record.entry_1} onChange={(v) => handleChange('entry_1', v)} />
-          <span className="text-muted-foreground">-</span>
+          <span className="text-muted-foreground print:text-black">-</span>
           <TimeCell value={record.exit_1} onChange={(v) => handleChange('exit_1', v)} />
         </div>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
           <TimeCell value={record.entry_2} onChange={(v) => handleChange('entry_2', v)} />
-          <span className="text-muted-foreground">-</span>
+          <span className="text-muted-foreground print:text-black">-</span>
           <TimeCell value={record.exit_2} onChange={(v) => handleChange('exit_2', v)} />
         </div>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-1">
           <TimeCell value={record.entry_3} onChange={(v) => handleChange('entry_3', v)} />
-          <span className="text-muted-foreground">-</span>
+          <span className="text-muted-foreground print:text-black">-</span>
           <TimeCell value={record.exit_3} onChange={(v) => handleChange('exit_3', v)} />
         </div>
       </TableCell>
-      <TableCell className="text-center font-bold tabular-nums text-primary/90">
+      <TableCell className="text-center font-bold tabular-nums text-primary/90 print:text-black">
         {formatMinToTime(record.total_minutes || 0)}
       </TableCell>
-      <TableCell className={`text-center tabular-nums font-semibold ${balanceColor}`}>
+      <TableCell
+        className={`text-center tabular-nums font-semibold ${balanceColor} print:text-black`}
+      >
         {record.overtime_minutes !== 0 ? formatBalance(record.overtime_minutes) : '-'}
       </TableCell>
     </TableRow>
@@ -360,7 +404,7 @@ export default function Ponto() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print-hidden">
         <div className="flex items-center gap-3">
           <Clock className="w-8 h-8 text-primary" />
           <div>
@@ -368,10 +412,35 @@ export default function Ponto() {
             <p className="text-muted-foreground">Gerenciamento mensal de horas</p>
           </div>
         </div>
-        <PeriodSelector />
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => window.print()}>
+            <Printer className="w-4 h-4 mr-2" />
+            Imprimir Folha de Ponto
+          </Button>
+          <PeriodSelector />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Print Only Header */}
+      <div className="hidden print:block mb-6">
+        <h1 className="text-2xl font-bold border-b pb-2 mb-4">Folha de Ponto</h1>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <strong>Funcionário:</strong> {employee?.name || 'Não selecionado'}
+          </div>
+          <div>
+            <strong>Período:</strong> {selectedMonth}
+          </div>
+          <div>
+            <strong>Total Horas:</strong> {formatMinToTime(monthTotal)}
+          </div>
+          <div>
+            <strong>Saldo Mensal:</strong> {formatBalance(monthExtra)}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 print-hidden">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">Funcionário</CardTitle>
@@ -419,31 +488,41 @@ export default function Ponto() {
         </Card>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="rounded-md border overflow-x-auto">
+      <Card className="print:border-0 print:shadow-none">
+        <CardContent className="p-0 print:p-0">
+          <div className="rounded-md border print:border-0 overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-[120px]">Data</TableHead>
-                  <TableHead className="w-[80px]">Dia</TableHead>
-                  <TableHead>Turno 1 (Ent - Sai)</TableHead>
-                  <TableHead>Turno 2 (Ent - Sai)</TableHead>
-                  <TableHead>Turno 3 (Ent - Sai)</TableHead>
-                  <TableHead className="text-center w-[120px]">Horas Realizadas</TableHead>
-                  <TableHead className="text-center w-[130px]">Saldo (Faltas/Extras)</TableHead>
+                <TableRow className="bg-muted/50 print:bg-transparent">
+                  <TableHead className="w-[120px] print:text-black">Data</TableHead>
+                  <TableHead className="w-[80px] print:text-black">Dia</TableHead>
+                  <TableHead className="print:text-black">Turno 1 (Ent - Sai)</TableHead>
+                  <TableHead className="print:text-black">Turno 2 (Ent - Sai)</TableHead>
+                  <TableHead className="print:text-black">Turno 3 (Ent - Sai)</TableHead>
+                  <TableHead className="text-center w-[120px] print:text-black">
+                    Horas Realizadas
+                  </TableHead>
+                  <TableHead className="text-center w-[130px] print:text-black">
+                    Saldo (Faltas/Extras)
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={7}
+                      className="h-32 text-center text-muted-foreground print:text-black"
+                    >
                       Carregando dados do mês...
                     </TableCell>
                   </TableRow>
                 ) : !selectedEmployee ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={7}
+                      className="h-32 text-center text-muted-foreground print:text-black print:hidden"
+                    >
                       Selecione um funcionário para visualizar a folha de ponto.
                     </TableCell>
                   </TableRow>

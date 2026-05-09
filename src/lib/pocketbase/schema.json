@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-09T22:35:16.535Z",
+  "generatedAt": "2026-05-09T22:52:17.954Z",
   "collections": [
     {
       "name": "users",
@@ -498,6 +498,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "day_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["regular", "holiday", "day_off"]
         }
       ],
       "indexes": []
