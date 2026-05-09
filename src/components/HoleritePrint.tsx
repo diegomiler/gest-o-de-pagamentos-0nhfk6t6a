@@ -18,8 +18,10 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
   }
 
   const baseNetEntry = entries.find((e) => e.category === 'base_net')
-  const baseValue = baseNetEntry ? baseNetEntry.amount : employee.base_salary || 0
-  const employeeAdditionalAmount = employee.additional_amount || 0
+  const baseValue = baseNetEntry ? baseNetEntry.amount : 0
+
+  const additionalEntry = entries.find((e) => e.category === 'additional')
+  const employeeAdditionalAmount = additionalEntry ? additionalEntry.amount : 0
 
   const earnings = []
   earnings.push({ label: 'Salário Base', amount: baseValue })

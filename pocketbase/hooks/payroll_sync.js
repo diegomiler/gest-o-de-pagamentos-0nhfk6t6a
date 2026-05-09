@@ -46,7 +46,6 @@ routerAdd(
           { key: 'bonuses', cat: 'bonus', descKey: '' },
           { key: 'pharmacy', cat: 'pharmacy_discount', descKey: '' },
           { key: 'advances', cat: 'advance', descKey: '' },
-          { key: 'base_net', cat: 'base_net', descKey: '' },
           { key: 'cash_shortage', cat: 'cash_shortage', descKey: 'cash_shortage_desc' },
           { key: 'negative_hours', cat: 'negative_hours', descKey: 'negative_hours_desc' },
           { key: 'partner_agreement', cat: 'partner_agreement', descKey: 'partner_agreement_desc' },
@@ -57,6 +56,36 @@ routerAdd(
 
         const payrollCol = txApp.findCollectionByNameOrId('payroll_entries')
         const entryDate = month + '-01 12:00:00.000Z'
+
+        // Snapshot base_net
+        let baseNetVal = Number(empData['base_net'])
+        if (isNaN(baseNetVal) || (baseNetVal === 0 && empData['base_net'] == null)) {
+          baseNetVal = emp.getFloat('base_salary') || 0
+        }
+        if (baseNetVal !== 0) {
+          const rec = new Record(payrollCol)
+          rec.set('employee_id', empId)
+          rec.set('company_id', companyId)
+          rec.set('category', 'base_net')
+          rec.set('amount', baseNetVal)
+          rec.set('entry_date', entryDate)
+          txApp.save(rec)
+        }
+
+        // Snapshot additional
+        let additionalVal = Number(empData['additional'])
+        if (isNaN(additionalVal) || (additionalVal === 0 && empData['additional'] == null)) {
+          additionalVal = emp.getFloat('additional_amount') || 0
+        }
+        if (additionalVal !== 0) {
+          const rec = new Record(payrollCol)
+          rec.set('employee_id', empId)
+          rec.set('company_id', companyId)
+          rec.set('category', 'additional')
+          rec.set('amount', additionalVal)
+          rec.set('entry_date', entryDate)
+          txApp.save(rec)
+        }
 
         for (const map of categories) {
           const rawValue = empData[map.key]

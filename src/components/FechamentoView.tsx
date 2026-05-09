@@ -111,9 +111,8 @@ export function FechamentoView() {
           }
         })
 
-        const fixedAdditional = emp.additional_amount || 0
-        const empBaseSalary = emp.base_salary || 0
-        totalEarnings += fixedAdditional
+        const empBaseSalary = cats['base_net'] || 0
+        const fixedAdditional = cats['additional'] || 0
 
         const netTotal = totalEarnings - totalDiscounts
 
@@ -130,7 +129,7 @@ export function FechamentoView() {
           hasEntries: entries.length > 0,
         }
       })
-      .filter((emp) => emp.hasEntries || emp.fixedAdditional > 0 || emp.empBaseSalary > 0)
+      .filter((emp) => emp.hasEntries)
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [activeCompany, employees, payrollEntries])
 

@@ -28,7 +28,7 @@ export function HoleritesView() {
     const grouped = employees
       .map((emp) => {
         const empEntries = payrollEntries.filter((e) => e.employee_id === emp.id)
-        if (empEntries.length === 0 && emp.status === 'inactive') return null
+        if (empEntries.length === 0) return null
 
         return {
           employee: emp,
