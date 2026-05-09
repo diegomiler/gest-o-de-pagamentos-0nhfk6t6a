@@ -26,6 +26,8 @@ import { usePeriod } from '@/hooks/use-period'
 import { PeriodSelector } from '@/components/PeriodSelector'
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+// Mock of common brazilian holidays for the logic (month-day)
+const HOLIDAYS = ['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '12-25']
 
 const calcDiff = (entry?: string, exit?: string) => {
   if (!entry || !exit) return 0
@@ -33,14 +35,26 @@ const calcDiff = (entry?: string, exit?: string) => {
   if (!timeRegex.test(entry) || !timeRegex.test(exit)) return 0
   const [eH, eM] = entry.split(':').map(Number)
   const [xH, xM] = exit.split(':').map(Number)
-  return xH * 60 + xM - (eH * 60 + eM)
+  let diff = xH * 60 + xM - (eH * 60 + eM)
+  if (diff < 0) diff += 24 * 60 // Handle overnight shifts
+  return diff
 }
 
 const formatMinToTime = (min: number) => {
-  if (!min || min < 0) return '00:00'
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  if (min === null || min === undefined || isNaN(min)) return '00:00'
+  const isNegative = min < 0
+  const absMin = Math.abs(min)
+  const h = Math.floor(absMin / 60)
+  const m = absMin % 60
+  const time = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+  return isNegative ? `- ${time}` : time
+}
+
+const formatBalance = (min: number) => {
+  if (min === null || min === undefined || isNaN(min) || min === 0) return '00:00'
+  const isNegative = min < 0
+  const time = formatMinToTime(Math.abs(min))
+  return isNegative ? `- ${time}` : `+ ${time}`
 }
 
 function TimeCell({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -51,40 +65,13 @@ function TimeCell({ value, onChange }: { value: string; onChange: (v: string) =>
   }, [value])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target.value
+    let digits = e.target.value.replace(/\D/g, '')
+    if (digits.length > 4) digits = digits.substring(0, 4)
 
-    let hh = ''
-    let mm = ''
-
-    if (input.includes(':')) {
-      const parts = input.split(':')
-      hh = parts[0].replace(/\D/g, '').slice(0, 2)
-      mm = parts[1].replace(/\D/g, '').slice(0, 2)
-    } else {
-      let digits = input.replace(/\D/g, '')
-      // Detect if user just deleted the colon
-      if (val.includes(':') && input === val.replace(':', '')) {
-        const colonIndex = val.indexOf(':')
-        if (colonIndex > 0) {
-          digits = digits.slice(0, colonIndex - 1) + digits.slice(colonIndex)
-        }
-      }
-      hh = digits.slice(0, 2)
-      mm = digits.slice(2, 4)
+    let formatted = digits
+    if (digits.length >= 3) {
+      formatted = `${digits.substring(0, 2)}:${digits.substring(2)}`
     }
-
-    if (hh.length === 2 && parseInt(hh, 10) > 23) hh = '23'
-    if (mm.length === 2 && parseInt(mm, 10) > 59) mm = '59'
-
-    let formatted = hh
-    if (mm.length > 0) {
-      formatted = `${hh.padStart(2, '0')}:${mm}`
-    } else if (hh.length === 2 && (val.length === 1 || input.includes(':'))) {
-      formatted = `${hh}:`
-    } else if (input.includes(':')) {
-      formatted = `${hh}:`
-    }
-
     setVal(formatted)
   }
 
@@ -106,7 +93,7 @@ function TimeCell({ value, onChange }: { value: string; onChange: (v: string) =>
 
   return (
     <Input
-      className="w-16 h-8 px-1 text-center text-xs tabular-nums"
+      className="w-16 h-8 px-1 text-center text-xs tabular-nums focus:ring-primary/40"
       value={val}
       onChange={handleChange}
       onBlur={handleBlur}
@@ -139,7 +126,12 @@ function DayRow({
 
   const dateObj = new Date(dateStr + 'T12:00:00Z')
   const dayOfWeek = dateObj.getDay()
+  const isSunday = dayOfWeek === 0
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+  const monthDay = dateStr.substring(5) // MM-DD
+  const isHoliday = HOLIDAYS.includes(monthDay)
+  const isSpecialDay = isSunday || isHoliday
+
   const displayDate = format(dateObj, 'dd/MM')
   const displayDay = WEEKDAYS[dayOfWeek]
 
@@ -151,7 +143,23 @@ function DayRow({
       const diff2 = calcDiff(updated.entry_2, updated.exit_2)
       const diff3 = calcDiff(updated.entry_3, updated.exit_3)
       const total_minutes = Math.max(0, diff1) + Math.max(0, diff2) + Math.max(0, diff3)
-      const overtime_minutes = Math.max(0, total_minutes - 440)
+
+      let overtime_minutes = 0
+      const hasAnyEntry =
+        updated.entry_1 ||
+        updated.exit_1 ||
+        updated.entry_2 ||
+        updated.exit_2 ||
+        updated.entry_3 ||
+        updated.exit_3
+
+      if (hasAnyEntry) {
+        if (isSpecialDay) {
+          overtime_minutes = total_minutes
+        } else {
+          overtime_minutes = total_minutes - 440 // 440 mins = 07:20
+        }
+      }
 
       updated.total_minutes = total_minutes
       updated.overtime_minutes = overtime_minutes
@@ -195,11 +203,33 @@ function DayRow({
     }
   }
 
+  const balanceColor =
+    record.overtime_minutes > 0
+      ? 'text-green-600 dark:text-green-500'
+      : record.overtime_minutes < 0
+        ? 'text-red-600 dark:text-red-500'
+        : 'text-muted-foreground'
+
   return (
-    <TableRow className={isWeekend ? 'bg-muted/30' : ''}>
-      <TableCell className="font-medium whitespace-nowrap">{displayDate}</TableCell>
+    <TableRow
+      className={
+        isSpecialDay
+          ? 'bg-red-50/50 dark:bg-red-950/20 hover:bg-red-50 dark:hover:bg-red-950/30'
+          : isWeekend
+            ? 'bg-muted/30'
+            : ''
+      }
+    >
+      <TableCell className="font-medium whitespace-nowrap">
+        {displayDate}
+        {isHoliday && (
+          <span className="ml-2 text-[10px] uppercase tracking-wider text-red-500 font-semibold bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">
+            Feriado
+          </span>
+        )}
+      </TableCell>
       <TableCell
-        className={`text-muted-foreground ${isWeekend ? 'text-red-500/80 font-medium' : ''}`}
+        className={`text-muted-foreground ${isSpecialDay ? 'text-red-600 dark:text-red-400 font-semibold' : isWeekend ? 'text-muted-foreground font-medium' : ''}`}
       >
         {displayDay}
       </TableCell>
@@ -224,11 +254,11 @@ function DayRow({
           <TimeCell value={record.exit_3} onChange={(v) => handleChange('exit_3', v)} />
         </div>
       </TableCell>
-      <TableCell className="text-center font-medium tabular-nums text-primary/80">
+      <TableCell className="text-center font-bold tabular-nums text-primary/90">
         {formatMinToTime(record.total_minutes || 0)}
       </TableCell>
-      <TableCell className="text-center tabular-nums text-green-600 dark:text-green-500 font-medium">
-        {record.overtime_minutes > 0 ? formatMinToTime(record.overtime_minutes) : '-'}
+      <TableCell className={`text-center tabular-nums font-semibold ${balanceColor}`}>
+        {record.overtime_minutes !== 0 ? formatBalance(record.overtime_minutes) : '-'}
       </TableCell>
     </TableRow>
   )
@@ -358,14 +388,14 @@ export default function Ponto() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Horas Extras (Mês)
+              Saldo de Horas (Mês)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${monthExtra > 0 ? 'text-green-600 dark:text-green-500' : ''}`}
+              className={`text-2xl font-bold ${monthExtra > 0 ? 'text-green-600 dark:text-green-500' : monthExtra < 0 ? 'text-red-600 dark:text-red-500' : ''}`}
             >
-              {formatMinToTime(monthExtra)}
+              {formatBalance(monthExtra)}
             </div>
           </CardContent>
         </Card>
@@ -377,13 +407,13 @@ export default function Ponto() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[80px]">Data</TableHead>
+                  <TableHead className="w-[120px]">Data</TableHead>
                   <TableHead className="w-[80px]">Dia</TableHead>
                   <TableHead>Turno 1 (Ent - Sai)</TableHead>
                   <TableHead>Turno 2 (Ent - Sai)</TableHead>
                   <TableHead>Turno 3 (Ent - Sai)</TableHead>
-                  <TableHead className="text-center w-[100px]">Total</TableHead>
-                  <TableHead className="text-center w-[100px]">Extras</TableHead>
+                  <TableHead className="text-center w-[120px]">Horas Realizadas</TableHead>
+                  <TableHead className="text-center w-[130px]">Saldo (Faltas/Extras)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
