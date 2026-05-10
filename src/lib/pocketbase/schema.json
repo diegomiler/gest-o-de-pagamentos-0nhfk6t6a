@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-05-10T13:20:03.856Z",
+  "generatedAt": "2026-05-10T13:53:02.084Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "id = @request.auth.id",
-        "view": "id = @request.auth.id",
-        "create": "",
-        "update": "id = @request.auth.id",
-        "delete": "id = @request.auth.id"
+        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "create": "@request.auth.role = 'admin' && @request.auth.company_id != '' && company_id = @request.auth.company_id",
+        "update": "((@request.auth.id = id && (@request.body.role = '' || @request.body.role = role)) || (@request.auth.company_id = company_id && @request.auth.role = 'admin')) && (@request.body.company_id = '' || @request.body.company_id = company_id)",
+        "delete": "@request.auth.id = id || (@request.auth.company_id = company_id && @request.auth.role = 'admin')"
       },
       "fields": [
         {
@@ -44,6 +44,13 @@
           "required": false,
           "system": false,
           "collectionRef": "companies"
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["admin", "manager", "editor"]
         }
       ],
       "indexes": [
@@ -55,11 +62,11 @@
       "name": "companies",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && id = @request.auth.company_id",
+        "view": "@request.auth.id != '' && id = @request.auth.company_id",
+        "create": null,
+        "update": "@request.auth.id != '' && id = @request.auth.company_id && @request.auth.role = 'admin'",
+        "delete": null
       },
       "fields": [
         {
@@ -143,11 +150,11 @@
       "name": "employees",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "create": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "update": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "delete": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role != 'editor'"
       },
       "fields": [
         {
@@ -281,11 +288,11 @@
       "name": "payroll_entries",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "create": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "update": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "delete": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role != 'editor'"
       },
       "fields": [
         {
@@ -423,11 +430,11 @@
       "name": "overtime_rules",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "create": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role = 'admin'",
+        "update": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role = 'admin'",
+        "delete": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role = 'admin'"
       },
       "fields": [
         {
@@ -470,11 +477,11 @@
       "name": "time_records",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "create": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "update": "@request.auth.id != '' && company_id = @request.auth.company_id",
+        "delete": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role != 'editor'"
       },
       "fields": [
         {

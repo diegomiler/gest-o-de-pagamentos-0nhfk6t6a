@@ -1,8 +1,15 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function Configuracoes() {
+  const { user } = useAuth()
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
+
   return (
     <div className="max-w-6xl space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -22,6 +29,19 @@ export default function Configuracoes() {
           <CardFooter>
             <Button asChild className="w-full">
               <Link to="/configuracoes/regras-horas-extras">Acessar Regras</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Usuários e Permissões</CardTitle>
+            <CardDescription>
+              Gerencie quem tem acesso ao sistema e seus níveis de permissão.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="mt-auto">
+            <Button asChild className="w-full" variant="outline">
+              <Link to="/configuracoes/usuarios">Gerenciar Usuários</Link>
             </Button>
           </CardFooter>
         </Card>

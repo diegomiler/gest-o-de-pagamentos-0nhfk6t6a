@@ -13,7 +13,9 @@ import Ponto from './pages/Ponto'
 import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
 import RegrasHorasExtras from './pages/RegrasHorasExtras'
+import Usuarios from './pages/Usuarios'
 import Empresas from './pages/Empresas'
+import Perfil from './pages/Perfil'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -50,6 +52,8 @@ const App = () => (
               <Route path="/relatorios" element={<Relatorios />} />
               <Route path="/configuracoes" element={<Configuracoes />} />
               <Route path="/configuracoes/regras-horas-extras" element={<RegrasHorasExtras />} />
+              <Route path="/configuracoes/usuarios" element={<Usuarios />} />
+              <Route path="/perfil" element={<Perfil />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

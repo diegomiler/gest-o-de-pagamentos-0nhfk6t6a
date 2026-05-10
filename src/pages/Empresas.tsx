@@ -22,13 +22,20 @@ import {
 } from '@/components/ui/sheet'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { CompanyForm } from '@/components/CompanyForm'
+import { useAuth } from '@/hooks/use-auth'
+import { Navigate } from 'react-router-dom'
 
 export default function Empresas() {
+  const { user } = useAuth()
   const [companies, setCompanies] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingCompany, setEditingCompany] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
 
   const loadCompanies = async () => {
     try {

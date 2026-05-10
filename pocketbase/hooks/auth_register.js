@@ -22,6 +22,7 @@ routerAdd(
         user.setVerified(true)
         user.set('name', body.name)
         user.set('company_id', company.id)
+        user.set('role', 'admin')
         txApp.save(user)
       })
     } catch (err) {

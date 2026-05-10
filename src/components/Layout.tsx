@@ -20,24 +20,41 @@ import {
   Search,
   LogOut,
   Clock,
+  User,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/hooks/use-auth'
 
-const NAV_ITEMS = [
+const getNavItems = (role: string) => [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'Empresas', url: '/empresas', icon: Building2 },
+  ...(role === 'admin' ? [{ title: 'Empresas', url: '/empresas', icon: Building2 }] : []),
   { title: 'Funcionários', url: '/funcionarios', icon: Users },
   { title: 'Folha de Ponto', url: '/ponto', icon: Clock },
   { title: 'Folha de Pagamento', url: '/folha', icon: Calculator },
   { title: 'Holerites e Relatórios', url: '/relatorios', icon: FileText },
-  { title: 'Configurações', url: '/configuracoes', icon: Settings },
+  ...(role === 'admin' ? [{ title: 'Configurações', url: '/configuracoes', icon: Settings }] : []),
 ]
 
 export default function Layout() {
   const location = useLocation()
   const { signOut, user } = useAuth()
+
+  const NAV_ITEMS = getNavItems(user?.role || 'editor')
+
+  const roleLabels: Record<string, string> = {
+    admin: 'Administrador',
+    manager: 'Gerente',
+    editor: 'Editor',
+  }
 
   return (
     <SidebarProvider>
@@ -82,16 +99,41 @@ export default function Layout() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm font-medium hidden sm:inline-block">{user?.name}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={signOut}
-                title="Sair"
-              >
-                <LogOut className="h-5 w-5 text-muted-foreground" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="relative h-10 w-auto flex items-center gap-2 pl-2 pr-4 rounded-full border"
+                  >
+                    <div className="h-7 w-7 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="flex flex-col items-start hidden sm:flex text-left">
+                      <span className="text-sm font-medium leading-none">{user?.name}</span>
+                      <span className="text-[10px] text-muted-foreground mt-0.5 uppercase font-semibold">
+                        {roleLabels[user?.role] || 'Usuário'}
+                      </span>
+                    </div>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/perfil" className="cursor-pointer w-full flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Meu Perfil</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={signOut}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
           <main className="flex-1 overflow-auto p-4 md:p-8 relative print:overflow-visible print:p-0 print:block print:w-full">
