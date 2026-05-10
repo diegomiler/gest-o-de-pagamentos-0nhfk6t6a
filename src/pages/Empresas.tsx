@@ -33,11 +33,8 @@ export default function Empresas() {
   const [editingCompany, setEditingCompany] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
 
-  if (user?.role !== 'admin') {
-    return <Navigate to="/" replace />
-  }
-
   const loadCompanies = async () => {
+    if (user?.role !== 'admin') return
     try {
       const records = await pb.collection('companies').getFullList({ sort: '-created' })
       setCompanies(records)
@@ -49,11 +46,17 @@ export default function Empresas() {
   }
 
   useEffect(() => {
-    loadCompanies()
-  }, [])
+    if (user?.role === 'admin') {
+      loadCompanies()
+    } else {
+      setLoading(false)
+    }
+  }, [user?.role])
 
   useRealtime('companies', () => {
-    loadCompanies()
+    if (user?.role === 'admin') {
+      loadCompanies()
+    }
   })
 
   const filteredCompanies = companies.filter((c) => {
@@ -63,6 +66,10 @@ export default function Empresas() {
       c.cnpj?.replace(/\D/g, '').includes(query.replace(/\D/g, ''))
     )
   })
+
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
 
   return (
     <div className="space-y-6 animate-fade-in h-full flex flex-col">
