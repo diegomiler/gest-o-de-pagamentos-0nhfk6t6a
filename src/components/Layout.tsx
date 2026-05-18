@@ -22,6 +22,7 @@ import {
   LogOut,
   Clock,
   User,
+  Shield,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -42,7 +43,12 @@ const getNavItems = (role: string) => [
   { title: 'Folha de Ponto', url: '/ponto', icon: Clock },
   { title: 'Folha de Pagamento', url: '/folha', icon: Calculator },
   { title: 'Holerites e Relatórios', url: '/relatorios', icon: FileText },
-  ...(role === 'admin' ? [{ title: 'Configurações', url: '/configuracoes', icon: Settings }] : []),
+  ...(role === 'admin'
+    ? [
+        { title: 'Auditoria', url: '/auditoria', icon: Shield },
+        { title: 'Configurações', url: '/configuracoes', icon: Settings },
+      ]
+    : []),
 ]
 
 export default function Layout() {

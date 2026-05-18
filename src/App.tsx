@@ -16,6 +16,7 @@ import RegrasHorasExtras from './pages/RegrasHorasExtras'
 import Usuarios from './pages/Usuarios'
 import Empresas from './pages/Empresas'
 import Perfil from './pages/Perfil'
+import Auditoria from './pages/Auditoria'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -24,6 +25,13 @@ const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth()
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+const RequireAdmin = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user || user.role !== 'admin') return <Navigate to="/" replace />
   return <>{children}</>
 }
 
@@ -54,6 +62,14 @@ const App = () => (
               <Route path="/configuracoes/regras-horas-extras" element={<RegrasHorasExtras />} />
               <Route path="/configuracoes/usuarios" element={<Usuarios />} />
               <Route path="/perfil" element={<Perfil />} />
+              <Route
+                path="/auditoria"
+                element={
+                  <RequireAdmin>
+                    <Auditoria />
+                  </RequireAdmin>
+                }
+              />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
