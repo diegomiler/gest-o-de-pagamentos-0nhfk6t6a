@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Select,
   SelectContent,
@@ -16,16 +16,35 @@ import { PeriodSelector } from '@/components/PeriodSelector'
 export function HoleritesView() {
   const { selectedMonth } = usePeriod()
   const [selectedEmp, setSelectedEmp] = useState('all')
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
 
-  const {
-    employees,
-    payrollEntries,
-    userCompany: company,
-    isLoading,
-  } = usePayrollData(selectedMonth)
+  const { employees, payrollEntries, companies, userCompany, isLoading } =
+    usePayrollData(selectedMonth)
+
+  useEffect(() => {
+    if (userCompany && !selectedCompanyId) {
+      setSelectedCompanyId(userCompany.id)
+    } else if (companies.length > 0 && !selectedCompanyId && !userCompany) {
+      setSelectedCompanyId(companies[0].id)
+    }
+  }, [userCompany, companies, selectedCompanyId])
+
+  useEffect(() => {
+    setSelectedEmp('all')
+  }, [selectedCompanyId])
+
+  const activeCompany = useMemo(() => {
+    return companies.find((c) => c.id === selectedCompanyId) || userCompany
+  }, [selectedCompanyId, userCompany, companies])
+
+  const companyEmployees = useMemo(() => {
+    if (!activeCompany) return []
+    return employees.filter((e) => e.company_id === activeCompany.id)
+  }, [employees, activeCompany])
 
   const printableData = useMemo(() => {
-    const grouped = employees
+    if (!activeCompany) return []
+    const grouped = companyEmployees
       .map((emp) => {
         const empEntries = payrollEntries.filter((e) => e.employee_id === emp.id)
         if (empEntries.length === 0) return null
@@ -39,7 +58,7 @@ export function HoleritesView() {
       .filter(Boolean)
 
     return grouped.filter((data) => selectedEmp === 'all' || data?.employee.id === selectedEmp)
-  }, [selectedMonth, selectedEmp, payrollEntries, employees])
+  }, [selectedMonth, selectedEmp, payrollEntries, companyEmployees, activeCompany])
 
   const handlePrint = () => {
     window.print()
@@ -54,14 +73,43 @@ export function HoleritesView() {
             <PeriodSelector />
           </div>
           <div className="space-y-1">
+            <label className="text-sm font-medium">Empresa</label>
+            <Select
+              value={selectedCompanyId}
+              onValueChange={setSelectedCompanyId}
+              disabled={isLoading && companies.length === 0}
+            >
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder={isLoading ? 'Carregando...' : 'Selecione uma empresa'} />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.length === 0 && !isLoading ? (
+                  <SelectItem value="empty" disabled>
+                    Nenhuma empresa encontrada
+                  </SelectItem>
+                ) : (
+                  companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <label className="text-sm font-medium">Funcionário</label>
-            <Select value={selectedEmp} onValueChange={setSelectedEmp}>
+            <Select
+              value={selectedEmp}
+              onValueChange={setSelectedEmp}
+              disabled={!activeCompany || companyEmployees.length === 0}
+            >
               <SelectTrigger className="w-[250px]">
                 <SelectValue placeholder="Selecione..." />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Funcionários</SelectItem>
-                {employees.map((e) => (
+                {companyEmployees.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
                     {e.name}
                   </SelectItem>
@@ -73,7 +121,7 @@ export function HoleritesView() {
         <div className="flex items-end">
           <Button
             onClick={handlePrint}
-            disabled={printableData.length === 0 || !company}
+            disabled={printableData.length === 0 || !activeCompany}
             className="gap-2"
           >
             <Printer className="h-4 w-4" />
@@ -99,7 +147,7 @@ export function HoleritesView() {
             </div>
           )}
 
-          {company &&
+          {activeCompany &&
             !isLoading &&
             printableData.map((data: any) => (
               <div
@@ -110,7 +158,7 @@ export function HoleritesView() {
                   employee={data.employee}
                   entries={data.entries}
                   month={data.month}
-                  company={company}
+                  company={activeCompany}
                 />
               </div>
             ))}

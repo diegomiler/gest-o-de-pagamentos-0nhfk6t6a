@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Select,
   SelectContent,
@@ -76,16 +76,21 @@ const isDesconto = (cat: string) => ALL_DESCONTOS.includes(cat)
 
 export function FechamentoView() {
   const { selectedMonth } = usePeriod()
-  const [selectedCompanyId, setSelectedCompanyId] = useState('all')
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
 
   const { employees, payrollEntries, companies, userCompany, isLoading } =
     usePayrollData(selectedMonth)
 
-  const activeCompany = useMemo(() => {
-    if (selectedCompanyId !== 'all') {
-      return companies.find((c) => c.id === selectedCompanyId)
+  useEffect(() => {
+    if (userCompany && !selectedCompanyId) {
+      setSelectedCompanyId(userCompany.id)
+    } else if (companies.length > 0 && !selectedCompanyId && !userCompany) {
+      setSelectedCompanyId(companies[0].id)
     }
-    return userCompany
+  }, [userCompany, companies, selectedCompanyId])
+
+  const activeCompany = useMemo(() => {
+    return companies.find((c) => c.id === selectedCompanyId) || userCompany
   }, [selectedCompanyId, userCompany, companies])
 
   const reportData = useMemo(() => {
@@ -272,19 +277,28 @@ export function FechamentoView() {
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Empresa</label>
-              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+              <Select
+                value={selectedCompanyId}
+                onValueChange={setSelectedCompanyId}
+                disabled={isLoading && companies.length === 0}
+              >
                 <SelectTrigger className="w-[250px]">
-                  <SelectValue placeholder="Selecione..." />
+                  <SelectValue
+                    placeholder={isLoading ? 'Carregando...' : 'Selecione uma empresa'}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">
-                    {userCompany ? 'Minha Empresa' : 'Selecione uma empresa'}
-                  </SelectItem>
-                  {companies.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
+                  {companies.length === 0 && !isLoading ? (
+                    <SelectItem value="empty" disabled>
+                      Nenhuma empresa encontrada
                     </SelectItem>
-                  ))}
+                  ) : (
+                    companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
