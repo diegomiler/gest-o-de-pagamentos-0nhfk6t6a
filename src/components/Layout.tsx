@@ -1,4 +1,5 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useCallback, useRef } from 'react'
 import {
   SidebarProvider,
   Sidebar,
@@ -46,9 +47,45 @@ const getNavItems = (role: string) => [
 
 export default function Layout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { signOut, user } = useAuth()
 
   const NAV_ITEMS = getNavItems(user?.role || 'editor')
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+    }
+    timerRef.current = setTimeout(
+      () => {
+        signOut()
+        navigate('/login?expired=true')
+      },
+      30 * 60 * 1000,
+    )
+  }, [signOut, navigate])
+
+  useEffect(() => {
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart']
+    const handleActivity = () => resetTimer()
+
+    events.forEach((event) => {
+      document.addEventListener(event, handleActivity, true)
+    })
+
+    resetTimer()
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
+      events.forEach((event) => {
+        document.removeEventListener(event, handleActivity, true)
+      })
+    }
+  }, [resetTimer])
 
   const roleLabels: Record<string, string> = {
     admin: 'Administrador',

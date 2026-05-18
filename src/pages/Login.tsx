@@ -11,15 +11,28 @@ import {
   CardFooter,
 } from '@/components/ui/card'
 import { Calculator } from 'lucide-react'
-import { useNavigate, Link, Navigate } from 'react-router-dom'
+import { useNavigate, Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useToast } from '@/hooks/use-toast'
+import { useEffect } from 'react'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const { signIn, user, loading } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { toast } = useToast()
+
+  useEffect(() => {
+    if (searchParams.get('expired') === 'true') {
+      toast({
+        title: 'Sessão Expirada',
+        description: 'Sua sessão expirou por inatividade. Por favor, faça login novamente.',
+        variant: 'destructive',
+      })
+      window.history.replaceState({}, document.title, '/login')
+    }
+  }, [searchParams, toast])
 
   if (loading) return null
   if (user) return <Navigate to="/" replace />

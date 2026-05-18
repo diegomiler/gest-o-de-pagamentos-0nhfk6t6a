@@ -38,7 +38,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      await pb.collection('users').authWithPassword(email, password)
+      const authData = await pb.collection('users').authWithPassword(email, password)
+      try {
+        await pb.collection('access_logs').create({
+          email: authData.record.email,
+          user_id: authData.record.id,
+          access_time: new Date().toISOString(),
+        })
+      } catch (logError) {
+        console.error('Failed to log access', logError)
+      }
       return { error: null }
     } catch (error) {
       return { error }
@@ -57,7 +66,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' },
       })
-      await pb.collection('users').authWithPassword(data.email, data.password)
+      const authData = await pb.collection('users').authWithPassword(data.email, data.password)
+      try {
+        await pb.collection('access_logs').create({
+          email: authData.record.email,
+          user_id: authData.record.id,
+          access_time: new Date().toISOString(),
+        })
+      } catch (logError) {
+        console.error('Failed to log access', logError)
+      }
       return { error: null }
     } catch (error) {
       return { error }

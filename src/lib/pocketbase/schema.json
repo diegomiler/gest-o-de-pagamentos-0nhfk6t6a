@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-10T13:53:02.084Z",
+  "generatedAt": "2026-05-18T18:42:49.477Z",
   "collections": [
     {
       "name": "users",
@@ -572,6 +572,53 @@
           "required": false,
           "system": false,
           "selectValues": ["regular", "holiday", "day_off"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "access_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.role = 'admin'",
+        "view": "@request.auth.role = 'admin'",
+        "create": "@request.auth.id != ''",
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "email",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "access_time",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
