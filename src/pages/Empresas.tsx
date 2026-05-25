@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { CompanyForm } from '@/components/CompanyForm'
 import { useAuth } from '@/hooks/use-auth'
 import { Navigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
 export default function Empresas() {
   const { user } = useAuth()
@@ -40,6 +41,9 @@ export default function Empresas() {
       setCompanies(records)
     } catch (e) {
       console.error(e)
+      toast.error('Erro ao carregar empresas', {
+        description: 'Verifique sua conexão ou tente novamente mais tarde.',
+      })
     } finally {
       setLoading(false)
     }
@@ -122,7 +126,7 @@ export default function Empresas() {
               ) : filteredCompanies.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhuma empresa encontrada.
+                    {search ? 'Nenhuma empresa encontrada.' : 'Nenhuma empresa cadastrada.'}
                   </TableCell>
                 </TableRow>
               ) : (
