@@ -23,7 +23,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { CompanyForm } from '@/components/CompanyForm'
 import { useAuth } from '@/hooks/use-auth'
-import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 export default function Empresas() {
@@ -35,7 +34,7 @@ export default function Empresas() {
   const [loading, setLoading] = useState(true)
 
   const loadCompanies = async () => {
-    if (user?.role !== 'admin') return
+    if (!user) return
     try {
       const records = await pb.collection('companies').getFullList({ sort: '-created' })
       setCompanies(records)
@@ -50,15 +49,15 @@ export default function Empresas() {
   }
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user) {
       loadCompanies()
     } else {
       setLoading(false)
     }
-  }, [user?.role])
+  }, [user])
 
   useRealtime('companies', () => {
-    if (user?.role === 'admin') {
+    if (user) {
       loadCompanies()
     }
   })
@@ -71,10 +70,6 @@ export default function Empresas() {
     )
   })
 
-  if (user?.role !== 'admin') {
-    return <Navigate to="/" replace />
-  }
-
   return (
     <div className="space-y-6 animate-fade-in h-full flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
@@ -82,14 +77,16 @@ export default function Empresas() {
           <h1 className="text-3xl font-bold tracking-tight">Empresas</h1>
           <p className="text-muted-foreground">Gerencie as unidades de negócio.</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingCompany(null)
-            setIsSheetOpen(true)
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" /> Nova Empresa
-        </Button>
+        {user?.role === 'admin' && (
+          <Button
+            onClick={() => {
+              setEditingCompany(null)
+              setIsSheetOpen(true)
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" /> Nova Empresa
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-2 max-w-sm shrink-0">
@@ -149,16 +146,18 @@ export default function Empresas() {
                       {[company.city, company.state].filter(Boolean).join(' - ') || '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setEditingCompany(company)
-                          setIsSheetOpen(true)
-                        }}
-                      >
-                        <Edit className="h-4 w-4 text-muted-foreground" />
-                      </Button>
+                      {user?.role === 'admin' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditingCompany(company)
+                            setIsSheetOpen(true)
+                          }}
+                        >
+                          <Edit className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
