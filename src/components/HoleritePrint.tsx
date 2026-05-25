@@ -20,8 +20,7 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
   const baseNetEntry = entries.find((e) => e.category === 'base_net')
   const baseValue = baseNetEntry ? baseNetEntry.amount : 0
 
-  const additionalEntry = entries.find((e) => e.category === 'additional')
-  const employeeAdditionalAmount = additionalEntry ? additionalEntry.amount : 0
+  const employeeAdditionalAmount = employee.additional_amount || 0
 
   const earnings = []
   earnings.push({ label: 'Salário Base', amount: baseValue })
@@ -36,8 +35,21 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
   const bon = getCategoryTotals('bonus')
   if (bon.amount > 0) earnings.push({ label: 'Premiação', amount: bon.amount })
 
-  const add = getCategoryTotals('additional')
-  if (add.amount > 0) earnings.push({ label: 'Adicional', amount: add.amount })
+  const additionalEntries = entries.filter((e) => e.category === 'additional')
+  let variableAddAmount = 0
+  let fixedOmitted = false
+
+  for (const entry of additionalEntries) {
+    if (!fixedOmitted && entry.amount === employeeAdditionalAmount) {
+      fixedOmitted = true
+    } else {
+      variableAddAmount += entry.amount || 0
+    }
+  }
+
+  if (variableAddAmount > 0) {
+    earnings.push({ label: 'Adicional', amount: variableAddAmount })
+  }
 
   const over = getCategoryTotals('overtime')
   if (over.amount > 0) {
