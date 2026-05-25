@@ -18,13 +18,11 @@ import {
   Calculator,
   FileText,
   Settings,
-  Search,
   LogOut,
   Clock,
   User,
   Shield,
 } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -131,16 +129,7 @@ export default function Layout() {
 
         <div className="flex-1 flex flex-col h-full overflow-hidden print:overflow-visible print:h-auto">
           <header className="h-16 border-b bg-card flex items-center justify-between px-6 print-hidden print:hidden shrink-0">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="relative w-full max-w-sm hidden md:flex">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Buscar funcionário..."
-                  className="w-full pl-9 bg-muted/50"
-                />
-              </div>
-            </div>
+            <div className="flex items-center gap-4 flex-1"></div>
             <div className="flex items-center gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
