@@ -97,15 +97,6 @@ export function CompanyForm({
       else if (logoPreview === null) payload.append('logo', '')
 
       if (company) {
-        if (!user?.company_id || company.id !== user.company_id) {
-          toast({
-            title: 'Acesso Negado',
-            description: 'Você só pode editar as informações da sua própria empresa.',
-            variant: 'destructive',
-          })
-          setIsSaving(false)
-          return
-        }
         await pb.collection('companies').update(company.id, payload)
       } else {
         await pb.collection('companies').create(payload)
