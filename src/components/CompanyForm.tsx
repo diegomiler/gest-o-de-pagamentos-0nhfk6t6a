@@ -7,6 +7,7 @@ import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { UploadCloud, Image as ImageIcon, X, Loader2 } from 'lucide-react'
 import { formatCNPJ, formatCEP } from '@/lib/format'
+import { useAuth } from '@/hooks/use-auth'
 
 export function CompanyForm({
   company,
@@ -18,6 +19,7 @@ export function CompanyForm({
   onCancel: () => void
 }) {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -49,6 +51,22 @@ export function CompanyForm({
         state: company.state || '',
       })
       setLogoPreview(company.logo ? pb.files.getURL(company, company.logo) : null)
+    } else {
+      setFormData({
+        name: '',
+        cnpj: '',
+        zip_code: '',
+        street: '',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+      })
+      setLogoPreview(null)
+      setLogoFile(null)
+      if (fileRef.current) fileRef.current.value = ''
+      setErrors({})
     }
   }, [company])
 
@@ -76,6 +94,15 @@ export function CompanyForm({
       else if (logoPreview === null) payload.append('logo', '')
 
       if (company) {
+        if (!user?.company_id || company.id !== user.company_id) {
+          toast({
+            title: 'Acesso Negado',
+            description: 'Você só pode editar as informações da sua própria empresa.',
+            variant: 'destructive',
+          })
+          setIsSaving(false)
+          return
+        }
         await pb.collection('companies').update(company.id, payload)
       } else {
         await pb.collection('companies').create(payload)
@@ -83,8 +110,16 @@ export function CompanyForm({
       toast({ title: 'Sucesso', description: 'Empresa salva com sucesso' })
       onSaved()
     } catch (err: any) {
-      setErrors(extractFieldErrors(err))
-      toast({ title: 'Erro', description: 'Falha ao salvar a empresa.', variant: 'destructive' })
+      if (err.status === 404) {
+        toast({
+          title: 'Não Encontrado',
+          description: 'Registro não encontrado ou você não tem permissão para alterá-lo.',
+          variant: 'destructive',
+        })
+      } else {
+        setErrors(extractFieldErrors(err))
+        toast({ title: 'Erro', description: 'Falha ao salvar a empresa.', variant: 'destructive' })
+      }
     } finally {
       setIsSaving(false)
     }
