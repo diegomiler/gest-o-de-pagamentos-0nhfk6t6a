@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
-import { UploadCloud, Image as ImageIcon, X, Loader2 } from 'lucide-react'
+import { UploadCloud, Image as ImageIcon, X, Loader2, Trash2 } from 'lucide-react'
 import { formatCNPJ, formatCEP } from '@/lib/format'
 import { useAuth } from '@/hooks/use-auth'
 
@@ -20,7 +20,9 @@ export function CompanyForm({
 }) {
   const { toast } = useToast()
   const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     cnpj: '',
@@ -72,6 +74,7 @@ export function CompanyForm({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isAdmin) return
     setErrors({})
     setIsSaving(true)
     try {
@@ -125,6 +128,25 @@ export function CompanyForm({
     }
   }
 
+  const handleDelete = async () => {
+    if (!company) return
+    if (!window.confirm('Tem certeza que deseja excluir esta empresa?')) return
+    setIsDeleting(true)
+    try {
+      await pb.collection('companies').delete(company.id)
+      toast({ title: 'Sucesso', description: 'Empresa excluída com sucesso' })
+      onSaved()
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao excluir a empresa. Verifique as permissões.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSave} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
@@ -134,6 +156,7 @@ export function CompanyForm({
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
+            disabled={!isAdmin}
           />
           {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
         </div>
@@ -143,6 +166,7 @@ export function CompanyForm({
             value={formData.cnpj}
             onChange={(e) => setFormData({ ...formData, cnpj: formatCNPJ(e.target.value) })}
             maxLength={18}
+            disabled={!isAdmin}
           />
           {errors.cnpj && <p className="text-sm text-destructive">{errors.cnpj}</p>}
         </div>
@@ -154,6 +178,7 @@ export function CompanyForm({
             value={formData.zip_code}
             onChange={(e) => setFormData({ ...formData, zip_code: formatCEP(e.target.value) })}
             maxLength={9}
+            disabled={!isAdmin}
           />
         </div>
         <div className="col-span-8 space-y-2">
@@ -161,6 +186,7 @@ export function CompanyForm({
           <Input
             value={formData.street}
             onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+            disabled={!isAdmin}
           />
         </div>
         <div className="col-span-4 space-y-2">
@@ -168,6 +194,7 @@ export function CompanyForm({
           <Input
             value={formData.number}
             onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+            disabled={!isAdmin}
           />
         </div>
         <div className="col-span-4 space-y-2">
@@ -175,6 +202,7 @@ export function CompanyForm({
           <Input
             value={formData.complement}
             onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
+            disabled={!isAdmin}
           />
         </div>
         <div className="col-span-4 space-y-2">
@@ -182,6 +210,7 @@ export function CompanyForm({
           <Input
             value={formData.neighborhood}
             onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+            disabled={!isAdmin}
           />
         </div>
         <div className="col-span-8 space-y-2">
@@ -189,6 +218,7 @@ export function CompanyForm({
           <Input
             value={formData.city}
             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            disabled={!isAdmin}
           />
         </div>
         <div className="col-span-4 space-y-2">
@@ -197,6 +227,7 @@ export function CompanyForm({
             value={formData.state}
             onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
             maxLength={2}
+            disabled={!isAdmin}
           />
         </div>
       </div>
@@ -205,56 +236,86 @@ export function CompanyForm({
           {logoPreview ? (
             <>
               <img src={logoPreview} className="w-full h-full object-contain p-1" />
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-white"
-                  onClick={() => {
-                    setLogoFile(null)
-                    setLogoPreview(null)
-                    if (fileRef.current) fileRef.current.value = ''
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              {isAdmin && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-white"
+                    onClick={() => {
+                      setLogoFile(null)
+                      setLogoPreview(null)
+                      if (fileRef.current) fileRef.current.value = ''
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
             <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
           )}
         </div>
-        <div className="flex-1">
+        {isAdmin && (
+          <div className="flex-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileRef.current?.click()}
+            >
+              <UploadCloud className="mr-2 h-4 w-4" /> Logo
+            </Button>
+            <input
+              type="file"
+              ref={fileRef}
+              className="hidden"
+              accept="image/*"
+              onChange={(e) => {
+                if (e.target.files?.[0]) {
+                  setLogoFile(e.target.files[0])
+                  setLogoPreview(URL.createObjectURL(e.target.files[0]))
+                }
+              }}
+            />
+          </div>
+        )}
+      </div>
+      <div className="flex justify-between gap-2 pt-4 border-t">
+        {isAdmin && company ? (
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={isSaving || isDeleting}
+          >
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 h-4 w-4" />
+            )}
+            {isDeleting ? '' : 'Excluir'}
+          </Button>
+        ) : (
+          <div></div>
+        )}
+        <div className="flex gap-2">
           <Button
             type="button"
             variant="outline"
-            size="sm"
-            onClick={() => fileRef.current?.click()}
+            onClick={onCancel}
+            disabled={isSaving || isDeleting}
           >
-            <UploadCloud className="mr-2 h-4 w-4" /> Logo
+            {isAdmin ? 'Cancelar' : 'Fechar'}
           </Button>
-          <input
-            type="file"
-            ref={fileRef}
-            className="hidden"
-            accept="image/*"
-            onChange={(e) => {
-              if (e.target.files?.[0]) {
-                setLogoFile(e.target.files[0])
-                setLogoPreview(URL.createObjectURL(e.target.files[0]))
-              }
-            }}
-          />
+          {isAdmin && (
+            <Button type="submit" disabled={isSaving || isDeleting}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
+            </Button>
+          )}
         </div>
-      </div>
-      <div className="flex justify-end gap-2 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={isSaving}>
-          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Salvar
-        </Button>
       </div>
     </form>
   )

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Edit } from 'lucide-react'
+import { Plus, Search, Edit, Eye } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { formatCNPJ } from '@/lib/format'
@@ -146,18 +146,20 @@ export default function Empresas() {
                       {[company.city, company.state].filter(Boolean).join(' - ') || '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      {user?.role === 'admin' && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setEditingCompany(company)
-                            setIsSheetOpen(true)
-                          }}
-                        >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditingCompany(company)
+                          setIsSheetOpen(true)
+                        }}
+                      >
+                        {user?.role === 'admin' ? (
                           <Edit className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      )}
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -170,8 +172,18 @@ export default function Empresas() {
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="sm:max-w-xl overflow-y-auto">
           <SheetHeader className="mb-6">
-            <SheetTitle>{editingCompany ? 'Editar Empresa' : 'Nova Empresa'}</SheetTitle>
-            <SheetDescription>Preencha os dados da empresa abaixo.</SheetDescription>
+            <SheetTitle>
+              {editingCompany
+                ? user?.role === 'admin'
+                  ? 'Editar Empresa'
+                  : 'Detalhes da Empresa'
+                : 'Nova Empresa'}
+            </SheetTitle>
+            <SheetDescription>
+              {user?.role === 'admin'
+                ? 'Preencha os dados da empresa abaixo.'
+                : 'Informações da empresa.'}
+            </SheetDescription>
           </SheetHeader>
           {isSheetOpen && (
             <CompanyForm
