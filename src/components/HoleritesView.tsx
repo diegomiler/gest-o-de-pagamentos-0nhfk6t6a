@@ -137,7 +137,15 @@ export function HoleritesView() {
               <PopoverContent className="w-[250px] p-0">
                 <Command
                   filter={(value, search) => {
-                    if (value.toLowerCase().includes(search.toLowerCase())) return 1
+                    const normalizedValue = value
+                      .normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .toLowerCase()
+                    const normalizedSearch = search
+                      .normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .toLowerCase()
+                    if (normalizedValue.includes(normalizedSearch)) return 1
                     return 0
                   }}
                 >
