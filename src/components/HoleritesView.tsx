@@ -6,17 +6,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
-import { Printer } from 'lucide-react'
+import { Printer, Check, ChevronsUpDown, X } from 'lucide-react'
 import { HoleritePrint } from '@/components/HoleritePrint'
 import { usePayrollData } from '@/hooks/use-payroll-data'
 import { usePeriod } from '@/hooks/use-period'
 import { PeriodSelector } from '@/components/PeriodSelector'
+import { cn } from '@/lib/utils'
 
 export function HoleritesView() {
   const { selectedMonth } = usePeriod()
   const [selectedEmp, setSelectedEmp] = useState('all')
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+  const [openEmp, setOpenEmp] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  useEffect(() => {
+    if (!openEmp) {
+      setTimeout(() => setSearchQuery(''), 200)
+    }
+  }, [openEmp])
 
   const { employees, payrollEntries, companies, userCompany, isLoading } =
     usePayrollData(selectedMonth)
@@ -99,23 +117,92 @@ export function HoleritesView() {
           </div>
           <div className="space-y-1">
             <label className="text-sm font-medium">Funcionário</label>
-            <Select
-              value={selectedEmp}
-              onValueChange={setSelectedEmp}
-              disabled={!activeCompany || companyEmployees.length === 0}
-            >
-              <SelectTrigger className="w-[250px]">
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os Funcionários</SelectItem>
-                {companyEmployees.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={openEmp} onOpenChange={setOpenEmp}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openEmp}
+                  className="w-[250px] justify-between font-normal bg-background"
+                  disabled={!activeCompany || companyEmployees.length === 0}
+                >
+                  <span className="truncate">
+                    {selectedEmp === 'all'
+                      ? 'Todos os Funcionários'
+                      : companyEmployees.find((e) => e.id === selectedEmp)?.name || 'Selecione...'}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0">
+                <Command
+                  filter={(value, search) => {
+                    if (value.toLowerCase().includes(search.toLowerCase())) return 1
+                    return 0
+                  }}
+                >
+                  <div className="relative">
+                    <CommandInput
+                      placeholder="Buscar funcionário..."
+                      value={searchQuery}
+                      onValueChange={setSearchQuery}
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setSearchQuery('')
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm focus:outline-none focus:ring-1 focus:ring-primary bg-background"
+                        aria-label="Limpar busca"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <CommandList>
+                    <CommandEmpty>Nenhum funcionário encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all Todos os Funcionários"
+                        onSelect={() => {
+                          setSelectedEmp('all')
+                          setOpenEmp(false)
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            selectedEmp === 'all' ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        Todos os Funcionários
+                      </CommandItem>
+                      {companyEmployees.map((e) => (
+                        <CommandItem
+                          key={e.id}
+                          value={`${e.name} ${e.id}`}
+                          onSelect={() => {
+                            setSelectedEmp(e.id)
+                            setOpenEmp(false)
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              selectedEmp === e.id ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          {e.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         <div className="flex items-end">
