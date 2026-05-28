@@ -37,10 +37,15 @@ export default function Index() {
   const [payrollEntries, setPayrollEntries] = useState<any[]>([])
 
   const loadData = useCallback(async () => {
-    if (!user?.company_id) return
+    if (!user) return
+    const isAdmin = user.role === 'admin'
+    if (!isAdmin && !user.company_id) return
+
     try {
+      const empFilter = isAdmin ? '' : `company_id = '${user.company_id}'`
       const emps = await pb.collection('employees').getFullList({
-        filter: `company_id = '${user.company_id}'`,
+        filter: empFilter,
+        expand: 'company_id',
       })
       setEmployees(emps)
 
@@ -48,14 +53,17 @@ export default function Index() {
       const startDate = format(startOfMonth(subMonths(selectedDate, 5)), 'yyyy-MM-dd')
       const endDate = format(endOfMonth(selectedDate), 'yyyy-MM-dd')
 
-      const entries = await pb.collection('payroll_entries').getFullList({
-        filter: `entry_date >= '${startDate} 00:00:00' && entry_date <= '${endDate} 23:59:59' && company_id = '${user.company_id}'`,
-      })
+      let entries: any[] = []
+      if (user.company_id) {
+        entries = await pb.collection('payroll_entries').getFullList({
+          filter: `entry_date >= '${startDate} 00:00:00' && entry_date <= '${endDate} 23:59:59' && company_id = '${user.company_id}'`,
+        })
+      }
       setPayrollEntries(entries)
     } catch {
       /* intentionally ignored */
     }
-  }, [user?.company_id, selectedMonth])
+  }, [user, selectedMonth])
 
   useEffect(() => {
     loadData()
@@ -180,7 +188,11 @@ export default function Index() {
                     <CalendarClock className="h-4 w-4" color="currentColor" />
                     <AlertTitle>Férias Próximas</AlertTitle>
                     <AlertDescription className="text-sm mt-1">
-                      Funcionário <strong>{emp.name}</strong> está próximo de completar {years} ano
+                      Funcionário <strong>{emp.name}</strong>
+                      {user?.role === 'admin' && emp.expand?.company_id?.name && (
+                        <span> ({emp.expand.company_id.name})</span>
+                      )}{' '}
+                      está próximo de completar {years} ano
                       {years > 1 ? 's' : ''} de admissão. Planejar férias.
                     </AlertDescription>
                   </Alert>
