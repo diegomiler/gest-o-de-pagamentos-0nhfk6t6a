@@ -30,7 +30,9 @@ export default function Funcionarios() {
 
   const loadData = async () => {
     try {
-      const data = await pb.collection('employees').getFullList({ sort: 'name' })
+      const data = await pb
+        .collection('employees')
+        .getFullList({ sort: 'name', expand: 'company_id' })
       setEmployees(data)
     } catch {
       /* intentionally ignored */
@@ -129,7 +131,10 @@ export default function Funcionarios() {
                 <TableCell>
                   <div className="flex flex-col">
                     <span>{emp.role || '-'}</span>
-                    <span className="text-xs text-muted-foreground">{emp.department || '-'}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {emp.department || '-'}
+                      {emp.expand?.company_id?.name ? ` • ${emp.expand.company_id.name}` : ''}
+                    </span>
                   </div>
                 </TableCell>
                 <TableCell>

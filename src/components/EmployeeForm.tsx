@@ -55,7 +55,15 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
   useEffect(() => {
     pb.collection('companies')
       .getFullList({ sort: 'name' })
-      .then(setCompanies)
+      .then((data) => {
+        setCompanies(data)
+        setFormData((prev: any) => {
+          if (data.length === 1 && !prev.company_id) {
+            return { ...prev, company_id: data[0].id }
+          }
+          return prev
+        })
+      })
       .catch(() => {})
   }, [])
 

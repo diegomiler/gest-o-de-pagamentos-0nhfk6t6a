@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-26T19:24:00.975Z",
+  "generatedAt": "2026-05-28T20:47:18.848Z",
   "collections": [
     {
       "name": "users",
@@ -150,11 +150,11 @@
       "name": "employees",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "create": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "update": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "delete": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role != 'editor'"
+        "list": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'admin' || (company_id = @request.auth.company_id && @request.auth.role != 'editor'))"
       },
       "fields": [
         {
