@@ -23,6 +23,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   formatCurrency,
   parseInputValue,
   timeToDecimal,
@@ -30,7 +37,7 @@ import {
   formatTimeOnBlur,
 } from '@/lib/format'
 import { useToast } from '@/hooks/use-toast'
-import { Save, MessageSquareText, Eraser } from 'lucide-react'
+import { Save, MessageSquareText, Eraser, Lock, Unlock } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -46,11 +53,13 @@ function EntryInput({
   onChange,
   descValue,
   onDescChange,
+  disabled,
 }: {
   value: string | number
   onChange: (val: string) => void
   descValue: string
   onDescChange: (val: string) => void
+  disabled?: boolean
 }) {
   return (
     <div className="relative flex items-center ml-auto w-[110px]">
@@ -61,6 +70,7 @@ function EntryInput({
         className="text-right h-8 w-full pr-8"
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
       />
       <Popover>
         <PopoverTrigger asChild>
@@ -68,7 +78,9 @@ function EntryInput({
             className={cn(
               'absolute right-2 top-1/2 -translate-y-1/2',
               descValue ? 'text-blue-500' : 'text-muted-foreground hover:text-foreground',
+              disabled && 'opacity-50 cursor-not-allowed',
             )}
+            disabled={disabled}
           >
             <MessageSquareText className="w-4 h-4" />
           </button>
@@ -79,6 +91,7 @@ function EntryInput({
             value={descValue || ''}
             onChange={(e) => onDescChange(e.target.value)}
             className="min-h-[80px] text-sm"
+            disabled={disabled}
           />
         </PopoverContent>
       </Popover>
@@ -143,6 +156,23 @@ export default function Folha() {
   const [employees, setEmployees] = useState<any[]>([])
   const [companies, setCompanies] = useState<any[]>([])
   const [entries, setEntries] = useState<any[]>([])
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+  const [payrollPeriod, setPayrollPeriod] = useState<any>(null)
+
+  const loadPeriod = async (companyIdToLoad: string) => {
+    if (!companyIdToLoad) return
+    const [year, month] = selectedMonth.split('-')
+    try {
+      const record = await pb
+        .collection('payroll_periods')
+        .getFirstListItem(
+          `company_id = '${companyIdToLoad}' && month = ${Number(month)} && year = ${Number(year)}`,
+        )
+      setPayrollPeriod(record)
+    } catch {
+      setPayrollPeriod(null)
+    }
+  }
 
   const loadData = async () => {
     setIsLoading(true)
@@ -173,93 +203,112 @@ export default function Folha() {
       setEmployees(emps)
       setCompanies(comps)
 
-      const startDate = `${selectedMonth}-01 00:00:00`
-      const endDate = `${selectedMonth}-31 23:59:59`
-      const fetchedEntries = await pb.collection('payroll_entries').getFullList({
-        filter: `entry_date >= '${startDate}' && entry_date <= '${endDate}'`,
-      })
+      let activeCompanyId = selectedCompanyId
+      if (!activeCompanyId) {
+        if (user?.role !== 'admin' && user?.company_id) {
+          activeCompanyId = user.company_id
+        } else if (comps.length > 0) {
+          activeCompanyId = comps[0].id
+        }
+        if (activeCompanyId) setSelectedCompanyId(activeCompanyId)
+      }
 
-      const activeEmployees = emps.filter((e) => e.status !== 'inactive')
-      const merged = activeEmployees.map((emp) => {
-        const empEntries = fetchedEntries.filter((e) => e.employee_id === emp.id)
-        let commissions = 0,
-          bonuses = 0,
-          pharmacy = 0,
-          advances = 0,
-          overtime_hours = 0,
-          base_net = 0,
-          cash_shortage = 0,
-          negative_hours = 0,
-          partner_agreement = 0,
-          store_agreement = 0,
-          other_discount = 0,
-          other_addition = 0
+      if (activeCompanyId) {
+        await loadPeriod(activeCompanyId)
 
-        let cash_shortage_desc = '',
-          negative_hours_desc = '',
-          partner_agreement_desc = '',
-          store_agreement_desc = '',
-          other_discount_desc = '',
-          other_addition_desc = ''
+        const startDate = `${selectedMonth}-01 00:00:00`
+        const endDate = `${selectedMonth}-31 23:59:59`
+        const fetchedEntries = await pb.collection('payroll_entries').getFullList({
+          filter: `entry_date >= '${startDate}' && entry_date <= '${endDate}' && company_id = '${activeCompanyId}'`,
+        })
 
-        empEntries.forEach((e) => {
-          if (e.category === 'commission') commissions += e.amount
-          if (e.category === 'bonus') bonuses += e.amount
-          if (e.category === 'pharmacy_discount') pharmacy += e.amount
-          if (e.category === 'advance') advances += e.amount
-          if (e.category === 'overtime') overtime_hours += e.quantity || 0
-          if (e.category === 'base_net') base_net += e.amount
-          if (e.category === 'cash_shortage') {
-            cash_shortage += e.amount
-            cash_shortage_desc = e.description || ''
-          }
-          if (e.category === 'negative_hours') {
-            negative_hours += e.amount
-            negative_hours_desc = e.description || ''
-          }
-          if (e.category === 'partner_agreement') {
-            partner_agreement += e.amount
-            partner_agreement_desc = e.description || ''
-          }
-          if (e.category === 'store_agreement') {
-            store_agreement += e.amount
-            store_agreement_desc = e.description || ''
-          }
-          if (e.category === 'other_discount') {
-            other_discount += e.amount
-            other_discount_desc = e.description || ''
-          }
-          if (e.category === 'other_addition') {
-            other_addition += e.amount
-            other_addition_desc = e.description || ''
+        const activeEmployees = emps.filter(
+          (e) => e.status !== 'inactive' && e.company_id === activeCompanyId,
+        )
+        const merged = activeEmployees.map((emp) => {
+          const empEntries = fetchedEntries.filter((e) => e.employee_id === emp.id)
+          let commissions = 0,
+            bonuses = 0,
+            pharmacy = 0,
+            advances = 0,
+            overtime_hours = 0,
+            base_net = 0,
+            cash_shortage = 0,
+            negative_hours = 0,
+            partner_agreement = 0,
+            store_agreement = 0,
+            other_discount = 0,
+            other_addition = 0
+
+          let cash_shortage_desc = '',
+            negative_hours_desc = '',
+            partner_agreement_desc = '',
+            store_agreement_desc = '',
+            other_discount_desc = '',
+            other_addition_desc = ''
+
+          empEntries.forEach((e) => {
+            if (e.category === 'commission') commissions += e.amount
+            if (e.category === 'bonus') bonuses += e.amount
+            if (e.category === 'pharmacy_discount') pharmacy += e.amount
+            if (e.category === 'advance') advances += e.amount
+            if (e.category === 'overtime') overtime_hours += e.quantity || 0
+            if (e.category === 'base_net') base_net += e.amount
+            if (e.category === 'cash_shortage') {
+              cash_shortage += e.amount
+              cash_shortage_desc = e.description || ''
+            }
+            if (e.category === 'negative_hours') {
+              negative_hours += e.amount
+              negative_hours_desc = e.description || ''
+            }
+            if (e.category === 'partner_agreement') {
+              partner_agreement += e.amount
+              partner_agreement_desc = e.description || ''
+            }
+            if (e.category === 'store_agreement') {
+              store_agreement += e.amount
+              store_agreement_desc = e.description || ''
+            }
+            if (e.category === 'other_discount') {
+              other_discount += e.amount
+              other_discount_desc = e.description || ''
+            }
+            if (e.category === 'other_addition') {
+              other_addition += e.amount
+              other_addition_desc = e.description || ''
+            }
+          })
+
+          return {
+            employee_id: emp.id,
+            commissions,
+            bonuses,
+            pharmacy,
+            advances,
+            overtime_hours,
+            overtime_hours_str: decimalToTime(overtime_hours),
+            base_net: base_net || 0,
+            cash_shortage,
+            cash_shortage_desc,
+            negative_hours,
+            negative_hours_desc,
+            partner_agreement,
+            partner_agreement_desc,
+            store_agreement,
+            store_agreement_desc,
+            other_discount,
+            other_discount_desc,
+            other_addition,
+            other_addition_desc,
           }
         })
 
-        return {
-          employee_id: emp.id,
-          commissions,
-          bonuses,
-          pharmacy,
-          advances,
-          overtime_hours,
-          overtime_hours_str: decimalToTime(overtime_hours),
-          base_net: base_net || 0,
-          cash_shortage,
-          cash_shortage_desc,
-          negative_hours,
-          negative_hours_desc,
-          partner_agreement,
-          partner_agreement_desc,
-          store_agreement,
-          store_agreement_desc,
-          other_discount,
-          other_discount_desc,
-          other_addition,
-          other_addition_desc,
-        }
-      })
-
-      setEntries(merged)
+        setEntries(merged)
+      } else {
+        setEntries([])
+        setPayrollPeriod(null)
+      }
     } catch {
       /* intentionally ignored */
     } finally {
@@ -269,11 +318,16 @@ export default function Folha() {
 
   useEffect(() => {
     loadData()
-  }, [selectedMonth, user])
+  }, [selectedMonth, selectedCompanyId, user])
 
   useRealtime('employees', loadData)
   useRealtime('payroll_entries', loadData)
   useRealtime('companies', loadData)
+  useRealtime('payroll_periods', () => {
+    if (selectedCompanyId) loadPeriod(selectedCompanyId)
+  })
+
+  const isClosed = payrollPeriod?.status === 'closed'
 
   const handleInputChange = (
     employee_id: string,
@@ -281,6 +335,8 @@ export default function Folha() {
     value: string,
     isString = false,
   ) => {
+    if (isClosed) return
+
     if (field === 'overtime_hours_str') {
       const decimal = timeToDecimal(value)
       setEntries((prev) =>
@@ -307,6 +363,7 @@ export default function Folha() {
   }
 
   const handleClearAll = () => {
+    if (isClosed) return
     setEntries((prev) =>
       prev.map((e) => ({
         ...e,
@@ -336,7 +393,30 @@ export default function Folha() {
     })
   }
 
+  const handleTogglePeriod = async () => {
+    if (!selectedCompanyId) return
+    const [year, month] = selectedMonth.split('-')
+    const newStatus = isClosed ? 'open' : 'closed'
+    try {
+      await pb.send('/backend/v1/payroll-periods/toggle', {
+        method: 'POST',
+        body: JSON.stringify({
+          company_id: selectedCompanyId,
+          month: Number(month),
+          year: Number(year),
+          status: newStatus,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      toast({ title: `Período ${newStatus === 'closed' ? 'fechado' : 'aberto'} com sucesso.` })
+      loadPeriod(selectedCompanyId)
+    } catch (err: any) {
+      toast({ title: 'Erro ao alterar status', description: err.message, variant: 'destructive' })
+    }
+  }
+
   const handleSave = async () => {
+    if (isClosed) return
     try {
       const sanitizedEntries = entries.map((entry) => {
         const emp = employees.find((e) => e.id === entry.employee_id)
@@ -351,6 +431,7 @@ export default function Folha() {
 
         return {
           ...entry,
+          company_id: emp?.company_id,
           base_net: Number(entry.base_net) || 0,
           commissions: Number(entry.commissions) || 0,
           bonuses: Number(entry.bonuses) || 0,
@@ -373,9 +454,18 @@ export default function Folha() {
         headers: { 'Content-Type': 'application/json' },
       })
       toast({ title: 'Folha Salva', description: `Folha de ${selectedMonth} salva com sucesso.` })
+      await loadData()
     } catch (err: any) {
       const isNetwork = err.status === 0
       const isServer = err.status >= 500
+
+      let detailMessage = ''
+      const data = err.response?.data
+      if (data && typeof data === 'object') {
+        detailMessage = Object.entries(data)
+          .map(([key, val]: any) => `${key}: ${val.message}`)
+          .join('\n')
+      }
 
       toast({
         title: 'Erro',
@@ -383,7 +473,8 @@ export default function Folha() {
           ? 'Erro de conexão. Verifique sua internet.'
           : isServer
             ? 'Erro interno no servidor.'
-            : 'Não foi possível salvar a folha. Verifique os dados e tente novamente.',
+            : detailMessage ||
+              'Não foi possível salvar a folha. Verifique os dados e tente novamente.',
         variant: 'destructive',
       })
     }
@@ -458,7 +549,7 @@ export default function Folha() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Lançamentos da Folha</h2>
           <p className="text-muted-foreground">
@@ -466,12 +557,44 @@ export default function Folha() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={selectedCompanyId}
+            onValueChange={setSelectedCompanyId}
+            disabled={user?.role !== 'admin'}
+          >
+            <SelectTrigger className="w-[200px] bg-card">
+              <SelectValue placeholder="Selecione a empresa" />
+            </SelectTrigger>
+            <SelectContent>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <PeriodSelector />
+          <Button
+            variant={isClosed ? 'outline' : 'secondary'}
+            onClick={handleTogglePeriod}
+            className="gap-2"
+          >
+            {isClosed ? (
+              <>
+                <Unlock className="h-4 w-4" /> Abrir Período
+              </>
+            ) : (
+              <>
+                <Lock className="h-4 w-4" /> Fechar Período
+              </>
+            )}
+          </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="outline"
                 className="gap-2 text-muted-foreground hover:text-foreground"
+                disabled={isClosed}
               >
                 <Eraser className="h-4 w-4" /> Limpar Valores
               </Button>
@@ -491,11 +614,23 @@ export default function Folha() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          <Button onClick={handleSave} className="gap-2">
+          <Button onClick={handleSave} className="gap-2" disabled={isClosed}>
             <Save className="h-4 w-4" /> Salvar Folha
           </Button>
         </div>
       </div>
+
+      {isClosed && (
+        <div className="flex items-center gap-3 p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-950/50 dark:border-rose-900/50 dark:text-rose-200">
+          <Lock className="h-5 w-5" />
+          <div>
+            <h4 className="font-semibold text-sm">Período Fechado para Edição</h4>
+            <p className="text-sm opacity-90">
+              Este período de folha foi finalizado. Nenhuma alteração de lançamentos pode ser feita.
+            </p>
+          </div>
+        </div>
+      )}
 
       <Card>
         <CardContent className="p-0 overflow-x-auto relative">
@@ -574,6 +709,7 @@ export default function Folha() {
                         className="text-right h-8 w-24 ml-auto"
                         value={entry.base_net || ''}
                         onChange={(e) => handleInputChange(emp.id, 'base_net', e.target.value)}
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell className="text-right">
@@ -596,6 +732,7 @@ export default function Folha() {
                             handleInputChange(emp.id, 'overtime_hours_str', formatted)
                           }
                         }}
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell className="text-right text-emerald-600">
@@ -609,6 +746,7 @@ export default function Folha() {
                         className="text-right h-8 w-24 ml-auto"
                         value={entry.commissions || ''}
                         onChange={(e) => handleInputChange(emp.id, 'commissions', e.target.value)}
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -619,6 +757,7 @@ export default function Folha() {
                         className="text-right h-8 w-24 ml-auto"
                         value={entry.bonuses || ''}
                         onChange={(e) => handleInputChange(emp.id, 'bonuses', e.target.value)}
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -629,6 +768,7 @@ export default function Folha() {
                         onDescChange={(v) =>
                           handleInputChange(emp.id, 'other_addition_desc', v, true)
                         }
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -639,6 +779,7 @@ export default function Folha() {
                         className="text-right h-8 w-24 ml-auto"
                         value={entry.pharmacy || ''}
                         onChange={(e) => handleInputChange(emp.id, 'pharmacy', e.target.value)}
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -649,6 +790,7 @@ export default function Folha() {
                         className="text-right h-8 w-24 ml-auto"
                         value={entry.advances || ''}
                         onChange={(e) => handleInputChange(emp.id, 'advances', e.target.value)}
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -659,6 +801,7 @@ export default function Folha() {
                         onDescChange={(v) =>
                           handleInputChange(emp.id, 'cash_shortage_desc', v, true)
                         }
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -669,6 +812,7 @@ export default function Folha() {
                         onDescChange={(v) =>
                           handleInputChange(emp.id, 'negative_hours_desc', v, true)
                         }
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -679,6 +823,7 @@ export default function Folha() {
                         onDescChange={(v) =>
                           handleInputChange(emp.id, 'partner_agreement_desc', v, true)
                         }
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -689,6 +834,7 @@ export default function Folha() {
                         onDescChange={(v) =>
                           handleInputChange(emp.id, 'store_agreement_desc', v, true)
                         }
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell>
@@ -699,6 +845,7 @@ export default function Folha() {
                         onDescChange={(v) =>
                           handleInputChange(emp.id, 'other_discount_desc', v, true)
                         }
+                        disabled={isClosed}
                       />
                     </TableCell>
                     <TableCell

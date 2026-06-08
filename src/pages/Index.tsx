@@ -10,10 +10,18 @@ import {
   CalendarClock,
   Info,
   Clock,
+  Calculator,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatCurrency, formatMonthYear } from '@/lib/format'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -35,6 +43,8 @@ export default function Index() {
   const { selectedMonth } = usePeriod()
   const [employees, setEmployees] = useState<any[]>([])
   const [payrollEntries, setPayrollEntries] = useState<any[]>([])
+  const [companies, setCompanies] = useState<any[]>([])
+  const [selectedCompany, setSelectedCompany] = useState<string>('all')
 
   const loadData = useCallback(async () => {
     if (!user) return
@@ -42,7 +52,18 @@ export default function Index() {
     if (!isAdmin && !user.company_id) return
 
     try {
-      const empFilter = isAdmin ? '' : `company_id = '${user.company_id}'`
+      if (isAdmin) {
+        const comps = await pb.collection('companies').getFullList({ sort: 'name' })
+        setCompanies(comps)
+      }
+
+      const activeCompanyId = isAdmin
+        ? selectedCompany === 'all'
+          ? null
+          : selectedCompany
+        : user.company_id
+
+      const empFilter = activeCompanyId ? `company_id = '${activeCompanyId}'` : ''
       const emps = await pb.collection('employees').getFullList({
         filter: empFilter,
         expand: 'company_id',
@@ -53,17 +74,22 @@ export default function Index() {
       const startDate = format(startOfMonth(subMonths(selectedDate, 5)), 'yyyy-MM-dd')
       const endDate = format(endOfMonth(selectedDate), 'yyyy-MM-dd')
 
+      let entriesFilter = `entry_date >= '${startDate} 00:00:00' && entry_date <= '${endDate} 23:59:59'`
+      if (activeCompanyId) {
+        entriesFilter += ` && company_id = '${activeCompanyId}'`
+      }
+
       let entries: any[] = []
-      if (user.company_id) {
+      if (isAdmin || user.company_id) {
         entries = await pb.collection('payroll_entries').getFullList({
-          filter: `entry_date >= '${startDate} 00:00:00' && entry_date <= '${endDate} 23:59:59' && company_id = '${user.company_id}'`,
+          filter: entriesFilter,
         })
       }
       setPayrollEntries(entries)
     } catch {
       /* intentionally ignored */
     }
-  }, [user, selectedMonth])
+  }, [user, selectedMonth, selectedCompany])
 
   useEffect(() => {
     loadData()
@@ -71,6 +97,7 @@ export default function Index() {
 
   useRealtime('employees', loadData)
   useRealtime('payroll_entries', loadData)
+  useRealtime('companies', loadData)
 
   const stats = useMemo(() => {
     const currentMonthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(selectedMonth))
@@ -103,12 +130,35 @@ export default function Index() {
       }
     })
 
+    const activeEmployeesList = employees.filter((e) => e.status === 'active')
+    const activeEmployeesCount = activeEmployeesList.length
+
+    let sumActiveTotalEarnings = 0
+    activeEmployeesList.forEach((emp) => {
+      let empEarnings = (emp.base_salary || 0) + (emp.additional_amount || 0)
+      const empEntries = currentMonthEntries.filter((e) => e.employee_id === emp.id)
+      empEntries.forEach((entry) => {
+        if (
+          ['overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
+            entry.category,
+          )
+        ) {
+          empEarnings += entry.amount
+        }
+      })
+      sumActiveTotalEarnings += empEarnings
+    })
+
+    const averageTotalEarnings =
+      activeEmployeesCount > 0 ? sumActiveTotalEarnings / activeEmployeesCount : 0
+
     return {
-      activeEmployees: employees.filter((e) => e.status === 'active').length,
+      activeEmployees: activeEmployeesCount,
       totalNet,
       totalAdditions,
       totalOvertime,
       totalDiscounts: totalDeductions,
+      averageTotalEarnings,
     }
   }, [employees, payrollEntries, selectedMonth])
 
@@ -155,6 +205,21 @@ export default function Index() {
           <p className="text-muted-foreground">Visão geral da folha de pagamento</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
+          {user?.role === 'admin' && (
+            <Select value={selectedCompany} onValueChange={setSelectedCompany}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Todas as Empresas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Empresas</SelectItem>
+                {companies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <PeriodSelector />
           <Button asChild variant="outline">
             <Link to="/funcionarios">Gerenciar Equipe</Link>
@@ -208,7 +273,7 @@ export default function Index() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Salário Líq.</CardTitle>
@@ -219,6 +284,16 @@ export default function Index() {
               {stats.totalNet > 0 ? formatCurrency(stats.totalNet) : 'R$ 0,00'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Total de salários líquidos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Média Proventos</CardTitle>
+            <Calculator className="h-4 w-4 text-indigo-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(stats.averageTotalEarnings)}</div>
+            <p className="text-xs text-muted-foreground mt-1">Por funcionário ativo</p>
           </CardContent>
         </Card>
         <Card>
@@ -255,7 +330,7 @@ export default function Index() {
         </Card>
       </div>
 
-      <Card className="col-span-4">
+      <Card className="md:col-span-2 lg:col-span-5">
         <CardHeader>
           <CardTitle>Histórico de Pagamentos (Últimos 6 meses)</CardTitle>
         </CardHeader>

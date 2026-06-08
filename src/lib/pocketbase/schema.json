@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-28T20:55:10.239Z",
+  "generatedAt": "2026-06-08T14:09:02.101Z",
   "collections": [
     {
       "name": "users",
@@ -288,11 +288,11 @@
       "name": "payroll_entries",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "create": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "update": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "delete": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role != 'editor'"
+        "list": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'admin' || (company_id = @request.auth.company_id && @request.auth.role != 'editor'))"
       },
       "fields": [
         {
@@ -368,6 +368,20 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "updated_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": ["CREATE INDEX `idx_payroll_entries_date` ON `payroll_entries` (entry_date)"]
@@ -430,11 +444,11 @@
       "name": "overtime_rules",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "create": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role = 'admin'",
-        "update": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role = 'admin'",
-        "delete": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role = 'admin'"
+        "list": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "create": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "update": "@request.auth.id != '' && @request.auth.role = 'admin'",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'admin'"
       },
       "fields": [
         {
@@ -477,11 +491,11 @@
       "name": "time_records",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "view": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "create": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "update": "@request.auth.id != '' && company_id = @request.auth.company_id",
-        "delete": "@request.auth.id != '' && company_id = @request.auth.company_id && @request.auth.role != 'editor'"
+        "list": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'admin' || (company_id = @request.auth.company_id && @request.auth.role != 'editor'))"
       },
       "fields": [
         {
@@ -622,6 +636,62 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "payroll_periods",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "create": "@request.auth.role = 'admin'",
+        "update": "@request.auth.role = 'admin'",
+        "delete": "@request.auth.role = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "month",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "year",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["open", "closed"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_payroll_periods_unique ON payroll_periods (company_id, month, year)"
+      ]
     }
   ]
 }

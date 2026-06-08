@@ -17,8 +17,11 @@ export function usePayrollData(selectedMonth: string) {
   useEffect(() => {
     const load = async () => {
       try {
+        const roleFilter =
+          user?.role !== 'admin' && user?.company_id ? `company_id = '${user.company_id}'` : ''
+
         const [emps, comps] = await Promise.all([
-          pb.collection('employees').getFullList(),
+          pb.collection('employees').getFullList(roleFilter ? { filter: roleFilter } : undefined),
           pb.collection('companies').getFullList(),
         ])
         setEmployees(emps)
@@ -66,8 +69,11 @@ export function usePayrollData(selectedMonth: string) {
       try {
         const startDate = `${selectedMonth}-01 00:00:00`
         const endDate = `${selectedMonth}-31 23:59:59`
+        const roleFilter =
+          user?.role !== 'admin' && user?.company_id ? ` && company_id = '${user.company_id}'` : ''
+
         const entries = await pb.collection('payroll_entries').getFullList({
-          filter: `entry_date >= '${startDate}' && entry_date <= '${endDate}'`,
+          filter: `entry_date >= '${startDate}' && entry_date <= '${endDate}'${roleFilter}`,
         })
         setPayrollEntries(entries)
       } catch {

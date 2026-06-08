@@ -16,6 +16,21 @@ routerAdd(
     nextMonthObj.setUTCMonth(nextMonthObj.getUTCMonth() + 1)
     const endDate = nextMonthObj.toISOString().substring(0, 10) + ' 00:00:00.000Z'
 
+    // Verify permissions before transaction
+    if (e.auth.getString('role') !== 'admin') {
+      const userCompanyId = e.auth.getString('company_id')
+      for (const empData of entries) {
+        try {
+          const emp = $app.findRecordById('employees', empData.employee_id)
+          if (emp.get('company_id') !== userCompanyId) {
+            return e.forbiddenError('Acesso negado a um ou mais funcionários.')
+          }
+        } catch (err) {
+          // ignore missing, will be skipped in tx
+        }
+      }
+    }
+
     $app.runInTransaction((txApp) => {
       for (const empData of entries) {
         const empId = empData.employee_id
