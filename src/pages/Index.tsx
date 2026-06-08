@@ -1,7 +1,18 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
+import {
+  BarChart,
+  Bar,
+  Line,
+  ComposedChart,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+  CartesianGrid,
+  Legend,
+} from 'recharts'
+import { cn } from '@/lib/utils'
 import {
   Banknote,
   TrendingUp,
@@ -100,7 +111,13 @@ export default function Index() {
   useRealtime('companies', loadData)
 
   const stats = useMemo(() => {
+    const selectedDate = parseISO(`${selectedMonth}-01`)
     const currentMonthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(selectedMonth))
+
+    const previousMonth = format(subMonths(selectedDate, 1), 'yyyy-MM')
+    const previousMonthEntries = payrollEntries.filter((e) =>
+      e.entry_date.startsWith(previousMonth),
+    )
 
     let totalNet = 0
     let totalAdditions = 0
@@ -152,6 +169,30 @@ export default function Index() {
     const averageTotalEarnings =
       activeEmployeesCount > 0 ? sumActiveTotalEarnings / activeEmployeesCount : 0
 
+    let sumPrevTotalEarnings = 0
+    activeEmployeesList.forEach((emp) => {
+      let empEarnings = (emp.base_salary || 0) + (emp.additional_amount || 0)
+      const empEntries = previousMonthEntries.filter((e) => e.employee_id === emp.id)
+      empEntries.forEach((entry) => {
+        if (
+          ['overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
+            entry.category,
+          )
+        ) {
+          empEarnings += entry.amount
+        }
+      })
+      sumPrevTotalEarnings += empEarnings
+    })
+
+    const averagePrevTotalEarnings =
+      activeEmployeesCount > 0 ? sumPrevTotalEarnings / activeEmployeesCount : 0
+
+    const avgEarningsVariation =
+      averagePrevTotalEarnings > 0
+        ? ((averageTotalEarnings - averagePrevTotalEarnings) / averagePrevTotalEarnings) * 100
+        : null
+
     return {
       activeEmployees: activeEmployeesCount,
       totalNet,
@@ -159,6 +200,7 @@ export default function Index() {
       totalOvertime,
       totalDiscounts: totalDeductions,
       averageTotalEarnings,
+      avgEarningsVariation,
     }
   }, [employees, payrollEntries, selectedMonth])
 
@@ -169,9 +211,13 @@ export default function Index() {
       return format(d, 'yyyy-MM')
     })
 
+    const activeEmployeesList = employees.filter((e) => e.status === 'active')
+    const activeEmployeesCount = activeEmployeesList.length
+
     return months.map((m) => {
       const monthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(m))
       let salarioLiquido = 0
+      let totalProventos = 0
 
       monthEntries.forEach((e) => {
         if (e.category === 'base_net') {
@@ -179,12 +225,52 @@ export default function Index() {
         }
       })
 
+      activeEmployeesList.forEach((emp) => {
+        let empEarnings = (emp.base_salary || 0) + (emp.additional_amount || 0)
+        const empEntries = monthEntries.filter((e) => e.employee_id === emp.id)
+        empEntries.forEach((entry) => {
+          if (
+            ['overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
+              entry.category,
+            )
+          ) {
+            empEarnings += entry.amount
+          }
+        })
+        totalProventos += empEarnings
+      })
+
+      const averageEarnings = activeEmployeesCount > 0 ? totalProventos / activeEmployeesCount : 0
+
       return {
         month: formatMonthYear(m).split('/')[0].trim(),
         total: salarioLiquido,
+        averageEarnings,
       }
     })
-  }, [payrollEntries, selectedMonth])
+  }, [payrollEntries, selectedMonth, employees])
+
+  const topEmployees = useMemo(() => {
+    const currentMonthEntries = payrollEntries.filter((e) => e.entry_date.startsWith(selectedMonth))
+    const earningsList = employees
+      .filter((e) => e.status === 'active')
+      .map((emp) => {
+        let earnings = (emp.base_salary || 0) + (emp.additional_amount || 0)
+        const empEntries = currentMonthEntries.filter((e) => e.employee_id === emp.id)
+        empEntries.forEach((entry) => {
+          if (
+            ['overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
+              entry.category,
+            )
+          ) {
+            earnings += entry.amount
+          }
+        })
+        return { ...emp, totalEarnings: earnings }
+      })
+
+    return earningsList.sort((a, b) => b.totalEarnings - a.totalEarnings).slice(0, 5)
+  }, [employees, payrollEntries, selectedMonth])
 
   const vacationAlerts = useMemo(() => {
     const today = new Date()
@@ -293,7 +379,27 @@ export default function Index() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.averageTotalEarnings)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Por funcionário ativo</p>
+            {stats.avgEarningsVariation !== null ? (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                <span
+                  className={cn(
+                    'flex items-center font-medium mr-1',
+                    stats.avgEarningsVariation >= 0 ? 'text-emerald-500' : 'text-destructive',
+                  )}
+                >
+                  {stats.avgEarningsVariation >= 0 ? (
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3 mr-1" />
+                  )}
+                  {stats.avgEarningsVariation > 0 ? '+' : ''}
+                  {stats.avgEarningsVariation.toFixed(1).replace('.', ',')}%
+                </span>
+                vs mês anterior
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1">Por funcionário ativo</p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -330,40 +436,106 @@ export default function Index() {
         </Card>
       </div>
 
-      <Card className="md:col-span-2 lg:col-span-5">
-        <CardHeader>
-          <CardTitle>Histórico de Pagamentos (Últimos 6 meses)</CardTitle>
-        </CardHeader>
-        <CardContent className="pl-0">
-          {chartData.every((d) => d.total === 0) ? (
-            <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground">
-              Nenhum dado disponível para o período selecionado.
-            </div>
-          ) : (
-            <ChartContainer
-              config={{
-                total: { label: 'Salário Líquido', color: 'hsl(var(--primary))' },
-              }}
-              className="h-[300px] w-full"
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                  <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis
-                    tickFormatter={(val) => `R$ ${val / 1000}k`}
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="total" fill="var(--color-total)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="md:col-span-2 lg:col-span-4">
+          <CardHeader>
+            <CardTitle>Comparativo Mensal (Últimos 6 meses)</CardTitle>
+          </CardHeader>
+          <CardContent className="pl-0">
+            {chartData.every((d) => d.total === 0 && d.averageEarnings === 0) ? (
+              <div className="h-[300px] w-full flex items-center justify-center text-muted-foreground">
+                Nenhum dado disponível para o período selecionado.
+              </div>
+            ) : (
+              <ChartContainer
+                config={{
+                  total: { label: 'Total Líquido', color: 'hsl(var(--primary))' },
+                  averageEarnings: { label: 'Média Proventos', color: '#6366f1' },
+                }}
+                className="h-[300px] w-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart
+                    data={chartData}
+                    margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      className="stroke-muted"
+                    />
+                    <XAxis dataKey="month" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis
+                      yAxisId="left"
+                      tickFormatter={(val) => `R$ ${val / 1000}k`}
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tickFormatter={(val) => `R$ ${val / 1000}k`}
+                      fontSize={12}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend />
+                    <Bar
+                      yAxisId="left"
+                      dataKey="total"
+                      fill="var(--color-total)"
+                      radius={[4, 4, 0, 0]}
+                      name="Salário Líquido"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="averageEarnings"
+                      stroke="var(--color-averageEarnings)"
+                      strokeWidth={2}
+                      name="Média de Proventos"
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2 lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Top Funcionários por Proventos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topEmployees.length > 0 ? (
+              <div className="space-y-6">
+                {topEmployees.map((emp, i) => (
+                  <div key={emp.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
+                        {i + 1}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium leading-none">{emp.name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {emp.role || 'Sem cargo'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="font-medium text-sm">{formatCurrency(emp.totalEarnings)}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="h-[200px] w-full flex items-center justify-center text-muted-foreground text-sm">
+                Nenhum funcionário ativo.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
