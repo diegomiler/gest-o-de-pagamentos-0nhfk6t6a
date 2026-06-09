@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-09T14:11:35.504Z",
+  "generatedAt": "2026-06-09T14:18:39.818Z",
   "collections": [
     {
       "name": "users",
@@ -29,14 +29,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "company_id",
@@ -50,7 +55,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["admin", "manager", "editor"]
+          "selectValues": [
+            "admin",
+            "manager",
+            "editor"
+          ]
         }
       ],
       "indexes": [
@@ -86,14 +95,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "cnpj",
@@ -144,7 +158,9 @@
           "system": false
         }
       ],
-      "indexes": ["CREATE UNIQUE INDEX `idx_companies_cnpj` ON `companies` (cnpj) WHERE cnpj != ''"]
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_companies_cnpj` ON `companies` (cnpj) WHERE cnpj != ''"
+      ]
     },
     {
       "name": "employees",
@@ -193,7 +209,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["active", "inactive", "on_leave"]
+          "selectValues": [
+            "active",
+            "inactive",
+            "on_leave"
+          ]
         },
         {
           "name": "admission_date",
@@ -206,14 +226,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "additional_amount",
@@ -354,14 +379,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "quantity",
@@ -384,7 +414,9 @@
           "collectionRef": "users"
         }
       ],
-      "indexes": ["CREATE INDEX `idx_payroll_entries_date` ON `payroll_entries` (entry_date)"]
+      "indexes": [
+        "CREATE INDEX `idx_payroll_entries_date` ON `payroll_entries` (entry_date)"
+      ]
     },
     {
       "name": "employee_history",
@@ -409,7 +441,11 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["base_salary", "role", "additional_amount"]
+          "selectValues": [
+            "base_salary",
+            "role",
+            "additional_amount"
+          ]
         },
         {
           "name": "old_value",
@@ -428,14 +464,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -475,14 +516,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -571,21 +617,30 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         },
         {
           "name": "day_type",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["regular", "holiday", "day_off"]
+          "selectValues": [
+            "regular",
+            "holiday",
+            "day_off"
+          ]
         }
       ],
       "indexes": []
@@ -625,14 +680,19 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": []
@@ -672,21 +732,29 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["open", "closed"]
+          "selectValues": [
+            "open",
+            "closed"
+          ]
         },
         {
           "name": "created",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate"]
+          "autodateTriggers": [
+            "onCreate"
+          ]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": ["onCreate", "onUpdate"]
+          "autodateTriggers": [
+            "onCreate",
+            "onUpdate"
+          ]
         }
       ],
       "indexes": [
