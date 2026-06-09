@@ -152,11 +152,11 @@ export default function Index() {
 
     let sumActiveTotalEarnings = 0
     activeEmployeesList.forEach((emp) => {
-      let empEarnings = (emp.base_salary || 0) + (emp.additional_amount || 0)
+      let empEarnings = 0
       const empEntries = currentMonthEntries.filter((e) => e.employee_id === emp.id)
       empEntries.forEach((entry) => {
         if (
-          ['overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
+          ['base_net', 'overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
             entry.category,
           )
         ) {
@@ -171,11 +171,11 @@ export default function Index() {
 
     let sumPrevTotalEarnings = 0
     activeEmployeesList.forEach((emp) => {
-      let empEarnings = (emp.base_salary || 0) + (emp.additional_amount || 0)
+      let empEarnings = 0
       const empEntries = previousMonthEntries.filter((e) => e.employee_id === emp.id)
       empEntries.forEach((entry) => {
         if (
-          ['overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
+          ['base_net', 'overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
             entry.category,
           )
         ) {
@@ -226,13 +226,18 @@ export default function Index() {
       })
 
       activeEmployeesList.forEach((emp) => {
-        let empEarnings = (emp.base_salary || 0) + (emp.additional_amount || 0)
+        let empEarnings = 0
         const empEntries = monthEntries.filter((e) => e.employee_id === emp.id)
         empEntries.forEach((entry) => {
           if (
-            ['overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
-              entry.category,
-            )
+            [
+              'base_net',
+              'overtime',
+              'commission',
+              'bonus',
+              'additional',
+              'other_addition',
+            ].includes(entry.category)
           ) {
             empEarnings += entry.amount
           }
@@ -255,13 +260,18 @@ export default function Index() {
     const earningsList = employees
       .filter((e) => e.status === 'active')
       .map((emp) => {
-        let earnings = (emp.base_salary || 0) + (emp.additional_amount || 0)
+        let earnings = 0
         const empEntries = currentMonthEntries.filter((e) => e.employee_id === emp.id)
         empEntries.forEach((entry) => {
           if (
-            ['overtime', 'commission', 'bonus', 'additional', 'other_addition'].includes(
-              entry.category,
-            )
+            [
+              'base_net',
+              'overtime',
+              'commission',
+              'bonus',
+              'additional',
+              'other_addition',
+            ].includes(entry.category)
           ) {
             earnings += entry.amount
           }
@@ -506,7 +516,7 @@ export default function Index() {
 
         <Card className="md:col-span-2 lg:col-span-3">
           <CardHeader>
-            <CardTitle>Top Funcionários por Proventos</CardTitle>
+            <CardTitle>Top Funcionários por Total de Proventos</CardTitle>
           </CardHeader>
           <CardContent>
             {topEmployees.length > 0 ? (
