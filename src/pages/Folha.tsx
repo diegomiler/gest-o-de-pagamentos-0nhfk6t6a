@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -177,25 +177,6 @@ export default function Folha() {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      if (user?.company_id && user.id) {
-        if (user.company_id !== invalidCompanyIdRef.current) {
-          try {
-            await pb.collection('companies').getOne(user.company_id)
-          } catch (err: any) {
-            if (err instanceof ClientResponseError && err.status === 404) {
-              invalidCompanyIdRef.current = user.company_id
-              try {
-                await pb.collection('users').update(user.id, { company_id: null })
-              } catch (updateErr: any) {
-                if (updateErr instanceof ClientResponseError && updateErr.status === 404) {
-                  signOut()
-                }
-              }
-            }
-          }
-        }
-      }
-
       const [emps, comps] = await Promise.all([
         pb.collection('employees').getFullList({ sort: 'name' }),
         pb.collection('companies').getFullList(),
@@ -203,14 +184,35 @@ export default function Folha() {
       setEmployees(emps)
       setCompanies(comps)
 
+      if (user?.company_id && user.id && user.company_id !== invalidCompanyIdRef.current) {
+        const userCompanyExists = comps.some((c) => c.id === user.company_id)
+        if (!userCompanyExists) {
+          invalidCompanyIdRef.current = user.company_id
+          try {
+            await pb.collection('users').update(user.id, { company_id: null })
+          } catch (updateErr: any) {
+            if (updateErr instanceof ClientResponseError && updateErr.status === 404) {
+              signOut()
+            }
+          }
+        }
+      }
+
       let activeCompanyId = selectedCompanyId
       if (!activeCompanyId) {
-        if (user?.role !== 'admin' && user?.company_id) {
+        if (
+          user?.role !== 'admin' &&
+          user?.company_id &&
+          user.company_id !== invalidCompanyIdRef.current
+        ) {
           activeCompanyId = user.company_id
         } else if (comps.length > 0) {
           activeCompanyId = comps[0].id
         }
-        if (activeCompanyId) setSelectedCompanyId(activeCompanyId)
+        if (activeCompanyId) {
+          setSelectedCompanyId(activeCompanyId)
+          return
+        }
       }
 
       if (activeCompanyId) {
@@ -316,16 +318,44 @@ export default function Folha() {
     }
   }
 
+  const userId = user?.id
+  const userRole = user?.role
+  const userCompanyId = user?.company_id
+
   useEffect(() => {
     loadData()
-  }, [selectedMonth, selectedCompanyId, user])
+  }, [selectedMonth, selectedCompanyId, userId, userRole, userCompanyId])
 
-  useRealtime('employees', loadData)
-  useRealtime('payroll_entries', loadData)
-  useRealtime('companies', loadData)
-  useRealtime('payroll_periods', () => {
-    if (selectedCompanyId) loadPeriod(selectedCompanyId)
+  const debouncedLoadDataRef = useRef<() => void>(() => {})
+  const debouncedLoadPeriodRef = useRef<() => void>(() => {})
+
+  useEffect(() => {
+    debouncedLoadDataRef.current = loadData
+    debouncedLoadPeriodRef.current = () => {
+      if (selectedCompanyId) loadPeriod(selectedCompanyId)
+    }
   })
+
+  const realtimeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const triggerRealtimeRefresh = useCallback(() => {
+    if (realtimeTimeoutRef.current) clearTimeout(realtimeTimeoutRef.current)
+    realtimeTimeoutRef.current = setTimeout(() => {
+      debouncedLoadDataRef.current()
+    }, 500)
+  }, [])
+
+  const periodTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const triggerPeriodRefresh = useCallback(() => {
+    if (periodTimeoutRef.current) clearTimeout(periodTimeoutRef.current)
+    periodTimeoutRef.current = setTimeout(() => {
+      debouncedLoadPeriodRef.current()
+    }, 500)
+  }, [])
+
+  useRealtime('employees', triggerRealtimeRefresh)
+  useRealtime('payroll_entries', triggerRealtimeRefresh)
+  useRealtime('companies', triggerRealtimeRefresh)
+  useRealtime('payroll_periods', triggerPeriodRefresh)
 
   const isClosed = payrollPeriod?.status === 'closed'
 

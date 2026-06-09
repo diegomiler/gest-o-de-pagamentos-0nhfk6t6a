@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -85,9 +85,18 @@ export function usePayrollData(selectedMonth: string) {
     if (selectedMonth) loadEntries()
   }, [selectedMonth, updateTrigger])
 
-  useRealtime('employees', () => setUpdateTrigger((p) => p + 1))
-  useRealtime('payroll_entries', () => setUpdateTrigger((p) => p + 1))
-  useRealtime('companies', () => setUpdateTrigger((p) => p + 1))
+  const realtimeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  const triggerRealtimeRefresh = useCallback(() => {
+    if (realtimeTimeoutRef.current) clearTimeout(realtimeTimeoutRef.current)
+    realtimeTimeoutRef.current = setTimeout(() => {
+      setUpdateTrigger((p) => p + 1)
+    }, 500)
+  }, [])
+
+  useRealtime('employees', triggerRealtimeRefresh)
+  useRealtime('payroll_entries', triggerRealtimeRefresh)
+  useRealtime('companies', triggerRealtimeRefresh)
 
   return { employees, payrollEntries, companies, userCompany, isLoading }
 }
