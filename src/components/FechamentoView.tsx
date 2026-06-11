@@ -230,7 +230,7 @@ export function FechamentoView() {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             background: white !important;
-            font-size: 8pt !important;
+            font-size: 7pt !important;
           }
           .print-hidden {
             display: none !important;
@@ -270,15 +270,15 @@ export function FechamentoView() {
             page-break-after: auto !important; 
           }
           th, td { 
-            padding: 4px !important; 
+            padding: 2px 4px !important; 
             border-bottom: 1px solid #ddd !important;
             white-space: nowrap !important;
-            font-size: 8pt !important;
-            line-height: 1.2 !important;
+            font-size: 6.5pt !important;
+            line-height: 1.1 !important;
           }
         }
       `}</style>
-      <div className="space-y-3 flex flex-col flex-1 min-h-0 print:space-y-0 print:block print:w-full">
+      <div className="space-y-3 flex flex-col flex-1 h-[calc(100vh-140px)] min-h-[400px] print:h-auto print:min-h-0 print:space-y-0 print:block print:w-full">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 print-hidden bg-card px-4 py-2.5 rounded-lg border flex-shrink-0 shadow-sm">
           <div className="flex gap-4 items-center flex-wrap">
             <div className="flex items-center gap-2">
@@ -326,21 +326,23 @@ export function FechamentoView() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 print-hidden flex-shrink-0">
-          <Card className="flex items-center justify-between px-4 py-3 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x print-hidden flex-shrink-0 bg-card rounded-lg border shadow-sm">
+          <div className="flex items-center justify-between px-4 py-2.5">
             <span className="text-sm font-medium text-muted-foreground">Total de Proventos</span>
-            <span className="text-lg font-bold text-green-600">
+            <span className="text-base font-bold text-green-600">
               {formatCurrency(totalProventos)}
             </span>
-          </Card>
-          <Card className="flex items-center justify-between px-4 py-3 shadow-sm">
+          </div>
+          <div className="flex items-center justify-between px-4 py-2.5">
             <span className="text-sm font-medium text-muted-foreground">Total de Descontos</span>
-            <span className="text-lg font-bold text-red-600">{formatCurrency(totalDescontos)}</span>
-          </Card>
-          <Card className="flex items-center justify-between px-4 py-3 shadow-sm">
+            <span className="text-base font-bold text-red-600">
+              {formatCurrency(totalDescontos)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between px-4 py-2.5 bg-muted/10">
             <span className="text-sm font-medium text-muted-foreground">Valor Líquido Total</span>
-            <span className="text-lg font-bold">{formatCurrency(netTotal)}</span>
-          </Card>
+            <span className="text-base font-bold">{formatCurrency(netTotal)}</span>
+          </div>
         </div>
 
         <div className="hidden print:block mb-6 flex-shrink-0">
@@ -385,30 +387,30 @@ export function FechamentoView() {
             </div>
           ) : null}
 
-          <div className="flex-1 overflow-auto print:overflow-visible print:block">
-            <Table className="whitespace-nowrap">
+          <div className="flex-1 overflow-auto print:overflow-visible print:block scrollbar-thin">
+            <Table className="whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2.5">
               <TableHeader className="sticky top-0 print:static bg-muted/80 backdrop-blur-md print:bg-transparent z-20 shadow-[0_1px_3px_rgba(0,0,0,0.1)] print:shadow-none">
                 <TableRow className="print:border-b-2 print:border-black hover:bg-transparent">
-                  <TableHead className="min-w-[200px] print:min-w-0 sticky left-0 print:static bg-muted/95 backdrop-blur-md z-30 shadow-[1px_0_0_rgba(0,0,0,0.1)] print:shadow-none print:bg-transparent">
+                  <TableHead className="min-w-[180px] print:min-w-0 sticky left-0 print:static bg-muted/95 backdrop-blur-md z-30 shadow-[1px_0_0_rgba(0,0,0,0.1)] print:shadow-none print:bg-transparent">
                     Funcionário
                   </TableHead>
                   {ALL_PROVENTOS.map((cat) => (
-                    <TableHead key={cat} className="text-right min-w-[80px] print:min-w-0">
+                    <TableHead key={cat} className="text-right min-w-[70px] print:min-w-0">
                       {CAT_LABELS[cat] || cat}
                     </TableHead>
                   ))}
-                  <TableHead className="text-right min-w-[100px] print:min-w-0 font-bold text-green-700 bg-green-50/50 print:bg-transparent">
+                  <TableHead className="text-right min-w-[90px] print:min-w-0 font-bold text-green-700 bg-green-50/50 print:bg-transparent">
                     T. Proventos
                   </TableHead>
                   {ALL_DESCONTOS.map((cat) => (
-                    <TableHead key={cat} className="text-right min-w-[80px] print:min-w-0">
+                    <TableHead key={cat} className="text-right min-w-[70px] print:min-w-0">
                       {CAT_LABELS[cat] || cat}
                     </TableHead>
                   ))}
-                  <TableHead className="text-right min-w-[100px] print:min-w-0 font-bold text-red-700 bg-red-50/50 print:bg-transparent">
+                  <TableHead className="text-right min-w-[90px] print:min-w-0 font-bold text-red-700 bg-red-50/50 print:bg-transparent">
                     T. Descontos
                   </TableHead>
-                  <TableHead className="text-right min-w-[100px] print:min-w-0 font-bold bg-muted/50 print:bg-transparent">
+                  <TableHead className="text-right min-w-[100px] print:min-w-0 font-bold bg-muted/95 backdrop-blur-md print:bg-transparent sticky right-0 z-30 shadow-[-1px_0_0_rgba(0,0,0,0.1)] print:shadow-none">
                     Líquido
                   </TableHead>
                 </TableRow>
@@ -451,7 +453,7 @@ export function FechamentoView() {
                       <TableCell className="text-right font-semibold text-red-600 print:text-black bg-red-50/30 group-hover:bg-red-50/50 print:bg-transparent">
                         {formatCurrency(sum.totalDescontos)}
                       </TableCell>
-                      <TableCell className="text-right font-bold print:text-black bg-muted/20 group-hover:bg-muted/40 print:bg-transparent">
+                      <TableCell className="text-right font-bold print:text-black bg-background group-hover:bg-muted/50 print:bg-transparent sticky right-0 z-10 shadow-[-1px_0_0_rgba(0,0,0,0.1)] print:shadow-none">
                         {formatCurrency(sum.netTotal)}
                       </TableCell>
                     </TableRow>
