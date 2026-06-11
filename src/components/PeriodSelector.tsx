@@ -33,7 +33,7 @@ export function PeriodSelector() {
   return (
     <div className="flex gap-2">
       <Select value={month} onValueChange={(m) => setSelectedMonth(`${year}-${m}`)}>
-        <SelectTrigger className="w-[140px] bg-card">
+        <SelectTrigger className="w-[140px] bg-card h-9">
           <SelectValue placeholder="Mês" />
         </SelectTrigger>
         <SelectContent>
@@ -45,7 +45,7 @@ export function PeriodSelector() {
         </SelectContent>
       </Select>
       <Select value={year} onValueChange={(y) => setSelectedMonth(`${y}-${month}`)}>
-        <SelectTrigger className="w-[100px] bg-card">
+        <SelectTrigger className="w-[100px] bg-card h-9">
           <SelectValue placeholder="Ano" />
         </SelectTrigger>
         <SelectContent>

@@ -4,8 +4,8 @@ import { FechamentoView } from '@/components/FechamentoView'
 
 export default function Relatorios() {
   return (
-    <div className="flex flex-col h-full space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden">
+    <div className="flex flex-col h-full space-y-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 print:hidden">
         <h1 className="text-2xl font-bold">Relatórios</h1>
       </div>
 
@@ -19,13 +19,13 @@ export default function Relatorios() {
         </TabsList>
         <TabsContent
           value="holerites"
-          className="flex-1 data-[state=active]:flex data-[state=active]:flex-col mt-4 min-h-0 print:mt-0"
+          className="flex-1 data-[state=active]:flex data-[state=active]:flex-col mt-2 min-h-0 print:mt-0"
         >
           <HoleritesView />
         </TabsContent>
         <TabsContent
           value="fechamento"
-          className="flex-1 data-[state=active]:flex data-[state=active]:flex-col mt-4 min-h-0 print:mt-0"
+          className="flex-1 data-[state=active]:flex data-[state=active]:flex-col mt-2 min-h-0 print:mt-0"
         >
           <FechamentoView />
         </TabsContent>

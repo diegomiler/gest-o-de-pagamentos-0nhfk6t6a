@@ -278,21 +278,21 @@ export function FechamentoView() {
           }
         }
       `}</style>
-      <div className="space-y-6 flex flex-col flex-1 min-h-0 print:space-y-0 print:block print:w-full">
-        <div className="flex flex-col sm:flex-row justify-between gap-4 print-hidden bg-card p-4 rounded-lg border flex-shrink-0">
-          <div className="flex gap-4 items-end flex-wrap">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Mês/Ano</label>
+      <div className="space-y-3 flex flex-col flex-1 min-h-0 print:space-y-0 print:block print:w-full">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 print-hidden bg-card px-4 py-2.5 rounded-lg border flex-shrink-0 shadow-sm">
+          <div className="flex gap-4 items-center flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium whitespace-nowrap">Mês/Ano:</label>
               <PeriodSelector />
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Empresa</label>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium whitespace-nowrap">Empresa:</label>
               <Select
                 value={selectedCompanyId}
                 onValueChange={setSelectedCompanyId}
                 disabled={companies.length === 0}
               >
-                <SelectTrigger className="w-[250px]">
+                <SelectTrigger className="w-[220px] h-9">
                   <SelectValue placeholder="Selecione uma empresa" />
                 </SelectTrigger>
                 <SelectContent>
@@ -305,45 +305,41 @@ export function FechamentoView() {
               </Select>
             </div>
           </div>
-          <div className="flex items-end gap-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
+              size="sm"
               onClick={handleExportCSV}
               disabled={summariesList.length === 0}
-              className="gap-2"
+              className="gap-2 h-9"
             >
               <Download className="h-4 w-4" /> Exportar CSV
             </Button>
-            <Button onClick={handlePrint} disabled={summariesList.length === 0} className="gap-2">
+            <Button
+              size="sm"
+              onClick={handlePrint}
+              disabled={summariesList.length === 0}
+              className="gap-2 h-9"
+            >
               <Printer className="h-4 w-4" /> Imprimir PDF
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print-hidden flex-shrink-0">
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm text-muted-foreground">Total de Proventos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(totalProventos)}</p>
-            </CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 print-hidden flex-shrink-0">
+          <Card className="flex items-center justify-between px-4 py-3 shadow-sm">
+            <span className="text-sm font-medium text-muted-foreground">Total de Proventos</span>
+            <span className="text-lg font-bold text-green-600">
+              {formatCurrency(totalProventos)}
+            </span>
           </Card>
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm text-muted-foreground">Total de Descontos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-red-600">{formatCurrency(totalDescontos)}</p>
-            </CardContent>
+          <Card className="flex items-center justify-between px-4 py-3 shadow-sm">
+            <span className="text-sm font-medium text-muted-foreground">Total de Descontos</span>
+            <span className="text-lg font-bold text-red-600">{formatCurrency(totalDescontos)}</span>
           </Card>
-          <Card>
-            <CardHeader className="py-4">
-              <CardTitle className="text-sm text-muted-foreground">Valor Líquido Total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{formatCurrency(netTotal)}</p>
-            </CardContent>
+          <Card className="flex items-center justify-between px-4 py-3 shadow-sm">
+            <span className="text-sm font-medium text-muted-foreground">Valor Líquido Total</span>
+            <span className="text-lg font-bold">{formatCurrency(netTotal)}</span>
           </Card>
         </div>
 
