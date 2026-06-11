@@ -19,7 +19,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -221,6 +220,16 @@ export function FechamentoView() {
   return (
     <>
       <style>{`
+        .zebra-row {
+          background-color: hsl(var(--background)) !important;
+        }
+        .zebra-row:nth-child(even) {
+          background-color: color-mix(in srgb, hsl(var(--muted)) 40%, hsl(var(--background))) !important;
+        }
+        .zebra-row:hover {
+          background-color: color-mix(in srgb, hsl(var(--muted)) 70%, hsl(var(--background))) !important;
+        }
+
         @media print {
           @page {
             size: A4 landscape;
@@ -270,78 +279,80 @@ export function FechamentoView() {
             page-break-after: auto !important; 
           }
           th, td { 
-            padding: 2px 4px !important; 
+            padding: 4px 6px !important; 
             border-bottom: 1px solid #ddd !important;
             white-space: nowrap !important;
             font-size: 6.5pt !important;
-            line-height: 1.1 !important;
+            line-height: 1.2 !important;
           }
         }
       `}</style>
-      <div className="space-y-3 flex flex-col flex-1 h-[calc(100vh-140px)] min-h-[400px] print:h-auto print:min-h-0 print:space-y-0 print:block print:w-full">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 print-hidden bg-card px-4 py-2.5 rounded-lg border flex-shrink-0 shadow-sm">
-          <div className="flex gap-4 items-center flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium whitespace-nowrap">Mês/Ano:</label>
-              <PeriodSelector />
+      <div className="space-y-3 flex flex-col flex-1 h-[calc(100vh-8rem)] min-h-[400px] print:h-auto print:min-h-0 print:space-y-0 print:block print:w-full">
+        <div className="flex flex-col gap-3 print-hidden flex-shrink-0">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card px-4 py-2.5 rounded-lg border shadow-sm">
+            <div className="flex gap-4 items-center flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium whitespace-nowrap">Mês/Ano:</label>
+                <PeriodSelector />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium whitespace-nowrap">Empresa:</label>
+                <Select
+                  value={selectedCompanyId}
+                  onValueChange={setSelectedCompanyId}
+                  disabled={companies.length === 0}
+                >
+                  <SelectTrigger className="w-[200px] h-9">
+                    <SelectValue placeholder="Selecione uma empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium whitespace-nowrap">Empresa:</label>
-              <Select
-                value={selectedCompanyId}
-                onValueChange={setSelectedCompanyId}
-                disabled={companies.length === 0}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                disabled={summariesList.length === 0}
+                className="gap-2 h-9"
               >
-                <SelectTrigger className="w-[220px] h-9">
-                  <SelectValue placeholder="Selecione uma empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Download className="h-4 w-4" /> Exportar CSV
+              </Button>
+              <Button
+                size="sm"
+                onClick={handlePrint}
+                disabled={summariesList.length === 0}
+                className="gap-2 h-9"
+              >
+                <Printer className="h-4 w-4" /> Imprimir PDF
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              disabled={summariesList.length === 0}
-              className="gap-2 h-9"
-            >
-              <Download className="h-4 w-4" /> Exportar CSV
-            </Button>
-            <Button
-              size="sm"
-              onClick={handlePrint}
-              disabled={summariesList.length === 0}
-              className="gap-2 h-9"
-            >
-              <Printer className="h-4 w-4" /> Imprimir PDF
-            </Button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x print-hidden flex-shrink-0 bg-card rounded-lg border shadow-sm">
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-sm font-medium text-muted-foreground">Total de Proventos</span>
-            <span className="text-base font-bold text-green-600">
-              {formatCurrency(totalProventos)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-sm font-medium text-muted-foreground">Total de Descontos</span>
-            <span className="text-base font-bold text-red-600">
-              {formatCurrency(totalDescontos)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-2.5 bg-muted/10">
-            <span className="text-sm font-medium text-muted-foreground">Valor Líquido Total</span>
-            <span className="text-base font-bold">{formatCurrency(netTotal)}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x bg-card rounded-lg border shadow-sm">
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-sm font-medium text-muted-foreground">Total de Proventos</span>
+              <span className="text-base font-bold text-green-600">
+                {formatCurrency(totalProventos)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-sm font-medium text-muted-foreground">Total de Descontos</span>
+              <span className="text-base font-bold text-red-600">
+                {formatCurrency(totalDescontos)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5 bg-muted/10">
+              <span className="text-sm font-medium text-muted-foreground">Valor Líquido Total</span>
+              <span className="text-base font-bold">{formatCurrency(netTotal)}</span>
+            </div>
           </div>
         </div>
 
@@ -387,81 +398,82 @@ export function FechamentoView() {
             </div>
           ) : null}
 
-          <div className="flex-1 overflow-auto print:overflow-visible print:block scrollbar-thin">
-            <Table className="whitespace-nowrap text-sm [&_td]:px-3 [&_td]:py-2 [&_th]:px-3 [&_th]:py-2.5">
-              <TableHeader className="sticky top-0 print:static bg-muted/80 backdrop-blur-md print:bg-transparent z-20 shadow-[0_1px_3px_rgba(0,0,0,0.1)] print:shadow-none">
-                <TableRow className="print:border-b-2 print:border-black hover:bg-transparent">
-                  <TableHead className="min-w-[180px] print:min-w-0 sticky left-0 print:static bg-muted/95 backdrop-blur-md z-30 shadow-[1px_0_0_rgba(0,0,0,0.1)] print:shadow-none print:bg-transparent">
-                    Funcionário
+          <Table
+            wrapperClassName="flex-1 overflow-auto scrollbar-thin print:overflow-visible"
+            className="whitespace-nowrap text-sm [&_td]:px-4 [&_td]:py-3 [&_th]:px-4 [&_th]:py-3.5"
+          >
+            <TableHeader className="sticky top-0 z-20 bg-muted shadow-sm print:static print:bg-transparent print:shadow-none">
+              <TableRow className="hover:bg-transparent print:border-b-2 print:border-black">
+                <TableHead className="min-w-[200px] print:min-w-0 sticky left-0 top-0 z-30 bg-muted border-r print:border-none print:shadow-none print:bg-transparent">
+                  Funcionário
+                </TableHead>
+                {ALL_PROVENTOS.map((cat) => (
+                  <TableHead key={cat} className="text-right min-w-[100px] print:min-w-0">
+                    {CAT_LABELS[cat] || cat}
                   </TableHead>
-                  {ALL_PROVENTOS.map((cat) => (
-                    <TableHead key={cat} className="text-right min-w-[70px] print:min-w-0">
-                      {CAT_LABELS[cat] || cat}
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-right min-w-[90px] print:min-w-0 font-bold text-green-700 bg-green-50/50 print:bg-transparent">
-                    T. Proventos
+                ))}
+                <TableHead className="text-right min-w-[120px] print:min-w-0 font-bold text-green-700 bg-green-50 print:bg-transparent">
+                  T. Proventos
+                </TableHead>
+                {ALL_DESCONTOS.map((cat) => (
+                  <TableHead key={cat} className="text-right min-w-[100px] print:min-w-0">
+                    {CAT_LABELS[cat] || cat}
                   </TableHead>
-                  {ALL_DESCONTOS.map((cat) => (
-                    <TableHead key={cat} className="text-right min-w-[70px] print:min-w-0">
-                      {CAT_LABELS[cat] || cat}
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-right min-w-[90px] print:min-w-0 font-bold text-red-700 bg-red-50/50 print:bg-transparent">
-                    T. Descontos
-                  </TableHead>
-                  <TableHead className="text-right min-w-[100px] print:min-w-0 font-bold bg-muted/95 backdrop-blur-md print:bg-transparent sticky right-0 z-30 shadow-[-1px_0_0_rgba(0,0,0,0.1)] print:shadow-none">
-                    Líquido
-                  </TableHead>
+                ))}
+                <TableHead className="text-right min-w-[120px] print:min-w-0 font-bold text-red-700 bg-red-50 print:bg-transparent">
+                  T. Descontos
+                </TableHead>
+                <TableHead className="text-right min-w-[130px] print:min-w-0 font-bold bg-muted print:bg-transparent sticky right-0 top-0 z-30 border-l print:border-none print:shadow-none">
+                  Líquido
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {summariesList.length === 0 && !isLoading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={ALL_PROVENTOS.length + ALL_DESCONTOS.length + 4}
+                    className="text-center py-8 text-muted-foreground"
+                  >
+                    Nenhum lançamento encontrado para esta empresa e período.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {summariesList.length === 0 && !isLoading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={ALL_PROVENTOS.length + ALL_DESCONTOS.length + 4}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      Nenhum lançamento encontrado para esta empresa e período.
+              ) : (
+                summariesList.map((sum) => (
+                  <TableRow key={sum.employeeId} className="zebra-row transition-colors group">
+                    <TableCell className="font-medium sticky left-0 z-10 bg-inherit border-r print:border-none print:static print:bg-transparent">
+                      {sum.employeeName}
+                    </TableCell>
+                    {ALL_PROVENTOS.map((cat) => (
+                      <TableCell
+                        key={cat}
+                        className="text-right text-muted-foreground print:text-black"
+                      >
+                        {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-semibold text-green-600 print:text-black bg-green-50/50 group-hover:bg-green-100/50 print:bg-transparent">
+                      {formatCurrency(sum.totalProventos)}
+                    </TableCell>
+                    {ALL_DESCONTOS.map((cat) => (
+                      <TableCell
+                        key={cat}
+                        className="text-right text-muted-foreground print:text-black"
+                      >
+                        {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-semibold text-red-600 print:text-black bg-red-50/50 group-hover:bg-red-100/50 print:bg-transparent">
+                      {formatCurrency(sum.totalDescontos)}
+                    </TableCell>
+                    <TableCell className="text-right font-bold print:text-black bg-inherit sticky right-0 z-10 border-l print:border-none print:static print:bg-transparent">
+                      {formatCurrency(sum.netTotal)}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  summariesList.map((sum) => (
-                    <TableRow key={sum.employeeId} className="group hover:bg-muted/50">
-                      <TableCell className="font-medium sticky left-0 print:static bg-background group-hover:bg-muted/50 print:bg-transparent z-10 shadow-[1px_0_0_rgba(0,0,0,0.1)] print:shadow-none">
-                        {sum.employeeName}
-                      </TableCell>
-                      {ALL_PROVENTOS.map((cat) => (
-                        <TableCell
-                          key={cat}
-                          className="text-right text-muted-foreground print:text-black"
-                        >
-                          {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-right font-semibold text-green-600 print:text-black bg-green-50/30 group-hover:bg-green-50/50 print:bg-transparent">
-                        {formatCurrency(sum.totalProventos)}
-                      </TableCell>
-                      {ALL_DESCONTOS.map((cat) => (
-                        <TableCell
-                          key={cat}
-                          className="text-right text-muted-foreground print:text-black"
-                        >
-                          {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-right font-semibold text-red-600 print:text-black bg-red-50/30 group-hover:bg-red-50/50 print:bg-transparent">
-                        {formatCurrency(sum.totalDescontos)}
-                      </TableCell>
-                      <TableCell className="text-right font-bold print:text-black bg-background group-hover:bg-muted/50 print:bg-transparent sticky right-0 z-10 shadow-[-1px_0_0_rgba(0,0,0,0.1)] print:shadow-none">
-                        {formatCurrency(sum.netTotal)}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </>
