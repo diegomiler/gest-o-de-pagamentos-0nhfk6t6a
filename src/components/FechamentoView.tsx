@@ -22,27 +22,26 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/hooks/use-auth'
-import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 
 const ALL_PROVENTOS = [
   'base_net',
-  'overtime',
   'commission',
   'bonus',
+  'overtime',
   'additional',
   'other_addition',
   'other',
 ]
 
 const ALL_DESCONTOS = [
+  'advance',
   'pharmacy_discount',
-  'store_agreement',
-  'partner_agreement',
   'cash_shortage',
   'negative_hours',
-  'advance',
+  'partner_agreement',
+  'store_agreement',
   'other_discount',
 ]
 
@@ -135,54 +134,76 @@ export function FechamentoView() {
     return companies.find((c) => c.id === selectedCompanyId)
   }, [selectedCompanyId, companies])
 
-  const { totalProventos, totalDescontos, netTotal } = useMemo(() => {
-    let proventos = 0
-    let descontos = 0
+  const employeeSummaries = useMemo(() => {
+    const summaries: Record<string, any> = {}
+    let proventosGeral = 0
+    let descontosGeral = 0
 
     entries.forEach((entry) => {
+      const empId = entry.employee_id
+      if (!summaries[empId]) {
+        summaries[empId] = {
+          employeeId: empId,
+          employeeName: entry.expand?.employee_id?.name || 'N/A',
+          categories: {},
+          totalProventos: 0,
+          totalDescontos: 0,
+          netTotal: 0,
+        }
+      }
+
+      const sum = summaries[empId]
+      const amount = entry.amount || 0
+      sum.categories[entry.category] = (sum.categories[entry.category] || 0) + amount
+
       if (isProvento(entry.category)) {
-        proventos += entry.amount
+        sum.totalProventos += amount
+        proventosGeral += amount
       } else if (isDesconto(entry.category)) {
-        descontos += entry.amount
+        sum.totalDescontos += amount
+        descontosGeral += amount
       }
     })
 
+    Object.values(summaries).forEach((sum) => {
+      sum.netTotal = sum.totalProventos - sum.totalDescontos
+    })
+
     return {
-      totalProventos: proventos,
-      totalDescontos: descontos,
-      netTotal: proventos - descontos,
+      list: Object.values(summaries).sort((a, b) => a.employeeName.localeCompare(b.employeeName)),
+      totalProventos: proventosGeral,
+      totalDescontos: descontosGeral,
+      netTotal: proventosGeral - descontosGeral,
     }
   }, [entries])
+
+  const { list: summariesList, totalProventos, totalDescontos, netTotal } = employeeSummaries
 
   const handlePrint = () => window.print()
 
   const handleExportCSV = () => {
-    if (!activeCompany || entries.length === 0) return
+    if (!activeCompany || summariesList.length === 0) return
 
-    const headers = ['Funcionário', 'Categoria', 'Data', 'Quantidade', 'Valor', 'Descrição', 'Tipo']
+    const provHeaders = ALL_PROVENTOS.map((c) => CAT_LABELS[c] || c)
+    const descHeaders = ALL_DESCONTOS.map((c) => CAT_LABELS[c] || c)
 
-    const rows = entries.map((entry) => {
-      const empName = entry.expand?.employee_id?.name || 'N/A'
-      const catLabel = CAT_LABELS[entry.category] || entry.category
-      const date = entry.entry_date ? format(new Date(entry.entry_date), 'dd/MM/yyyy') : ''
-      const qtd =
-        entry.quantity !== null && entry.quantity !== undefined ? entry.quantity.toString() : ''
-      const desc = entry.description || ''
-      const type = isProvento(entry.category)
-        ? 'Provento'
-        : isDesconto(entry.category)
-          ? 'Desconto'
-          : 'Outro'
-      const val = entry.amount.toFixed(2).replace('.', ',')
+    const headers = [
+      'Funcionário',
+      ...provHeaders,
+      'Total Proventos',
+      ...descHeaders,
+      'Total Descontos',
+      'Líquido Total',
+    ]
 
+    const rows = summariesList.map((sum) => {
       return [
-        `"${empName}"`,
-        `"${catLabel}"`,
-        `"${date}"`,
-        `"${qtd}"`,
-        `"${val}"`,
-        `"${desc}"`,
-        `"${type}"`,
+        `"${sum.employeeName}"`,
+        ...ALL_PROVENTOS.map((c) => `"${(sum.categories[c] || 0).toFixed(2).replace('.', ',')}"`),
+        `"${sum.totalProventos.toFixed(2).replace('.', ',')}"`,
+        ...ALL_DESCONTOS.map((c) => `"${(sum.categories[c] || 0).toFixed(2).replace('.', ',')}"`),
+        `"${sum.totalDescontos.toFixed(2).replace('.', ',')}"`,
+        `"${sum.netTotal.toFixed(2).replace('.', ',')}"`,
       ]
     })
 
@@ -192,7 +213,7 @@ export function FechamentoView() {
     const link = document.createElement('a')
     link.href = url
     const [year, month] = selectedMonth.split('-')
-    link.download = `lancamentos_${activeCompany.name.replace(/\s+/g, '_')}_${month}_${year}.csv`
+    link.download = `fechamento_consolidado_${activeCompany.name.replace(/\s+/g, '_')}_${month}_${year}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -202,14 +223,14 @@ export function FechamentoView() {
       <style>{`
         @media print {
           @page {
-            size: A4 portrait;
+            size: A4 landscape;
             margin: 10mm;
           }
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             background: white !important;
-            font-size: 10pt !important;
+            font-size: 8pt !important;
           }
           .print-hidden {
             display: none !important;
@@ -232,8 +253,9 @@ export function FechamentoView() {
           }
           tr { page-break-inside: avoid; page-break-after: auto; }
           th, td { 
-            padding: 4px 8px !important; 
+            padding: 4px 6px !important; 
             border-bottom: 1px solid #ddd;
+            white-space: nowrap;
           }
         }
       `}</style>
@@ -268,12 +290,12 @@ export function FechamentoView() {
             <Button
               variant="outline"
               onClick={handleExportCSV}
-              disabled={entries.length === 0}
+              disabled={summariesList.length === 0}
               className="gap-2"
             >
               <Download className="h-4 w-4" /> Exportar CSV
             </Button>
-            <Button onClick={handlePrint} disabled={entries.length === 0} className="gap-2">
+            <Button onClick={handlePrint} disabled={summariesList.length === 0} className="gap-2">
               <Printer className="h-4 w-4" /> Imprimir PDF
             </Button>
           </div>
@@ -308,31 +330,31 @@ export function FechamentoView() {
 
         <div className="hidden print:block mb-6 flex-shrink-0">
           <div className="border-b-2 border-black pb-4">
-            <h2 className="text-2xl font-bold uppercase tracking-wide">Relatório de Fechamento</h2>
-            <p className="text-base text-gray-800 mt-2">
+            <h2 className="text-xl font-bold uppercase tracking-wide">Fechamento Consolidado</h2>
+            <p className="text-sm text-gray-800 mt-1">
               Referência: {formatMonthYear(selectedMonth)}
             </p>
             {activeCompany && (
-              <div className="mt-2 text-gray-800">
-                <p className="font-bold text-lg">{activeCompany.name}</p>
-                <p className="text-sm">
+              <div className="mt-1 text-gray-800">
+                <p className="font-bold text-base">{activeCompany.name}</p>
+                <p className="text-xs">
                   CNPJ: {activeCompany.cnpj ? formatCNPJ(activeCompany.cnpj) : 'N/A'}
                 </p>
               </div>
             )}
 
-            <div className="flex gap-8 mt-6">
+            <div className="flex gap-8 mt-4">
               <div>
-                <p className="text-sm text-gray-600">Total Proventos</p>
-                <p className="text-lg font-bold text-green-700">{formatCurrency(totalProventos)}</p>
+                <p className="text-xs text-gray-600">Total Proventos</p>
+                <p className="text-sm font-bold text-green-700">{formatCurrency(totalProventos)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Total Descontos</p>
-                <p className="text-lg font-bold text-red-700">{formatCurrency(totalDescontos)}</p>
+                <p className="text-xs text-gray-600">Total Descontos</p>
+                <p className="text-sm font-bold text-red-700">{formatCurrency(totalDescontos)}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Líquido Total</p>
-                <p className="text-lg font-bold">{formatCurrency(netTotal)}</p>
+                <p className="text-xs text-gray-600">Líquido Total</p>
+                <p className="text-sm font-bold">{formatCurrency(netTotal)}</p>
               </div>
             </div>
           </div>
@@ -343,84 +365,82 @@ export function FechamentoView() {
             <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center print-hidden">
               <div className="flex flex-col items-center gap-2">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span className="text-sm text-muted-foreground">Carregando lançamentos...</span>
+                <span className="text-sm text-muted-foreground">Carregando fechamento...</span>
               </div>
             </div>
           ) : null}
 
           <div className="flex-1 overflow-auto print:overflow-visible">
-            <Table>
-              <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm print:bg-transparent z-10 shadow-sm">
-                <TableRow className="print:border-b-2 print:border-black">
-                  <TableHead>Funcionário</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Quantidade</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Descrição</TableHead>
+            <Table className="whitespace-nowrap">
+              <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-md print:bg-transparent z-20 shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
+                <TableRow className="print:border-b-2 print:border-black hover:bg-transparent">
+                  <TableHead className="min-w-[200px] sticky left-0 bg-muted/95 backdrop-blur-md z-30 shadow-[1px_0_0_rgba(0,0,0,0.1)]">
+                    Funcionário
+                  </TableHead>
+                  {ALL_PROVENTOS.map((cat) => (
+                    <TableHead key={cat} className="text-right min-w-[110px]">
+                      {CAT_LABELS[cat] || cat}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-right min-w-[120px] font-bold text-green-700 bg-green-50/50 print:bg-transparent">
+                    T. Proventos
+                  </TableHead>
+                  {ALL_DESCONTOS.map((cat) => (
+                    <TableHead key={cat} className="text-right min-w-[110px]">
+                      {CAT_LABELS[cat] || cat}
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-right min-w-[120px] font-bold text-red-700 bg-red-50/50 print:bg-transparent">
+                    T. Descontos
+                  </TableHead>
+                  <TableHead className="text-right min-w-[120px] font-bold bg-muted/50 print:bg-transparent">
+                    Líquido
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.length === 0 && !isLoading ? (
+                {summariesList.length === 0 && !isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={ALL_PROVENTOS.length + ALL_DESCONTOS.length + 4}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       Nenhum lançamento encontrado para esta empresa e período.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  entries.map((entry) => {
-                    const isProv = isProvento(entry.category)
-                    const isDesc = isDesconto(entry.category)
-
-                    return (
-                      <TableRow key={entry.id}>
-                        <TableCell className="font-medium">
-                          {entry.expand?.employee_id?.name || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              isProv
-                                ? 'bg-green-100 text-green-700 print:bg-transparent print:text-black'
-                                : isDesc
-                                  ? 'bg-red-100 text-red-700 print:bg-transparent print:text-black'
-                                  : 'bg-gray-100 text-gray-700 print:bg-transparent print:text-black'
-                            }`}
-                          >
-                            {CAT_LABELS[entry.category] || entry.category}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground print:text-black">
-                          {entry.entry_date
-                            ? format(new Date(entry.entry_date), 'dd/MM/yyyy')
-                            : '-'}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground print:text-black">
-                          {entry.quantity !== null && entry.quantity !== undefined
-                            ? entry.quantity
-                            : '-'}
-                        </TableCell>
+                  summariesList.map((sum) => (
+                    <TableRow key={sum.employeeId} className="group hover:bg-muted/50">
+                      <TableCell className="font-medium sticky left-0 bg-background group-hover:bg-muted/50 print:bg-transparent z-10 shadow-[1px_0_0_rgba(0,0,0,0.1)]">
+                        {sum.employeeName}
+                      </TableCell>
+                      {ALL_PROVENTOS.map((cat) => (
                         <TableCell
-                          className={`text-right font-medium ${
-                            isProv
-                              ? 'text-green-600 print:text-black'
-                              : isDesc
-                                ? 'text-red-600 print:text-black'
-                                : ''
-                          }`}
+                          key={cat}
+                          className="text-right text-muted-foreground print:text-black"
                         >
-                          {isDesc ? '-' : ''}
-                          {formatCurrency(entry.amount)}
+                          {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
                         </TableCell>
+                      ))}
+                      <TableCell className="text-right font-semibold text-green-600 print:text-black bg-green-50/30 group-hover:bg-green-50/50 print:bg-transparent">
+                        {formatCurrency(sum.totalProventos)}
+                      </TableCell>
+                      {ALL_DESCONTOS.map((cat) => (
                         <TableCell
-                          className="text-muted-foreground max-w-[200px] truncate print:whitespace-normal print:text-black"
-                          title={entry.description}
+                          key={cat}
+                          className="text-right text-muted-foreground print:text-black"
                         >
-                          {entry.description || '-'}
+                          {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
                         </TableCell>
-                      </TableRow>
-                    )
-                  })
+                      ))}
+                      <TableCell className="text-right font-semibold text-red-600 print:text-black bg-red-50/30 group-hover:bg-red-50/50 print:bg-transparent">
+                        {formatCurrency(sum.totalDescontos)}
+                      </TableCell>
+                      <TableCell className="text-right font-bold print:text-black bg-muted/20 group-hover:bg-muted/40 print:bg-transparent">
+                        {formatCurrency(sum.netTotal)}
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
               </TableBody>
             </Table>
