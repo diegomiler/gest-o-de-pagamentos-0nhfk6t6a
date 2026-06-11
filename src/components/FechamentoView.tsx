@@ -230,7 +230,7 @@ export function FechamentoView() {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             background: white !important;
-            font-size: 8pt !important;
+            font-size: 9pt !important;
           }
           .print-hidden {
             display: none !important;
@@ -251,11 +251,15 @@ export function FechamentoView() {
             width: 100% !important; 
             border-collapse: collapse; 
           }
+          thead {
+            display: table-header-group;
+          }
           tr { page-break-inside: avoid; page-break-after: auto; }
           th, td { 
             padding: 4px 6px !important; 
             border-bottom: 1px solid #ddd;
             white-space: nowrap;
+            font-size: 9pt !important;
           }
         }
       `}</style>
