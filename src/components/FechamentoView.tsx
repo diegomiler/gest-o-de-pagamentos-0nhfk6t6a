@@ -224,13 +224,13 @@ export function FechamentoView() {
         @media print {
           @page {
             size: A4 landscape;
-            margin: 10mm;
+            margin: 8mm;
           }
           body {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
             background: white !important;
-            font-size: 9pt !important;
+            font-size: 8pt !important;
           }
           .print-hidden {
             display: none !important;
@@ -238,32 +238,47 @@ export function FechamentoView() {
           aside, header, nav {
             display: none !important;
           }
+          html, body, #root, main {
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            display: block !important;
+          }
           main {
             padding: 0 !important;
             margin: 0 !important;
             max-width: 100% !important;
             width: 100% !important;
-            display: block !important;
-            overflow: visible !important;
+          }
+          .sticky {
+            position: static !important;
+            box-shadow: none !important;
           }
           table { 
-            page-break-inside: auto; 
+            page-break-inside: auto !important; 
             width: 100% !important; 
-            border-collapse: collapse; 
+            border-collapse: collapse !important; 
           }
           thead {
-            display: table-header-group;
+            display: table-header-group !important;
           }
-          tr { page-break-inside: avoid; page-break-after: auto; }
+          tfoot {
+            display: table-footer-group !important;
+          }
+          tr { 
+            page-break-inside: avoid !important; 
+            page-break-after: auto !important; 
+          }
           th, td { 
-            padding: 4px 6px !important; 
-            border-bottom: 1px solid #ddd;
-            white-space: nowrap;
-            font-size: 9pt !important;
+            padding: 4px !important; 
+            border-bottom: 1px solid #ddd !important;
+            white-space: nowrap !important;
+            font-size: 8pt !important;
+            line-height: 1.2 !important;
           }
         }
       `}</style>
-      <div className="space-y-6 flex flex-col flex-1 min-h-0 print:block print:w-full">
+      <div className="space-y-6 flex flex-col flex-1 min-h-0 print:space-y-0 print:block print:w-full">
         <div className="flex flex-col sm:flex-row justify-between gap-4 print-hidden bg-card p-4 rounded-lg border flex-shrink-0">
           <div className="flex gap-4 items-end flex-wrap">
             <div className="space-y-1">
@@ -364,7 +379,7 @@ export function FechamentoView() {
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col min-h-0 bg-card border print:border-none print:bg-transparent rounded-lg print:rounded-none overflow-hidden relative">
+        <div className="flex-1 flex flex-col min-h-0 bg-card border print:border-none print:bg-transparent rounded-lg print:rounded-none overflow-hidden relative print:block print:overflow-visible">
           {isLoading ? (
             <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center print-hidden">
               <div className="flex flex-col items-center gap-2">
@@ -374,30 +389,30 @@ export function FechamentoView() {
             </div>
           ) : null}
 
-          <div className="flex-1 overflow-auto print:overflow-visible">
+          <div className="flex-1 overflow-auto print:overflow-visible print:block">
             <Table className="whitespace-nowrap">
-              <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-md print:bg-transparent z-20 shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
+              <TableHeader className="sticky top-0 print:static bg-muted/80 backdrop-blur-md print:bg-transparent z-20 shadow-[0_1px_3px_rgba(0,0,0,0.1)] print:shadow-none">
                 <TableRow className="print:border-b-2 print:border-black hover:bg-transparent">
-                  <TableHead className="min-w-[200px] sticky left-0 bg-muted/95 backdrop-blur-md z-30 shadow-[1px_0_0_rgba(0,0,0,0.1)]">
+                  <TableHead className="min-w-[200px] print:min-w-0 sticky left-0 print:static bg-muted/95 backdrop-blur-md z-30 shadow-[1px_0_0_rgba(0,0,0,0.1)] print:shadow-none print:bg-transparent">
                     Funcionário
                   </TableHead>
                   {ALL_PROVENTOS.map((cat) => (
-                    <TableHead key={cat} className="text-right min-w-[110px]">
+                    <TableHead key={cat} className="text-right min-w-[80px] print:min-w-0">
                       {CAT_LABELS[cat] || cat}
                     </TableHead>
                   ))}
-                  <TableHead className="text-right min-w-[120px] font-bold text-green-700 bg-green-50/50 print:bg-transparent">
+                  <TableHead className="text-right min-w-[100px] print:min-w-0 font-bold text-green-700 bg-green-50/50 print:bg-transparent">
                     T. Proventos
                   </TableHead>
                   {ALL_DESCONTOS.map((cat) => (
-                    <TableHead key={cat} className="text-right min-w-[110px]">
+                    <TableHead key={cat} className="text-right min-w-[80px] print:min-w-0">
                       {CAT_LABELS[cat] || cat}
                     </TableHead>
                   ))}
-                  <TableHead className="text-right min-w-[120px] font-bold text-red-700 bg-red-50/50 print:bg-transparent">
+                  <TableHead className="text-right min-w-[100px] print:min-w-0 font-bold text-red-700 bg-red-50/50 print:bg-transparent">
                     T. Descontos
                   </TableHead>
-                  <TableHead className="text-right min-w-[120px] font-bold bg-muted/50 print:bg-transparent">
+                  <TableHead className="text-right min-w-[100px] print:min-w-0 font-bold bg-muted/50 print:bg-transparent">
                     Líquido
                   </TableHead>
                 </TableRow>
@@ -415,7 +430,7 @@ export function FechamentoView() {
                 ) : (
                   summariesList.map((sum) => (
                     <TableRow key={sum.employeeId} className="group hover:bg-muted/50">
-                      <TableCell className="font-medium sticky left-0 bg-background group-hover:bg-muted/50 print:bg-transparent z-10 shadow-[1px_0_0_rgba(0,0,0,0.1)]">
+                      <TableCell className="font-medium sticky left-0 print:static bg-background group-hover:bg-muted/50 print:bg-transparent z-10 shadow-[1px_0_0_rgba(0,0,0,0.1)] print:shadow-none">
                         {sum.employeeName}
                       </TableCell>
                       {ALL_PROVENTOS.map((cat) => (
