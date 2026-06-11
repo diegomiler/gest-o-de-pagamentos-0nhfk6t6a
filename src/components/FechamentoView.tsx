@@ -102,8 +102,10 @@ export function FechamentoView() {
 
     setIsLoading(true)
     try {
+      const [year, month] = selectedMonth.split('-')
+      const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
       const startDate = `${selectedMonth}-01 00:00:00`
-      const endDate = `${selectedMonth}-31 23:59:59`
+      const endDate = `${selectedMonth}-${lastDay} 23:59:59`
       const filter = `company_id = '${selectedCompanyId}' && entry_date >= '${startDate}' && entry_date <= '${endDate}'`
 
       const data = await pb.collection('payroll_entries').getFullList({
@@ -157,12 +159,14 @@ export function FechamentoView() {
   const handleExportCSV = () => {
     if (!activeCompany || entries.length === 0) return
 
-    const headers = ['Funcionário', 'Categoria', 'Data', 'Descrição', 'Tipo', 'Valor']
+    const headers = ['Funcionário', 'Categoria', 'Data', 'Quantidade', 'Valor', 'Descrição', 'Tipo']
 
     const rows = entries.map((entry) => {
       const empName = entry.expand?.employee_id?.name || 'N/A'
       const catLabel = CAT_LABELS[entry.category] || entry.category
       const date = entry.entry_date ? format(new Date(entry.entry_date), 'dd/MM/yyyy') : ''
+      const qtd =
+        entry.quantity !== null && entry.quantity !== undefined ? entry.quantity.toString() : ''
       const desc = entry.description || ''
       const type = isProvento(entry.category)
         ? 'Provento'
@@ -171,7 +175,15 @@ export function FechamentoView() {
           : 'Outro'
       const val = entry.amount.toFixed(2).replace('.', ',')
 
-      return [`"${empName}"`, `"${catLabel}"`, `"${date}"`, `"${desc}"`, `"${type}"`, `"${val}"`]
+      return [
+        `"${empName}"`,
+        `"${catLabel}"`,
+        `"${date}"`,
+        `"${qtd}"`,
+        `"${val}"`,
+        `"${desc}"`,
+        `"${type}"`,
+      ]
     })
 
     const csvContent = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n')
@@ -225,8 +237,8 @@ export function FechamentoView() {
           }
         }
       `}</style>
-      <div className="space-y-6 flex flex-col h-full print:block print:w-full">
-        <div className="flex flex-col sm:flex-row justify-between gap-4 print-hidden bg-card p-4 rounded-lg border">
+      <div className="space-y-6 flex flex-col flex-1 min-h-0 print:block print:w-full">
+        <div className="flex flex-col sm:flex-row justify-between gap-4 print-hidden bg-card p-4 rounded-lg border flex-shrink-0">
           <div className="flex gap-4 items-end flex-wrap">
             <div className="space-y-1">
               <label className="text-sm font-medium">Mês/Ano</label>
@@ -267,7 +279,7 @@ export function FechamentoView() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 print-hidden flex-shrink-0">
           <Card>
             <CardHeader className="py-4">
               <CardTitle className="text-sm text-muted-foreground">Total de Proventos</CardTitle>
@@ -294,7 +306,7 @@ export function FechamentoView() {
           </Card>
         </div>
 
-        <div className="hidden print:block mb-6">
+        <div className="hidden print:block mb-6 flex-shrink-0">
           <div className="border-b-2 border-black pb-4">
             <h2 className="text-2xl font-bold uppercase tracking-wide">Relatório de Fechamento</h2>
             <p className="text-base text-gray-800 mt-2">
@@ -326,7 +338,7 @@ export function FechamentoView() {
           </div>
         </div>
 
-        <div className="flex-1 bg-card border print:border-none print:bg-transparent rounded-lg print:rounded-none overflow-hidden relative">
+        <div className="flex-1 flex flex-col min-h-0 bg-card border print:border-none print:bg-transparent rounded-lg print:rounded-none overflow-hidden relative">
           {isLoading ? (
             <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center print-hidden">
               <div className="flex flex-col items-center gap-2">
@@ -336,22 +348,23 @@ export function FechamentoView() {
             </div>
           ) : null}
 
-          <div className="overflow-auto h-full max-h-[60vh] print:max-h-none print:overflow-visible">
+          <div className="flex-1 overflow-auto print:overflow-visible">
             <Table>
-              <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm print:bg-transparent z-10">
+              <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm print:bg-transparent z-10 shadow-sm">
                 <TableRow className="print:border-b-2 print:border-black">
                   <TableHead>Funcionário</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Data</TableHead>
-                  <TableHead>Descrição</TableHead>
+                  <TableHead>Quantidade</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Descrição</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {entries.length === 0 && !isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      Nenhum lançamento encontrado para este período.
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Nenhum lançamento encontrado para esta empresa e período.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -382,11 +395,10 @@ export function FechamentoView() {
                             ? format(new Date(entry.entry_date), 'dd/MM/yyyy')
                             : '-'}
                         </TableCell>
-                        <TableCell
-                          className="text-muted-foreground max-w-[200px] truncate print:whitespace-normal print:text-black"
-                          title={entry.description}
-                        >
-                          {entry.description || '-'}
+                        <TableCell className="text-muted-foreground print:text-black">
+                          {entry.quantity !== null && entry.quantity !== undefined
+                            ? entry.quantity
+                            : '-'}
                         </TableCell>
                         <TableCell
                           className={`text-right font-medium ${
@@ -399,6 +411,12 @@ export function FechamentoView() {
                         >
                           {isDesc ? '-' : ''}
                           {formatCurrency(entry.amount)}
+                        </TableCell>
+                        <TableCell
+                          className="text-muted-foreground max-w-[200px] truncate print:whitespace-normal print:text-black"
+                          title={entry.description}
+                        >
+                          {entry.description || '-'}
                         </TableCell>
                       </TableRow>
                     )

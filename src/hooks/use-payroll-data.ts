@@ -67,8 +67,10 @@ export function usePayrollData(selectedMonth: string) {
     const loadEntries = async () => {
       setIsLoading(true)
       try {
+        const [year, month] = selectedMonth.split('-')
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate()
         const startDate = `${selectedMonth}-01 00:00:00`
-        const endDate = `${selectedMonth}-31 23:59:59`
+        const endDate = `${selectedMonth}-${lastDay} 23:59:59`
         const roleFilter =
           user?.role !== 'admin' && user?.company_id ? ` && company_id = '${user.company_id}'` : ''
 

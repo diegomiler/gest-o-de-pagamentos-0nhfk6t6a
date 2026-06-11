@@ -13,14 +13,20 @@ export default function Relatorios() {
         defaultValue="holerites"
         className="flex-1 flex flex-col min-h-0 print:block print:overflow-visible"
       >
-        <TabsList className="w-fit print-hidden print:hidden">
+        <TabsList className="w-fit print-hidden print:hidden flex-shrink-0">
           <TabsTrigger value="holerites">Holerites</TabsTrigger>
           <TabsTrigger value="fechamento">Fechamento do Mês</TabsTrigger>
         </TabsList>
-        <TabsContent value="holerites" className="flex-1 mt-4 min-h-0 print:mt-0">
+        <TabsContent
+          value="holerites"
+          className="flex-1 data-[state=active]:flex data-[state=active]:flex-col mt-4 min-h-0 print:mt-0"
+        >
           <HoleritesView />
         </TabsContent>
-        <TabsContent value="fechamento" className="flex-1 mt-4 min-h-0 print:mt-0">
+        <TabsContent
+          value="fechamento"
+          className="flex-1 data-[state=active]:flex data-[state=active]:flex-col mt-4 min-h-0 print:mt-0"
+        >
           <FechamentoView />
         </TabsContent>
       </Tabs>
