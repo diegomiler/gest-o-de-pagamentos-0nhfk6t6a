@@ -35,6 +35,9 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
   const bon = getCategoryTotals('bonus')
   if (bon.amount > 0) earnings.push({ label: 'Premiação', amount: bon.amount })
 
+  const mv = getCategoryTotals('market_voucher')
+  if (mv.amount > 0) earnings.push({ label: 'Vale Mercado', amount: mv.amount })
+
   const additionalEntries = entries.filter((e) => e.category === 'additional')
   let variableAddAmount = 0
   let fixedOmitted = false

@@ -231,6 +231,7 @@ export default function Folha() {
           const empEntries = fetchedEntries.filter((e) => e.employee_id === emp.id)
           let commissions = 0,
             bonuses = 0,
+            market_voucher = 0,
             pharmacy = 0,
             advances = 0,
             overtime_hours = 0,
@@ -242,7 +243,8 @@ export default function Folha() {
             other_discount = 0,
             other_addition = 0
 
-          let cash_shortage_desc = '',
+          let market_voucher_desc = '',
+            cash_shortage_desc = '',
             negative_hours_desc = '',
             partner_agreement_desc = '',
             store_agreement_desc = '',
@@ -252,6 +254,10 @@ export default function Folha() {
           empEntries.forEach((e) => {
             if (e.category === 'commission') commissions += e.amount
             if (e.category === 'bonus') bonuses += e.amount
+            if (e.category === 'market_voucher') {
+              market_voucher += e.amount
+              market_voucher_desc = e.description || ''
+            }
             if (e.category === 'pharmacy_discount') pharmacy += e.amount
             if (e.category === 'advance') advances += e.amount
             if (e.category === 'overtime') overtime_hours += e.quantity || 0
@@ -286,6 +292,8 @@ export default function Folha() {
             employee_id: emp.id,
             commissions,
             bonuses,
+            market_voucher,
+            market_voucher_desc,
             pharmacy,
             advances,
             overtime_hours,
@@ -399,6 +407,8 @@ export default function Folha() {
         ...e,
         commissions: 0,
         bonuses: 0,
+        market_voucher: 0,
+        market_voucher_desc: '',
         pharmacy: 0,
         advances: 0,
         overtime_hours: 0,
@@ -465,6 +475,8 @@ export default function Folha() {
           base_net: Number(entry.base_net) || 0,
           commissions: Number(entry.commissions) || 0,
           bonuses: Number(entry.bonuses) || 0,
+          market_voucher: Number(entry.market_voucher) || 0,
+          market_voucher_desc: entry.market_voucher_desc || '',
           pharmacy: Number(entry.pharmacy) || 0,
           advances: Number(entry.advances) || 0,
           cash_shortage: Number(entry.cash_shortage) || 0,
@@ -520,7 +532,11 @@ export default function Folha() {
         emp.company_id,
         companies,
       )
-      const currentAdditions = entry.commissions + entry.bonuses + (entry.other_addition || 0)
+      const currentAdditions =
+        entry.commissions +
+        entry.bonuses +
+        (entry.market_voucher || 0) +
+        (entry.other_addition || 0)
       const currentDeductions =
         entry.pharmacy +
         entry.advances +
@@ -545,6 +561,7 @@ export default function Folha() {
 
       acc.commissions += entry.commissions || 0
       acc.bonuses += entry.bonuses || 0
+      acc.market_voucher += entry.market_voucher || 0
       acc.other_addition += entry.other_addition || 0
       acc.pharmacy += entry.pharmacy || 0
       acc.advances += entry.advances || 0
@@ -566,6 +583,7 @@ export default function Folha() {
       net: 0,
       commissions: 0,
       bonuses: 0,
+      market_voucher: 0,
       other_addition: 0,
       pharmacy: 0,
       advances: 0,
@@ -669,7 +687,7 @@ export default function Folha() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           )}
-          <Table className="min-w-[1000px]">
+          <Table className="min-w-[1100px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="w-[200px] sticky left-0 z-20 bg-muted shadow-[1px_0_0_0_#e5e7eb]">
@@ -681,6 +699,7 @@ export default function Folha() {
                 <TableHead className="text-right text-emerald-600">Val. Extras</TableHead>
                 <TableHead className="text-right text-emerald-600">Comissões (+)</TableHead>
                 <TableHead className="text-right text-emerald-600">Bônus (+)</TableHead>
+                <TableHead className="text-right text-emerald-600">Vale Mercado (+)</TableHead>
                 <TableHead className="text-right text-emerald-600">Outros Acrésc. (+)</TableHead>
                 <TableHead className="text-right text-rose-600">Farmácia (-)</TableHead>
                 <TableHead className="text-right text-rose-600">Vales (-)</TableHead>
@@ -710,6 +729,7 @@ export default function Folha() {
                   overtimeValue +
                   entry.commissions +
                   entry.bonuses +
+                  (entry.market_voucher || 0) +
                   (entry.other_addition || 0)
                 const totalDeductions =
                   entry.pharmacy +
@@ -787,6 +807,19 @@ export default function Folha() {
                         className="text-right h-8 w-24 ml-auto"
                         value={entry.bonuses || ''}
                         onChange={(e) => handleInputChange(emp.id, 'bonuses', e.target.value)}
+                        disabled={isClosed}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="text-right h-8 w-24 ml-auto"
+                        value={entry.market_voucher || ''}
+                        onChange={(e) =>
+                          handleInputChange(emp.id, 'market_voucher', e.target.value)
+                        }
                         disabled={isClosed}
                       />
                     </TableCell>
@@ -907,6 +940,9 @@ export default function Folha() {
                 </TableCell>
                 <TableCell className="text-right text-emerald-600 font-medium">
                   +{formatCurrency(totals.bonuses)}
+                </TableCell>
+                <TableCell className="text-right text-emerald-600 font-medium">
+                  +{formatCurrency(totals.market_voucher)}
                 </TableCell>
                 <TableCell className="text-right text-emerald-600 font-medium">
                   +{formatCurrency(totals.other_addition)}

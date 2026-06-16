@@ -3,135 +3,108 @@ routerAdd(
   '/backend/v1/payroll/sync',
   (e) => {
     const body = e.requestInfo().body
-    if (!body || !body.month || !body.entries) {
-      return e.badRequestError('Dados inválidos.')
+    if (!body.month || !body.entries || !Array.isArray(body.entries)) {
+      throw new BadRequestError('Mês e lançamentos são obrigatórios')
     }
 
-    const month = body.month // "YYYY-MM"
-    const entries = body.entries
+    const monthStr = body.month
+    const startDate = monthStr + '-01 00:00:00'
+    const parts = monthStr.split('-')
+    const lastDay = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10), 0).getDate()
+    const endDate = monthStr + '-' + lastDay + ' 23:59:59'
+    const userId = e.auth?.id
 
-    const startDate = month + '-01 00:00:00.000Z'
-    const startObj = new Date(month + '-01T00:00:00Z')
-    const nextMonthObj = new Date(startObj)
-    nextMonthObj.setUTCMonth(nextMonthObj.getUTCMonth() + 1)
-    const endDate = nextMonthObj.toISOString().substring(0, 10) + ' 00:00:00.000Z'
-
-    // Verify permissions before transaction
-    if (e.auth.getString('role') !== 'admin') {
-      const userCompanyId = e.auth.getString('company_id')
-      for (const empData of entries) {
-        try {
-          const emp = $app.findRecordById('employees', empData.employee_id)
-          if (emp.get('company_id') !== userCompanyId) {
-            return e.forbiddenError('Acesso negado a um ou mais funcionários.')
-          }
-        } catch (err) {
-          // ignore missing, will be skipped in tx
-        }
-      }
+    const catsMap = {
+      base_net: 'base_net',
+      commissions: 'commission',
+      bonuses: 'bonus',
+      market_voucher: 'market_voucher',
+      pharmacy: 'pharmacy_discount',
+      advances: 'advance',
+      cash_shortage: 'cash_shortage',
+      negative_hours: 'negative_hours',
+      partner_agreement: 'partner_agreement',
+      store_agreement: 'store_agreement',
+      other_discount: 'other_discount',
+      other_addition: 'other_addition',
     }
 
     $app.runInTransaction((txApp) => {
-      for (const empData of entries) {
-        const empId = empData.employee_id
-        let emp
-        try {
-          emp = txApp.findRecordById('employees', empId)
-        } catch (err) {
-          continue
-        }
-
-        const companyId = emp.get('company_id')
+      for (const entry of body.entries) {
+        const empId = entry.employee_id
+        const compId = entry.company_id
+        if (!empId || !compId) continue
 
         const existing = txApp.findRecordsByFilter(
           'payroll_entries',
-          'employee_id = {:empId} && entry_date >= {:start} && entry_date < {:end}',
-          '-created',
+          `employee_id = {:emp} && entry_date >= {:start} && entry_date <= {:end}`,
+          '',
           1000,
           0,
-          { empId: empId, start: startDate, end: endDate },
+          { emp: empId, start: startDate, end: endDate },
         )
 
         for (const rec of existing) {
           txApp.delete(rec)
         }
 
-        const categories = [
-          { key: 'commissions', cat: 'commission', descKey: '' },
-          { key: 'bonuses', cat: 'bonus', descKey: '' },
-          { key: 'pharmacy', cat: 'pharmacy_discount', descKey: '' },
-          { key: 'advances', cat: 'advance', descKey: '' },
-          { key: 'cash_shortage', cat: 'cash_shortage', descKey: 'cash_shortage_desc' },
-          { key: 'negative_hours', cat: 'negative_hours', descKey: 'negative_hours_desc' },
-          { key: 'partner_agreement', cat: 'partner_agreement', descKey: 'partner_agreement_desc' },
-          { key: 'store_agreement', cat: 'store_agreement', descKey: 'store_agreement_desc' },
-          { key: 'other_discount', cat: 'other_discount', descKey: 'other_discount_desc' },
-          { key: 'other_addition', cat: 'other_addition', descKey: 'other_addition_desc' },
-        ]
+        for (const [key, dbCat] of Object.entries(catsMap)) {
+          const amount = Number(entry[key]) || 0
+          if (amount > 0) {
+            const r = new Record(txApp.findCollectionByNameOrId('payroll_entries'))
+            r.set('employee_id', empId)
+            r.set('company_id', compId)
+            r.set('category', dbCat)
+            r.set('amount', amount)
+            r.set('entry_date', startDate)
 
-        const payrollCol = txApp.findCollectionByNameOrId('payroll_entries')
-        const entryDate = month + '-01 12:00:00.000Z'
-
-        // Snapshot base_net
-        let baseNetVal = Number(empData['base_net'])
-        if (isNaN(baseNetVal) || (baseNetVal === 0 && empData['base_net'] == null)) {
-          baseNetVal = emp.getFloat('base_salary') || 0
-        }
-        if (baseNetVal !== 0) {
-          const rec = new Record(payrollCol)
-          rec.set('employee_id', empId)
-          rec.set('company_id', companyId)
-          rec.set('category', 'base_net')
-          rec.set('amount', baseNetVal)
-          rec.set('entry_date', entryDate)
-          txApp.save(rec)
-        }
-
-        // Snapshot additional
-        let additionalVal = Number(empData['additional'])
-        if (isNaN(additionalVal) || (additionalVal === 0 && empData['additional'] == null)) {
-          additionalVal = emp.getFloat('additional_amount') || 0
-        }
-        if (additionalVal !== 0) {
-          const rec = new Record(payrollCol)
-          rec.set('employee_id', empId)
-          rec.set('company_id', companyId)
-          rec.set('category', 'additional')
-          rec.set('amount', additionalVal)
-          rec.set('entry_date', entryDate)
-          txApp.save(rec)
-        }
-
-        for (const map of categories) {
-          const rawValue = empData[map.key]
-          const amount = Number(rawValue) || 0
-
-          if (amount !== 0) {
-            const rec = new Record(payrollCol)
-            rec.set('employee_id', empId)
-            rec.set('company_id', companyId)
-            rec.set('category', map.cat)
-            rec.set('amount', amount)
-            rec.set('entry_date', entryDate)
-            if (map.descKey && empData[map.descKey]) {
-              rec.set('description', String(empData[map.descKey]))
+            const descKey = key + '_desc'
+            if (entry[descKey]) {
+              r.set('description', entry[descKey])
             }
-            txApp.save(rec)
+            if (userId) {
+              r.set('created_by', userId)
+              r.set('updated_by', userId)
+            }
+
+            txApp.save(r)
           }
         }
 
-        const otHours = Number(empData.overtime_hours) || 0
-        const otAmount = Number(empData.overtime_amount) || 0
-        if (otHours !== 0 && otAmount !== 0) {
-          const rec = new Record(payrollCol)
-          rec.set('employee_id', empId)
-          rec.set('company_id', companyId)
-          rec.set('category', 'overtime')
-          rec.set('amount', otAmount)
-          rec.set('quantity', otHours)
-          rec.set('entry_date', entryDate)
-          txApp.save(rec)
+        const otHours = Number(entry.overtime_hours) || 0
+        const otAmount = Number(entry.overtime_amount) || 0
+        if (otHours > 0) {
+          const r = new Record(txApp.findCollectionByNameOrId('payroll_entries'))
+          r.set('employee_id', empId)
+          r.set('company_id', compId)
+          r.set('category', 'overtime')
+          r.set('quantity', otHours)
+          r.set('amount', otAmount)
+          r.set('entry_date', startDate)
+          if (userId) {
+            r.set('created_by', userId)
+            r.set('updated_by', userId)
+          }
+          txApp.save(r)
         }
+
+        try {
+          const empRec = txApp.findRecordById('employees', empId)
+          const fixedAdditional = empRec.getFloat('additional_amount') || 0
+          if (fixedAdditional > 0) {
+            const r = new Record(txApp.findCollectionByNameOrId('payroll_entries'))
+            r.set('employee_id', empId)
+            r.set('company_id', compId)
+            r.set('category', 'additional')
+            r.set('amount', fixedAdditional)
+            r.set('entry_date', startDate)
+            if (userId) {
+              r.set('created_by', userId)
+              r.set('updated_by', userId)
+            }
+            txApp.save(r)
+          }
+        } catch (_) {}
       }
     })
 

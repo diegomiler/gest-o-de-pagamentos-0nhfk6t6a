@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-11T14:24:35.414Z",
+  "generatedAt": "2026-06-16T20:55:23.727Z",
   "collections": [
     {
       "name": "users",
@@ -328,7 +328,8 @@
             "partner_agreement",
             "store_agreement",
             "other_discount",
-            "other_addition"
+            "other_addition",
+            "market_voucher"
           ]
         },
         {
