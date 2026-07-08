@@ -37,12 +37,18 @@ import {
   formatTimeOnBlur,
 } from '@/lib/format'
 import { useToast } from '@/hooks/use-toast'
-import { Save, MessageSquareText, Eraser, Lock, Unlock } from 'lucide-react'
+import { Save, MessageSquareText, Eraser, Lock, Unlock, Loader2 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
 import { ClientResponseError } from 'pocketbase'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { usePeriod } from '@/hooks/use-period'
@@ -158,6 +164,9 @@ export default function Folha() {
   const [entries, setEntries] = useState<any[]>([])
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
   const [payrollPeriod, setPayrollPeriod] = useState<any>(null)
+  const [editingAdditionalId, setEditingAdditionalId] = useState<string | null>(null)
+  const [additionalInputValue, setAdditionalInputValue] = useState<string>('')
+  const [savingAdditional, setSavingAdditional] = useState(false)
 
   const loadPeriod = async (companyIdToLoad: string) => {
     if (!companyIdToLoad) return
@@ -241,7 +250,9 @@ export default function Folha() {
             partner_agreement = 0,
             store_agreement = 0,
             other_discount = 0,
-            other_addition = 0
+            other_addition = 0,
+            additional = 0,
+            additional_entry_id = ''
 
           let market_voucher_desc = '',
             cash_shortage_desc = '',
@@ -286,6 +297,10 @@ export default function Folha() {
               other_addition += e.amount
               other_addition_desc = e.description || ''
             }
+            if (e.category === 'additional') {
+              additional += e.amount
+              additional_entry_id = e.id
+            }
           })
 
           return {
@@ -299,6 +314,8 @@ export default function Folha() {
             overtime_hours,
             overtime_hours_str: decimalToTime(overtime_hours),
             base_net: base_net || 0,
+            additional,
+            additional_entry_id,
             cash_shortage,
             cash_shortage_desc,
             negative_hours,
@@ -433,6 +450,64 @@ export default function Folha() {
     })
   }
 
+  const handleEnableFixedAdditional = (employeeId: string) => {
+    if (isClosed) return
+    const emp = employees.find((e) => e.id === employeeId)
+    if (!emp) return
+    const entry = entries.find((e) => e.employee_id === employeeId)
+    const currentValue = entry?.additional_entry_id
+      ? entry.additional
+      : Number(emp.additional_amount) || 0
+    setAdditionalInputValue(String(currentValue || ''))
+    setEditingAdditionalId(employeeId)
+  }
+
+  const handleSaveAdditional = async (employeeId: string) => {
+    if (isClosed) {
+      setEditingAdditionalId(null)
+      return
+    }
+    const emp = employees.find((e) => e.id === employeeId)
+    if (!emp) {
+      setEditingAdditionalId(null)
+      return
+    }
+    const entry = entries.find((e) => e.employee_id === employeeId)
+    const numValue = parseInputValue(additionalInputValue)
+    setSavingAdditional(true)
+    try {
+      const startDate = `${selectedMonth}-01 00:00:00`
+      const payload = {
+        employee_id: employeeId,
+        company_id: emp.company_id,
+        category: 'additional',
+        amount: numValue,
+        entry_date: startDate,
+        created_by: user?.id,
+        updated_by: user?.id,
+      }
+      if (entry?.additional_entry_id) {
+        await pb.collection('payroll_entries').update(entry.additional_entry_id, payload)
+      } else {
+        await pb.collection('payroll_entries').create(payload)
+      }
+      toast({
+        title: 'Adicional fixo atualizado',
+        description: `Valor de ${formatCurrency(numValue)} salvo para ${emp.name}.`,
+      })
+      setEditingAdditionalId(null)
+      await loadData()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar adicional',
+        description: err?.message || 'Não foi possível salvar o adicional fixo.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingAdditional(false)
+    }
+  }
+
   const handleTogglePeriod = async () => {
     if (!selectedCompanyId) return
     const [year, month] = selectedMonth.split('-')
@@ -532,6 +607,9 @@ export default function Folha() {
         emp.company_id,
         companies,
       )
+      const additionalValue = entry.additional_entry_id
+        ? entry.additional || 0
+        : emp.additional_amount || 0
       const currentAdditions =
         entry.commissions +
         entry.bonuses +
@@ -547,14 +625,14 @@ export default function Folha() {
         (entry.other_discount || 0)
 
       acc.base += entry.base_net || 0
-      acc.additional += emp.additional_amount || 0
+      acc.additional += additionalValue
       acc.overtime += overtimeValue
       acc.overtime_hours += entry.overtime_hours || 0
       acc.additions += currentAdditions
       acc.deductions += currentDeductions
       acc.net +=
         (entry.base_net || 0) +
-        (emp.additional_amount || 0) +
+        additionalValue +
         overtimeValue +
         currentAdditions -
         currentDeductions
@@ -756,9 +834,12 @@ export default function Folha() {
                   emp.company_id,
                   companies,
                 )
+                const rowAdditionalValue = entry.additional_entry_id
+                  ? entry.additional || 0
+                  : emp.additional_amount || 0
                 const totalAdditions =
                   (entry.base_net || 0) +
-                  (emp.additional_amount || 0) +
+                  rowAdditionalValue +
                   overtimeValue +
                   entry.commissions +
                   entry.bonuses +
@@ -796,7 +877,55 @@ export default function Folha() {
                       />
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(emp.additional_amount || 0)}
+                      {editingAdditionalId === emp.id ? (
+                        <div className="flex items-center justify-end gap-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            autoFocus
+                            className="text-right h-8 w-24"
+                            value={additionalInputValue}
+                            onChange={(e) => setAdditionalInputValue(e.target.value)}
+                            onBlur={() => handleSaveAdditional(emp.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleSaveAdditional(emp.id)
+                              }
+                              if (e.key === 'Escape') setEditingAdditionalId(null)
+                            }}
+                            disabled={savingAdditional}
+                          />
+                          {savingAdditional && (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                      ) : user?.role === 'admin' || user?.role === 'manager' ? (
+                        <ContextMenu>
+                          <ContextMenuTrigger asChild>
+                            <span className="cursor-context-menu inline-block w-full">
+                              {formatCurrency(
+                                entry.additional_entry_id
+                                  ? entry.additional
+                                  : emp.additional_amount || 0,
+                              )}
+                            </span>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem
+                              onClick={() => handleEnableFixedAdditional(emp.id)}
+                              disabled={isClosed}
+                            >
+                              Habilitar Adicional Fixo
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      ) : (
+                        formatCurrency(
+                          entry.additional_entry_id ? entry.additional : emp.additional_amount || 0,
+                        )
+                      )}
                     </TableCell>
                     <TableCell>
                       <Input
