@@ -1000,7 +1000,7 @@ export default function Folha() {
                               onClick={() => handleEnableFixedAdditional(emp.id)}
                               disabled={isClosed}
                             >
-                              Habilitar Adicional Fixo
+                              Alterar Valor Fixo
                             </ContextMenuItem>
                           </ContextMenuContent>
                         </ContextMenu>

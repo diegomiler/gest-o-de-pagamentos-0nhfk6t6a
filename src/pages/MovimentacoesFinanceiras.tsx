@@ -234,7 +234,12 @@ export default function MovimentacoesFinanceiras() {
   }
 
   const handleExportCSV = () => {
-    if (filteredData.length === 0) return
+    if (filteredData.length === 0) {
+      toast.info('Não há dados para exportar.', {
+        description: 'Ajuste os filtros e tente novamente.',
+      })
+      return
+    }
     const headers = [
       'Funcionário',
       'Cargo',
@@ -244,14 +249,15 @@ export default function MovimentacoesFinanceiras() {
       'Líquido',
       'Lançamentos',
     ]
+    const formatNumber = (value: number) => value.toFixed(2).replace('.', ',')
     const rows = filteredData.map((e) => {
       return [
         `"${e.employeeName}"`,
         `"${e.employeeRole || ''}"`,
         `"${e.companyName}"`,
-        `"${e.proventos.toFixed(2).replace('.', ',')}"`,
-        `"${e.descontos.toFixed(2).replace('.', ',')}"`,
-        `"${e.net.toFixed(2).replace('.', ',')}"`,
+        `"${formatNumber(e.proventos)}"`,
+        `"${formatNumber(e.descontos)}"`,
+        `"${formatNumber(e.net)}"`,
         `"${e.entriesCount}"`,
       ]
     })
@@ -259,10 +265,16 @@ export default function MovimentacoesFinanceiras() {
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
+    const [year, month] = selectedMonth.split('-')
     link.href = url
-    link.download = `movimentacoes_por_funcionario_${selectedMonth}.csv`
+    link.download = `movimentacoes_por_funcionario_${month}_${year}.csv`
+    document.body.appendChild(link)
     link.click()
+    document.body.removeChild(link)
     URL.revokeObjectURL(url)
+    toast.success('Exportação concluída!', {
+      description: `${filteredData.length} funcionário(s) exportado(s) para CSV.`,
+    })
   }
 
   const selectedCompaniesLabel = useMemo(() => {
@@ -433,7 +445,7 @@ export default function MovimentacoesFinanceiras() {
             </div>
           )}
           {!isLoading && selectedCompanyIds.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center min-h-[400px]">
+            <div className="flex flex-col items-center justify-center py-12 text-center min-h-[280px]">
               <Building2 className="h-12 w-12 text-muted-foreground/40 mb-3" />
               <p className="text-lg font-medium">Selecione ao menos uma empresa</p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -441,7 +453,7 @@ export default function MovimentacoesFinanceiras() {
               </p>
             </div>
           ) : !isLoading && filteredData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center min-h-[400px]">
+            <div className="flex flex-col items-center justify-center py-12 text-center min-h-[280px]">
               <Search className="h-12 w-12 text-muted-foreground/40 mb-3" />
               <p className="text-lg font-medium">Nenhum registro encontrado</p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -450,7 +462,7 @@ export default function MovimentacoesFinanceiras() {
             </div>
           ) : (
             <Table
-              wrapperClassName="max-h-[calc(100vh-300px)] min-h-[600px] overflow-auto scrollbar-thin"
+              wrapperClassName="h-[360px] overflow-auto scrollbar-thin"
               className="min-w-[900px]"
             >
               <TableHeader className="bg-muted sticky top-0 z-20">
