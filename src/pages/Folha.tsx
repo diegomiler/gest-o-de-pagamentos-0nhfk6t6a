@@ -680,14 +680,14 @@ export default function Folha() {
         </div>
       )}
 
-      <Card>
-        <CardContent className="p-0 relative overflow-hidden">
+      <Card className="overflow-hidden">
+        <CardContent className="p-0 relative">
           {isLoading && (
             <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           )}
-          <div className="folha-scroll-container overflow-auto max-h-[calc(100vh-220px)]">
+          <div className="folha-scroll-container overflow-auto max-h-[calc(100vh-220px)] relative">
             <Table className="min-w-[1100px] border-separate border-spacing-0">
               <TableHeader className="bg-muted">
                 <TableRow>
