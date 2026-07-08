@@ -22,6 +22,7 @@ import {
   Clock,
   User,
   Shield,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,6 +41,9 @@ const getNavItems = (role: string) => [
   { title: 'Funcionários', url: '/funcionarios', icon: Users },
   { title: 'Folha de Ponto', url: '/ponto', icon: Clock },
   { title: 'Folha de Pagamento', url: '/folha', icon: Calculator },
+  ...(role === 'admin' || role === 'manager'
+    ? [{ title: 'Movimentações Financeiras', url: '/movimentacoes', icon: ArrowLeftRight }]
+    : []),
   { title: 'Holerites e Relatórios', url: '/relatorios', icon: FileText },
   ...(role === 'admin'
     ? [

@@ -14,6 +14,7 @@ import Relatorios from './pages/Relatorios'
 import Configuracoes from './pages/Configuracoes'
 import RegrasHorasExtras from './pages/RegrasHorasExtras'
 import Usuarios from './pages/Usuarios'
+import MovimentacoesFinanceiras from './pages/MovimentacoesFinanceiras'
 import Empresas from './pages/Empresas'
 import Perfil from './pages/Perfil'
 import Auditoria from './pages/Auditoria'
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="/configuracoes" element={<Configuracoes />} />
               <Route path="/configuracoes/regras-horas-extras" element={<RegrasHorasExtras />} />
               <Route path="/configuracoes/usuarios" element={<Usuarios />} />
+              <Route path="/movimentacoes" element={<MovimentacoesFinanceiras />} />
               <Route path="/perfil" element={<Perfil />} />
               <Route
                 path="/auditoria"
