@@ -37,7 +37,7 @@ import {
   formatTimeOnBlur,
 } from '@/lib/format'
 import { useToast } from '@/hooks/use-toast'
-import { Save, MessageSquareText, Eraser, Lock, Unlock, Loader2 } from 'lucide-react'
+import { Save, MessageSquareText, Eraser, Lock, Unlock, Loader2, Info } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -176,6 +176,7 @@ export default function Folha() {
   const [additionalInputValue, setAdditionalInputValue] = useState<string>('')
   const [savingAdditional, setSavingAdditional] = useState(false)
   const [showReasonModal, setShowReasonModal] = useState(false)
+  const [employeesWithHistory, setEmployeesWithHistory] = useState<Set<string>>(new Set())
   const [reasonText, setReasonText] = useState('')
   const [pendingAdditionalSave, setPendingAdditionalSave] = useState<{
     employeeId: string
@@ -349,9 +350,24 @@ export default function Folha() {
         })
 
         setEntries(merged)
+
+        try {
+          const historyRecords = await pb.collection('employee_history').getFullList({
+            filter: `change_type = "additional_amount"`,
+          })
+          const empIdsWithHistory = new Set(
+            historyRecords
+              .filter((h) => activeEmployees.some((e) => e.id === h.employee_id))
+              .map((h) => h.employee_id),
+          )
+          setEmployeesWithHistory(empIdsWithHistory)
+        } catch {
+          setEmployeesWithHistory(new Set())
+        }
       } else {
         setEntries([])
         setPayrollPeriod(null)
+        setEmployeesWithHistory(new Set())
       }
     } catch {
       /* intentionally ignored */
@@ -468,7 +484,14 @@ export default function Folha() {
   }
 
   const handleEnableFixedAdditional = (employeeId: string) => {
-    if (isClosed) return
+    if (isClosed) {
+      toast({
+        title: 'Período Fechado',
+        description: 'Não é possível alterar o adicional fixo em um período fechado.',
+        variant: 'destructive',
+      })
+      return
+    }
     const emp = employees.find((e) => e.id === employeeId)
     if (!emp) return
     const entry = entries.find((e) => e.employee_id === employeeId)
@@ -953,7 +976,10 @@ export default function Folha() {
                       ) : user?.role === 'admin' || user?.role === 'manager' ? (
                         <ContextMenu>
                           <ContextMenuTrigger asChild>
-                            <span className="cursor-context-menu inline-block w-full">
+                            <span className="cursor-context-menu inline-flex items-center gap-1 w-full justify-end">
+                              {employeesWithHistory.has(emp.id) && (
+                                <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                              )}
                               {formatCurrency(
                                 entry.additional_entry_id
                                   ? entry.additional
@@ -966,14 +992,21 @@ export default function Folha() {
                               onClick={() => handleEnableFixedAdditional(emp.id)}
                               disabled={isClosed}
                             >
-                              Alterar Adicional Fixo
+                              Habilitar Adicional Fixo
                             </ContextMenuItem>
                           </ContextMenuContent>
                         </ContextMenu>
                       ) : (
-                        formatCurrency(
-                          entry.additional_entry_id ? entry.additional : emp.additional_amount || 0,
-                        )
+                        <span className="inline-flex items-center gap-1 w-full justify-end">
+                          {employeesWithHistory.has(emp.id) && (
+                            <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          )}
+                          {formatCurrency(
+                            entry.additional_entry_id
+                              ? entry.additional
+                              : emp.additional_amount || 0,
+                          )}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>

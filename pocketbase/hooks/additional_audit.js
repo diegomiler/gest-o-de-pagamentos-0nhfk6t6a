@@ -70,6 +70,7 @@ routerAdd(
       histRec.set('old_value', oldValue)
       histRec.set('new_value', String(amount))
       histRec.set('reason', reason)
+      histRec.set('created_by', userId)
       $app.save(histRec)
 
       return e.json(200, { success: true, entry_id: savedEntryId })
