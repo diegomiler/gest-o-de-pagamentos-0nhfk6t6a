@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { HoleritesView } from '@/components/HoleritesView'
 import { FechamentoView } from '@/components/FechamentoView'
+import { AuditLogsView } from '@/components/AuditLogsView'
 
 export default function Relatorios() {
   return (
@@ -16,6 +17,7 @@ export default function Relatorios() {
         <TabsList className="w-fit print-hidden print:hidden flex-shrink-0">
           <TabsTrigger value="holerites">Holerites</TabsTrigger>
           <TabsTrigger value="fechamento">Fechamento do Mês</TabsTrigger>
+          <TabsTrigger value="logs">Logs de Alterações</TabsTrigger>
         </TabsList>
         <TabsContent
           value="holerites"
@@ -28,6 +30,12 @@ export default function Relatorios() {
           className="flex-1 data-[state=active]:flex data-[state=active]:flex-col mt-2 min-h-0 print:mt-0"
         >
           <FechamentoView />
+        </TabsContent>
+        <TabsContent
+          value="logs"
+          className="flex-1 data-[state=active]:flex data-[state=active]:flex-col mt-2 min-h-0 print:mt-0"
+        >
+          <AuditLogsView />
         </TabsContent>
       </Tabs>
     </div>

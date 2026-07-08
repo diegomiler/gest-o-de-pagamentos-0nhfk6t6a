@@ -6,6 +6,11 @@ routerAdd(
     const userId = e.auth?.id
     if (!userId) return e.unauthorizedError('auth required')
 
+    const userRole = e.auth ? e.auth.getString('role') : ''
+    if (userRole !== 'admin') {
+      return e.forbiddenError('Permission Denied: Only administrators can modify fixed additions.')
+    }
+
     const employeeId = body.employee_id
     const companyId = body.company_id
     const amount = parseFloat(body.amount)

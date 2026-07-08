@@ -570,11 +570,19 @@ export default function Folha() {
       isSubmittingAdditionalRef.current = false
       await loadData()
     } catch (err: any) {
-      toast({
-        title: 'Erro ao salvar adicional',
-        description: err?.message || 'Não foi possível salvar o adicional fixo.',
-        variant: 'destructive',
-      })
+      if (err?.status === 403) {
+        toast({
+          title: 'Permissão Negada',
+          description: 'Você não tem permissão para modificar o adicional fixo.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Erro ao salvar adicional',
+          description: err?.message || 'Não foi possível salvar o adicional fixo.',
+          variant: 'destructive',
+        })
+      }
     } finally {
       setSavingAdditional(false)
     }
@@ -973,7 +981,7 @@ export default function Folha() {
                             <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
                           )}
                         </div>
-                      ) : user?.role === 'admin' || user?.role === 'manager' ? (
+                      ) : user?.role === 'admin' ? (
                         <ContextMenu>
                           <ContextMenuTrigger asChild>
                             <span className="cursor-context-menu inline-flex items-center gap-1 w-full justify-end">
