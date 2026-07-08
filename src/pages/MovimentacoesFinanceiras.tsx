@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/hooks/use-auth'
@@ -7,7 +7,6 @@ import { PeriodSelector } from '@/components/PeriodSelector'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -29,6 +28,7 @@ const EARNING_CATEGORIES = [
   'overtime',
   'base_net',
   'other_addition',
+  'market_voucher',
 ]
 
 const DEDUCTION_CATEGORIES = [
@@ -39,26 +39,7 @@ const DEDUCTION_CATEGORIES = [
   'partner_agreement',
   'store_agreement',
   'other_discount',
-  'market_voucher',
 ]
-
-const CATEGORY_LABELS: Record<string, string> = {
-  commission: 'Comissão',
-  bonus: 'Bônus',
-  additional: 'Adicional',
-  overtime: 'Hora Extra',
-  base_net: 'Salário Líquido',
-  other_addition: 'Outros Acréscimos',
-  other: 'Outro',
-  pharmacy_discount: 'Farmácia',
-  advance: 'Adiantamento',
-  cash_shortage: 'Furo de Caixa',
-  negative_hours: 'Horas Negativas',
-  partner_agreement: 'Convênio Parceiro',
-  store_agreement: 'Convênio Loja',
-  other_discount: 'Outros Descontos',
-  market_voucher: 'Vale Mercado',
-}
 
 const getEntryType = (category: string): 'provento' | 'desconto' | 'outro' => {
   if (EARNING_CATEGORIES.includes(category)) return 'provento'
@@ -86,6 +67,18 @@ interface Company {
   name: string
 }
 
+interface EmployeeAggregation {
+  employeeId: string
+  employeeName: string
+  employeeRole?: string
+  companyId: string
+  companyName: string
+  proventos: number
+  descontos: number
+  net: number
+  entriesCount: number
+}
+
 export default function MovimentacoesFinanceiras() {
   const { user } = useAuth()
   const { selectedMonth } = usePeriod()
@@ -98,6 +91,7 @@ export default function MovimentacoesFinanceiras() {
   const [isLoading, setIsLoading] = useState(false)
   const [companiesLoading, setCompaniesLoading] = useState(true)
   const [updateTrigger, setUpdateTrigger] = useState(0)
+  const realtimeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const loadCompanies = async () => {
@@ -156,50 +150,74 @@ export default function MovimentacoesFinanceiras() {
     loadEntries()
   }, [loadEntries])
 
-  const realtimeTimeoutRef = useState<ReturnType<typeof setTimeout> | null>(null)[0]
-  const timeoutRef = useMemo(() => ({ current: realtimeTimeoutRef }), [realtimeTimeoutRef])
-
   const triggerRefresh = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    timeoutRef.current = setTimeout(() => {
+    if (realtimeTimeoutRef.current) clearTimeout(realtimeTimeoutRef.current)
+    realtimeTimeoutRef.current = setTimeout(() => {
       setUpdateTrigger((p) => p + 1)
     }, 500)
-  }, [timeoutRef])
+  }, [])
 
   useRealtime('payroll_entries', triggerRefresh)
   useRealtime('companies', triggerRefresh)
   useRealtime('employees', triggerRefresh)
 
-  const filteredEntries = useMemo(() => {
+  const aggregatedData = useMemo(() => {
+    const map = new Map<string, EmployeeAggregation>()
+    entries.forEach((e) => {
+      const empId = e.employee_id
+      if (!empId) return
+      const existing = map.get(empId)
+      const amount = e.amount || 0
+      const type = getEntryType(e.category)
+      const proventoAdd = type === 'provento' ? amount : 0
+      const descontoAdd = type === 'desconto' ? amount : 0
+      if (existing) {
+        existing.proventos += proventoAdd
+        existing.descontos += descontoAdd
+        existing.net = existing.proventos - existing.descontos
+        existing.entriesCount += 1
+      } else {
+        map.set(empId, {
+          employeeId: empId,
+          employeeName: e.expand?.employee_id?.name || 'N/A',
+          employeeRole: e.expand?.employee_id?.role,
+          companyId: e.company_id,
+          companyName: e.expand?.company_id?.name || 'N/A',
+          proventos: proventoAdd,
+          descontos: descontoAdd,
+          net: proventoAdd - descontoAdd,
+          entriesCount: 1,
+        })
+      }
+    })
+    return Array.from(map.values()).sort((a, b) =>
+      a.employeeName.localeCompare(b.employeeName, 'pt-BR'),
+    )
+  }, [entries])
+
+  const filteredData = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return entries
-    return entries.filter((e) => {
-      const empName = e.expand?.employee_id?.name || ''
-      const compName = e.expand?.company_id?.name || ''
-      const catLabel = CATEGORY_LABELS[e.category] || e.category
+    if (!query) return aggregatedData
+    return aggregatedData.filter((e) => {
       return (
-        empName.toLowerCase().includes(query) ||
-        compName.toLowerCase().includes(query) ||
-        catLabel.toLowerCase().includes(query) ||
-        (e.description || '').toLowerCase().includes(query)
+        e.employeeName.toLowerCase().includes(query) || e.companyName.toLowerCase().includes(query)
       )
     })
-  }, [entries, search])
+  }, [aggregatedData, search])
 
   const totals = useMemo(() => {
     let proventos = 0
     let descontos = 0
-    filteredEntries.forEach((e) => {
-      const type = getEntryType(e.category)
-      if (type === 'provento') proventos += e.amount || 0
-      else if (type === 'desconto') descontos += e.amount || 0
+    filteredData.forEach((e) => {
+      proventos += e.proventos
+      descontos += e.descontos
     })
     return {
       proventos,
       descontos,
       net: proventos - descontos,
     }
-  }, [filteredEntries])
+  }, [filteredData])
 
   const toggleCompany = (id: string) => {
     setSelectedCompanyIds((prev) =>
@@ -216,20 +234,25 @@ export default function MovimentacoesFinanceiras() {
   }
 
   const handleExportCSV = () => {
-    if (filteredEntries.length === 0) return
-    const headers = ['Funcionário', 'Empresa', 'Categoria', 'Data', 'Tipo', 'Descrição', 'Valor']
-    const rows = filteredEntries.map((e) => {
-      const type = getEntryType(e.category)
-      const typeLabel =
-        type === 'provento' ? 'Provento' : type === 'desconto' ? 'Desconto' : 'Outro'
+    if (filteredData.length === 0) return
+    const headers = [
+      'Funcionário',
+      'Cargo',
+      'Empresa',
+      'Proventos',
+      'Descontos',
+      'Líquido',
+      'Lançamentos',
+    ]
+    const rows = filteredData.map((e) => {
       return [
-        `"${e.expand?.employee_id?.name || 'N/A'}"`,
-        `"${e.expand?.company_id?.name || 'N/A'}"`,
-        `"${CATEGORY_LABELS[e.category] || e.category}"`,
-        `"${e.entry_date.split(' ')[0]}"`,
-        `"${typeLabel}"`,
-        `"${(e.description || '').replace(/"/g, '""')}"`,
-        `"${(e.amount || 0).toFixed(2).replace('.', ',')}"`,
+        `"${e.employeeName}"`,
+        `"${e.employeeRole || ''}"`,
+        `"${e.companyName}"`,
+        `"${e.proventos.toFixed(2).replace('.', ',')}"`,
+        `"${e.descontos.toFixed(2).replace('.', ',')}"`,
+        `"${e.net.toFixed(2).replace('.', ',')}"`,
+        `"${e.entriesCount}"`,
       ]
     })
     const csv = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n')
@@ -237,7 +260,7 @@ export default function MovimentacoesFinanceiras() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `movimentacoes_financeiras_${selectedMonth}.csv`
+    link.download = `movimentacoes_por_funcionario_${selectedMonth}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -260,7 +283,7 @@ export default function MovimentacoesFinanceiras() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-black">Esfhera Folhas</h1>
             <p className="text-muted-foreground">
-              Movimentações Financeiras — Auditoria de proventos e descontos por empresa e período.
+              Movimentações Financeiras — Consolidado por funcionário, empresa e período.
             </p>
           </div>
         </div>
@@ -339,7 +362,7 @@ export default function MovimentacoesFinanceiras() {
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Funcionário, empresa, categoria..."
+                    placeholder="Funcionário ou empresa..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="flex h-9 w-[260px] rounded-md border border-input bg-background pl-9 pr-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -349,7 +372,7 @@ export default function MovimentacoesFinanceiras() {
             </div>
             <Button
               onClick={handleExportCSV}
-              disabled={filteredEntries.length === 0}
+              disabled={filteredData.length === 0}
               variant="outline"
               className="gap-2"
             >
@@ -405,20 +428,20 @@ export default function MovimentacoesFinanceiras() {
             <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="text-sm text-muted-foreground">Carregando lançamentos...</span>
+                <span className="text-sm text-muted-foreground">Consolidando lançamentos...</span>
               </div>
             </div>
           )}
           {!isLoading && selectedCompanyIds.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex flex-col items-center justify-center py-16 text-center min-h-[400px]">
               <Building2 className="h-12 w-12 text-muted-foreground/40 mb-3" />
               <p className="text-lg font-medium">Selecione ao menos uma empresa</p>
               <p className="text-sm text-muted-foreground mt-1">
                 Use o filtro de empresas acima para visualizar as movimentações financeiras.
               </p>
             </div>
-          ) : !isLoading && filteredEntries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
+          ) : !isLoading && filteredData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center min-h-[400px]">
               <Search className="h-12 w-12 text-muted-foreground/40 mb-3" />
               <p className="text-lg font-medium">Nenhum registro encontrado</p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -427,78 +450,48 @@ export default function MovimentacoesFinanceiras() {
             </div>
           ) : (
             <Table
-              wrapperClassName="max-h-[calc(100vh-440px)] overflow-auto scrollbar-thin"
+              wrapperClassName="max-h-[calc(100vh-300px)] min-h-[600px] overflow-auto scrollbar-thin"
               className="min-w-[900px]"
             >
               <TableHeader className="bg-muted sticky top-0 z-20">
                 <TableRow>
-                  <TableHead className="min-w-[180px]">Funcionário</TableHead>
-                  <TableHead className="min-w-[140px]">Empresa</TableHead>
-                  <TableHead className="min-w-[140px]">Categoria</TableHead>
-                  <TableHead className="min-w-[110px]">Data</TableHead>
-                  <TableHead className="min-w-[120px]">Tipo</TableHead>
-                  <TableHead className="text-right min-w-[130px]">Valor</TableHead>
+                  <TableHead className="min-w-[220px]">Funcionário</TableHead>
+                  <TableHead className="min-w-[160px]">Empresa</TableHead>
+                  <TableHead className="text-right min-w-[150px]">Proventos</TableHead>
+                  <TableHead className="text-right min-w-[150px]">Descontos</TableHead>
+                  <TableHead className="text-right min-w-[160px]">Líquido</TableHead>
+                  <TableHead className="text-right min-w-[100px]">Lançamentos</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEntries.map((entry) => {
-                  const type = getEntryType(entry.category)
-                  const typeLabel =
-                    type === 'provento' ? 'Provento' : type === 'desconto' ? 'Desconto' : 'Outro'
-                  return (
-                    <TableRow key={entry.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        <div>{entry.expand?.employee_id?.name || 'N/A'}</div>
-                        {entry.expand?.employee_id?.role && (
-                          <div className="text-xs text-muted-foreground">
-                            {entry.expand.employee_id.role}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {entry.expand?.company_id?.name || 'N/A'}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {CATEGORY_LABELS[entry.category] || entry.category}
-                        </span>
-                        {entry.description && (
-                          <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                            {entry.description}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {entry.entry_date.split(' ')[0].split('-').reverse().join('/')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'font-medium',
-                            type === 'provento' &&
-                              'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400',
-                            type === 'desconto' &&
-                              'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400',
-                            type === 'outro' && 'border-muted bg-muted/50 text-muted-foreground',
-                          )}
-                        >
-                          {typeLabel}
-                        </Badge>
-                      </TableCell>
-                      <TableCell
-                        className={cn(
-                          'text-right font-semibold',
-                          type === 'provento' && 'text-emerald-600',
-                          type === 'desconto' && 'text-rose-600',
-                        )}
-                      >
-                        {type === 'desconto' ? '−' : type === 'provento' ? '+' : ''}
-                        {formatCurrency(entry.amount || 0)}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
+                {filteredData.map((row) => (
+                  <TableRow key={row.employeeId} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      <div>{row.employeeName}</div>
+                      {row.employeeRole && (
+                        <div className="text-xs text-muted-foreground">{row.employeeRole}</div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{row.companyName}</TableCell>
+                    <TableCell className="text-right font-semibold text-emerald-600">
+                      +{formatCurrency(row.proventos)}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-rose-600">
+                      −{formatCurrency(row.descontos)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right font-bold',
+                        row.net >= 0 ? 'text-emerald-700' : 'text-rose-700',
+                      )}
+                    >
+                      {formatCurrency(row.net)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {row.entriesCount}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
