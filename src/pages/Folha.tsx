@@ -681,329 +681,335 @@ export default function Folha() {
       )}
 
       <Card>
-        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-220px)] relative">
+        <CardContent className="p-0 relative overflow-hidden">
           {isLoading && (
             <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           )}
-          <Table className="min-w-[1100px]">
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="w-[200px] sticky top-0 left-0 z-30 bg-muted shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))]">
-                  Funcionário
-                </TableHead>
-                <TableHead className="text-right sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Salário Líq.
-                </TableHead>
-                <TableHead className="text-right sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Adicional Fix.
-                </TableHead>
-                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Hrs Extras
-                </TableHead>
-                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Val. Extras
-                </TableHead>
-                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Comissões (+)
-                </TableHead>
-                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Bônus (+)
-                </TableHead>
-                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Vale Mercado (+)
-                </TableHead>
-                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Outros Acrésc. (+)
-                </TableHead>
-                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Farmácia (-)
-                </TableHead>
-                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Vales (-)
-                </TableHead>
-                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Furo de Caixa (-)
-                </TableHead>
-                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Horas Neg. (-)
-                </TableHead>
-                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Conv. Parc. (-)
-                </TableHead>
-                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Conv. Loja (-)
-                </TableHead>
-                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
-                  Outros Desc. (-)
-                </TableHead>
-                <TableHead className="text-right font-bold bg-muted sticky top-0 right-0 shadow-[-1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))] z-30">
-                  Líquido
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entries.map((entry) => {
-                const emp = employees.find((e) => e.id === entry.employee_id)
-                if (!emp) return null
-                const overtimeValue = calculateOvertimeValue(
-                  emp.base_salary,
-                  entry.overtime_hours || 0,
-                  emp.company_id,
-                  companies,
-                )
-                const totalAdditions =
-                  (entry.base_net || 0) +
-                  (emp.additional_amount || 0) +
-                  overtimeValue +
-                  entry.commissions +
-                  entry.bonuses +
-                  (entry.market_voucher || 0) +
-                  (entry.other_addition || 0)
-                const totalDeductions =
-                  entry.pharmacy +
-                  entry.advances +
-                  (entry.cash_shortage || 0) +
-                  (entry.negative_hours || 0) +
-                  (entry.partner_agreement || 0) +
-                  (entry.store_agreement || 0) +
-                  (entry.other_discount || 0)
-                const net = totalAdditions - totalDeductions
+          <div className="folha-scroll-container overflow-auto max-h-[calc(100vh-220px)]">
+            <Table className="min-w-[1100px] border-separate border-spacing-0">
+              <TableHeader className="bg-muted">
+                <TableRow>
+                  <TableHead className="w-[200px] sticky top-0 left-0 z-40 bg-muted shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))]">
+                    Funcionário
+                  </TableHead>
+                  <TableHead className="text-right sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Salário Líq.
+                  </TableHead>
+                  <TableHead className="text-right sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Adicional Fix.
+                  </TableHead>
+                  <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Hrs Extras
+                  </TableHead>
+                  <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Val. Extras
+                  </TableHead>
+                  <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Comissões (+)
+                  </TableHead>
+                  <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Bônus (+)
+                  </TableHead>
+                  <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Vale Mercado (+)
+                  </TableHead>
+                  <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Outros Acrésc. (+)
+                  </TableHead>
+                  <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Farmácia (-)
+                  </TableHead>
+                  <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Vales (-)
+                  </TableHead>
+                  <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Furo de Caixa (-)
+                  </TableHead>
+                  <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Horas Neg. (-)
+                  </TableHead>
+                  <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Conv. Parc. (-)
+                  </TableHead>
+                  <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Conv. Loja (-)
+                  </TableHead>
+                  <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                    Outros Desc. (-)
+                  </TableHead>
+                  <TableHead className="text-right font-bold bg-muted sticky top-0 right-0 shadow-[-1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))] z-40">
+                    Líquido
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.map((entry) => {
+                  const emp = employees.find((e) => e.id === entry.employee_id)
+                  if (!emp) return null
+                  const overtimeValue = calculateOvertimeValue(
+                    emp.base_salary,
+                    entry.overtime_hours || 0,
+                    emp.company_id,
+                    companies,
+                  )
+                  const totalAdditions =
+                    (entry.base_net || 0) +
+                    (emp.additional_amount || 0) +
+                    overtimeValue +
+                    entry.commissions +
+                    entry.bonuses +
+                    (entry.market_voucher || 0) +
+                    (entry.other_addition || 0)
+                  const totalDeductions =
+                    entry.pharmacy +
+                    entry.advances +
+                    (entry.cash_shortage || 0) +
+                    (entry.negative_hours || 0) +
+                    (entry.partner_agreement || 0) +
+                    (entry.store_agreement || 0) +
+                    (entry.other_discount || 0)
+                  const net = totalAdditions - totalDeductions
 
-                return (
-                  <TableRow key={entry.employee_id}>
-                    <TableCell
-                      className={cn(
-                        'font-medium sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))] bg-muted',
-                      )}
-                    >
-                      <div>{emp.name}</div>
-                      <div className="text-xs text-muted-foreground">{emp.role}</div>
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="text-right h-8 w-24 ml-auto"
-                        value={entry.base_net || ''}
-                        onChange={(e) => handleInputChange(emp.id, 'base_net', e.target.value)}
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(emp.additional_amount || 0)}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="text"
-                        placeholder="00:00"
-                        className="text-right h-8 w-24 ml-auto"
-                        value={entry.overtime_hours_str || ''}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^\d:]/g, '')
-                          handleInputChange(emp.id, 'overtime_hours_str', val)
-                        }}
-                        onBlur={(e) => {
-                          const val = e.target.value
-                          if (val) {
-                            const formatted = formatTimeOnBlur(val)
-                            handleInputChange(emp.id, 'overtime_hours_str', formatted)
+                  return (
+                    <TableRow key={entry.employee_id}>
+                      <TableCell
+                        className={cn(
+                          'font-medium sticky left-0 z-20 shadow-[1px_0_0_0_hsl(var(--border))] bg-card',
+                        )}
+                      >
+                        <div>{emp.name}</div>
+                        <div className="text-xs text-muted-foreground">{emp.role}</div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="text-right h-8 w-24 ml-auto"
+                          value={entry.base_net || ''}
+                          onChange={(e) => handleInputChange(emp.id, 'base_net', e.target.value)}
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(emp.additional_amount || 0)}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="text"
+                          placeholder="00:00"
+                          className="text-right h-8 w-24 ml-auto"
+                          value={entry.overtime_hours_str || ''}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^\d:]/g, '')
+                            handleInputChange(emp.id, 'overtime_hours_str', val)
+                          }}
+                          onBlur={(e) => {
+                            const val = e.target.value
+                            if (val) {
+                              const formatted = formatTimeOnBlur(val)
+                              handleInputChange(emp.id, 'overtime_hours_str', formatted)
+                            }
+                          }}
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right text-emerald-600">
+                        {formatCurrency(overtimeValue)}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="text-right h-8 w-24 ml-auto"
+                          value={entry.commissions || ''}
+                          onChange={(e) => handleInputChange(emp.id, 'commissions', e.target.value)}
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="text-right h-8 w-24 ml-auto"
+                          value={entry.bonuses || ''}
+                          onChange={(e) => handleInputChange(emp.id, 'bonuses', e.target.value)}
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="text-right h-8 w-24 ml-auto"
+                          value={entry.market_voucher || ''}
+                          onChange={(e) =>
+                            handleInputChange(emp.id, 'market_voucher', e.target.value)
                           }
-                        }}
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right text-emerald-600">
-                      {formatCurrency(overtimeValue)}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="text-right h-8 w-24 ml-auto"
-                        value={entry.commissions || ''}
-                        onChange={(e) => handleInputChange(emp.id, 'commissions', e.target.value)}
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="text-right h-8 w-24 ml-auto"
-                        value={entry.bonuses || ''}
-                        onChange={(e) => handleInputChange(emp.id, 'bonuses', e.target.value)}
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="text-right h-8 w-24 ml-auto"
-                        value={entry.market_voucher || ''}
-                        onChange={(e) =>
-                          handleInputChange(emp.id, 'market_voucher', e.target.value)
-                        }
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <EntryInput
-                        value={entry.other_addition}
-                        onChange={(v) => handleInputChange(emp.id, 'other_addition', v)}
-                        descValue={entry.other_addition_desc}
-                        onDescChange={(v) =>
-                          handleInputChange(emp.id, 'other_addition_desc', v, true)
-                        }
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="text-right h-8 w-24 ml-auto"
-                        value={entry.pharmacy || ''}
-                        onChange={(e) => handleInputChange(emp.id, 'pharmacy', e.target.value)}
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="text-right h-8 w-24 ml-auto"
-                        value={entry.advances || ''}
-                        onChange={(e) => handleInputChange(emp.id, 'advances', e.target.value)}
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <EntryInput
-                        value={entry.cash_shortage}
-                        onChange={(v) => handleInputChange(emp.id, 'cash_shortage', v)}
-                        descValue={entry.cash_shortage_desc}
-                        onDescChange={(v) =>
-                          handleInputChange(emp.id, 'cash_shortage_desc', v, true)
-                        }
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <EntryInput
-                        value={entry.negative_hours}
-                        onChange={(v) => handleInputChange(emp.id, 'negative_hours', v)}
-                        descValue={entry.negative_hours_desc}
-                        onDescChange={(v) =>
-                          handleInputChange(emp.id, 'negative_hours_desc', v, true)
-                        }
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <EntryInput
-                        value={entry.partner_agreement}
-                        onChange={(v) => handleInputChange(emp.id, 'partner_agreement', v)}
-                        descValue={entry.partner_agreement_desc}
-                        onDescChange={(v) =>
-                          handleInputChange(emp.id, 'partner_agreement_desc', v, true)
-                        }
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <EntryInput
-                        value={entry.store_agreement}
-                        onChange={(v) => handleInputChange(emp.id, 'store_agreement', v)}
-                        descValue={entry.store_agreement_desc}
-                        onDescChange={(v) =>
-                          handleInputChange(emp.id, 'store_agreement_desc', v, true)
-                        }
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <EntryInput
-                        value={entry.other_discount}
-                        onChange={(v) => handleInputChange(emp.id, 'other_discount', v)}
-                        descValue={entry.other_discount_desc}
-                        onDescChange={(v) =>
-                          handleInputChange(emp.id, 'other_discount_desc', v, true)
-                        }
-                        disabled={isClosed}
-                      />
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        'text-right font-bold sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))] z-10 bg-muted',
-                      )}
-                    >
-                      {formatCurrency(net)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-            <TableFooter className="bg-muted sticky bottom-0 z-30 shadow-[0_-1px_0_0_hsl(var(--border))]">
-              <TableRow>
-                <TableCell className="sticky left-0 z-40 bg-muted shadow-[1px_0_0_0_hsl(var(--border))] font-bold">
-                  Total
-                </TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.base)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.additional)}</TableCell>
-                <TableCell className="text-right text-emerald-600 font-medium">
-                  {decimalToTime(totals.overtime_hours)}
-                </TableCell>
-                <TableCell className="text-right text-emerald-600 font-medium">
-                  +{formatCurrency(totals.overtime)}
-                </TableCell>
-                <TableCell className="text-right text-emerald-600 font-medium">
-                  +{formatCurrency(totals.commissions)}
-                </TableCell>
-                <TableCell className="text-right text-emerald-600 font-medium">
-                  +{formatCurrency(totals.bonuses)}
-                </TableCell>
-                <TableCell className="text-right text-emerald-600 font-medium">
-                  +{formatCurrency(totals.market_voucher)}
-                </TableCell>
-                <TableCell className="text-right text-emerald-600 font-medium">
-                  +{formatCurrency(totals.other_addition)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.pharmacy)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.advances)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.cash_shortage)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.negative_hours)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.partner_agreement)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.store_agreement)}
-                </TableCell>
-                <TableCell className="text-right text-rose-600 font-medium">
-                  -{formatCurrency(totals.other_discount)}
-                </TableCell>
-                <TableCell className="text-right font-bold text-lg sticky right-0 bg-muted shadow-[-1px_0_0_0_hsl(var(--border))] z-40">
-                  {formatCurrency(totals.net)}
-                </TableCell>
-              </TableRow>
-            </TableFooter>
-          </Table>
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EntryInput
+                          value={entry.other_addition}
+                          onChange={(v) => handleInputChange(emp.id, 'other_addition', v)}
+                          descValue={entry.other_addition_desc}
+                          onDescChange={(v) =>
+                            handleInputChange(emp.id, 'other_addition_desc', v, true)
+                          }
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="text-right h-8 w-24 ml-auto"
+                          value={entry.pharmacy || ''}
+                          onChange={(e) => handleInputChange(emp.id, 'pharmacy', e.target.value)}
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="text-right h-8 w-24 ml-auto"
+                          value={entry.advances || ''}
+                          onChange={(e) => handleInputChange(emp.id, 'advances', e.target.value)}
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EntryInput
+                          value={entry.cash_shortage}
+                          onChange={(v) => handleInputChange(emp.id, 'cash_shortage', v)}
+                          descValue={entry.cash_shortage_desc}
+                          onDescChange={(v) =>
+                            handleInputChange(emp.id, 'cash_shortage_desc', v, true)
+                          }
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EntryInput
+                          value={entry.negative_hours}
+                          onChange={(v) => handleInputChange(emp.id, 'negative_hours', v)}
+                          descValue={entry.negative_hours_desc}
+                          onDescChange={(v) =>
+                            handleInputChange(emp.id, 'negative_hours_desc', v, true)
+                          }
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EntryInput
+                          value={entry.partner_agreement}
+                          onChange={(v) => handleInputChange(emp.id, 'partner_agreement', v)}
+                          descValue={entry.partner_agreement_desc}
+                          onDescChange={(v) =>
+                            handleInputChange(emp.id, 'partner_agreement_desc', v, true)
+                          }
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EntryInput
+                          value={entry.store_agreement}
+                          onChange={(v) => handleInputChange(emp.id, 'store_agreement', v)}
+                          descValue={entry.store_agreement_desc}
+                          onDescChange={(v) =>
+                            handleInputChange(emp.id, 'store_agreement_desc', v, true)
+                          }
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <EntryInput
+                          value={entry.other_discount}
+                          onChange={(v) => handleInputChange(emp.id, 'other_discount', v)}
+                          descValue={entry.other_discount_desc}
+                          onDescChange={(v) =>
+                            handleInputChange(emp.id, 'other_discount_desc', v, true)
+                          }
+                          disabled={isClosed}
+                        />
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          'text-right font-bold sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))] z-20 bg-card',
+                        )}
+                      >
+                        {formatCurrency(net)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+              <TableFooter className="bg-muted sticky bottom-0 z-30 shadow-[0_-1px_0_0_hsl(var(--border))]">
+                <TableRow>
+                  <TableCell className="sticky left-0 z-40 bg-muted shadow-[1px_0_0_0_hsl(var(--border))] font-bold">
+                    Total
+                  </TableCell>
+                  <TableCell className="text-right bg-muted">
+                    {formatCurrency(totals.base)}
+                  </TableCell>
+                  <TableCell className="text-right bg-muted">
+                    {formatCurrency(totals.additional)}
+                  </TableCell>
+                  <TableCell className="text-right text-emerald-600 font-medium bg-muted">
+                    {decimalToTime(totals.overtime_hours)}
+                  </TableCell>
+                  <TableCell className="text-right text-emerald-600 font-medium bg-muted">
+                    +{formatCurrency(totals.overtime)}
+                  </TableCell>
+                  <TableCell className="text-right text-emerald-600 font-medium bg-muted">
+                    +{formatCurrency(totals.commissions)}
+                  </TableCell>
+                  <TableCell className="text-right text-emerald-600 font-medium bg-muted">
+                    +{formatCurrency(totals.bonuses)}
+                  </TableCell>
+                  <TableCell className="text-right text-emerald-600 font-medium bg-muted">
+                    +{formatCurrency(totals.market_voucher)}
+                  </TableCell>
+                  <TableCell className="text-right text-emerald-600 font-medium bg-muted">
+                    +{formatCurrency(totals.other_addition)}
+                  </TableCell>
+                  <TableCell className="text-right text-rose-600 font-medium bg-muted">
+                    -{formatCurrency(totals.pharmacy)}
+                  </TableCell>
+                  <TableCell className="text-right text-rose-600 font-medium bg-muted">
+                    -{formatCurrency(totals.advances)}
+                  </TableCell>
+                  <TableCell className="text-right text-rose-600 font-medium bg-muted">
+                    -{formatCurrency(totals.cash_shortage)}
+                  </TableCell>
+                  <TableCell className="text-right text-rose-600 font-medium bg-muted">
+                    -{formatCurrency(totals.negative_hours)}
+                  </TableCell>
+                  <TableCell className="text-right text-rose-600 font-medium bg-muted">
+                    -{formatCurrency(totals.partner_agreement)}
+                  </TableCell>
+                  <TableCell className="text-right text-rose-600 font-medium bg-muted">
+                    -{formatCurrency(totals.store_agreement)}
+                  </TableCell>
+                  <TableCell className="text-right text-rose-600 font-medium bg-muted">
+                    -{formatCurrency(totals.other_discount)}
+                  </TableCell>
+                  <TableCell className="text-right font-bold text-lg sticky right-0 bg-muted shadow-[-1px_0_0_0_hsl(var(--border))] z-40">
+                    {formatCurrency(totals.net)}
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>
