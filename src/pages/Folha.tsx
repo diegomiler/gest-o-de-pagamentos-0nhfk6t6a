@@ -681,7 +681,7 @@ export default function Folha() {
       )}
 
       <Card>
-        <CardContent className="p-0 overflow-x-auto relative">
+        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-220px)] relative">
           {isLoading && (
             <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -690,25 +690,55 @@ export default function Folha() {
           <Table className="min-w-[1100px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
-                <TableHead className="w-[200px] sticky left-0 z-20 bg-muted shadow-[1px_0_0_0_#e5e7eb]">
+                <TableHead className="w-[200px] sticky top-0 left-0 z-30 bg-muted shadow-[1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))]">
                   Funcionário
                 </TableHead>
-                <TableHead className="text-right">Salário Líq.</TableHead>
-                <TableHead className="text-right">Adicional Fix.</TableHead>
-                <TableHead className="text-right text-emerald-600">Hrs Extras</TableHead>
-                <TableHead className="text-right text-emerald-600">Val. Extras</TableHead>
-                <TableHead className="text-right text-emerald-600">Comissões (+)</TableHead>
-                <TableHead className="text-right text-emerald-600">Bônus (+)</TableHead>
-                <TableHead className="text-right text-emerald-600">Vale Mercado (+)</TableHead>
-                <TableHead className="text-right text-emerald-600">Outros Acrésc. (+)</TableHead>
-                <TableHead className="text-right text-rose-600">Farmácia (-)</TableHead>
-                <TableHead className="text-right text-rose-600">Vales (-)</TableHead>
-                <TableHead className="text-right text-rose-600">Furo de Caixa (-)</TableHead>
-                <TableHead className="text-right text-rose-600">Horas Neg. (-)</TableHead>
-                <TableHead className="text-right text-rose-600">Conv. Parc. (-)</TableHead>
-                <TableHead className="text-right text-rose-600">Conv. Loja (-)</TableHead>
-                <TableHead className="text-right text-rose-600">Outros Desc. (-)</TableHead>
-                <TableHead className="text-right font-bold bg-muted sticky right-0 shadow-[-1px_0_0_0_#e5e7eb] z-20">
+                <TableHead className="text-right sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Salário Líq.
+                </TableHead>
+                <TableHead className="text-right sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Adicional Fix.
+                </TableHead>
+                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Hrs Extras
+                </TableHead>
+                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Val. Extras
+                </TableHead>
+                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Comissões (+)
+                </TableHead>
+                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Bônus (+)
+                </TableHead>
+                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Vale Mercado (+)
+                </TableHead>
+                <TableHead className="text-right text-emerald-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Outros Acrésc. (+)
+                </TableHead>
+                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Farmácia (-)
+                </TableHead>
+                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Vales (-)
+                </TableHead>
+                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Furo de Caixa (-)
+                </TableHead>
+                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Horas Neg. (-)
+                </TableHead>
+                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Conv. Parc. (-)
+                </TableHead>
+                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Conv. Loja (-)
+                </TableHead>
+                <TableHead className="text-right text-rose-600 sticky top-0 z-20 bg-muted shadow-[0_1px_0_0_hsl(var(--border))]">
+                  Outros Desc. (-)
+                </TableHead>
+                <TableHead className="text-right font-bold bg-muted sticky top-0 right-0 shadow-[-1px_0_0_0_hsl(var(--border)),0_1px_0_0_hsl(var(--border))] z-30">
                   Líquido
                 </TableHead>
               </TableRow>
@@ -745,7 +775,7 @@ export default function Folha() {
                   <TableRow key={entry.employee_id}>
                     <TableCell
                       className={cn(
-                        'font-medium sticky left-0 z-10 shadow-[1px_0_0_0_#e5e7eb] bg-muted',
+                        'font-medium sticky left-0 z-10 shadow-[1px_0_0_0_hsl(var(--border))] bg-muted',
                       )}
                     >
                       <div>{emp.name}</div>
@@ -913,7 +943,7 @@ export default function Folha() {
                     </TableCell>
                     <TableCell
                       className={cn(
-                        'text-right font-bold sticky right-0 shadow-[-1px_0_0_0_#e5e7eb] z-10 bg-muted',
+                        'text-right font-bold sticky right-0 shadow-[-1px_0_0_0_hsl(var(--border))] z-10 bg-muted',
                       )}
                     >
                       {formatCurrency(net)}
@@ -922,9 +952,9 @@ export default function Folha() {
                 )
               })}
             </TableBody>
-            <TableFooter className="bg-muted">
+            <TableFooter className="bg-muted sticky bottom-0 z-30 shadow-[0_-1px_0_0_hsl(var(--border))]">
               <TableRow>
-                <TableCell className="sticky left-0 z-20 bg-muted shadow-[1px_0_0_0_#e5e7eb] font-bold">
+                <TableCell className="sticky left-0 z-40 bg-muted shadow-[1px_0_0_0_hsl(var(--border))] font-bold">
                   Total
                 </TableCell>
                 <TableCell className="text-right">{formatCurrency(totals.base)}</TableCell>
@@ -968,7 +998,7 @@ export default function Folha() {
                 <TableCell className="text-right text-rose-600 font-medium">
                   -{formatCurrency(totals.other_discount)}
                 </TableCell>
-                <TableCell className="text-right font-bold text-lg sticky right-0 bg-muted shadow-[-1px_0_0_0_#e5e7eb] z-20">
+                <TableCell className="text-right font-bold text-lg sticky right-0 bg-muted shadow-[-1px_0_0_0_hsl(var(--border))] z-40">
                   {formatCurrency(totals.net)}
                 </TableCell>
               </TableRow>
