@@ -50,6 +50,14 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { usePeriod } from '@/hooks/use-period'
 import { PeriodSelector } from '@/components/PeriodSelector'
@@ -167,6 +175,15 @@ export default function Folha() {
   const [editingAdditionalId, setEditingAdditionalId] = useState<string | null>(null)
   const [additionalInputValue, setAdditionalInputValue] = useState<string>('')
   const [savingAdditional, setSavingAdditional] = useState(false)
+  const [showReasonModal, setShowReasonModal] = useState(false)
+  const [reasonText, setReasonText] = useState('')
+  const [pendingAdditionalSave, setPendingAdditionalSave] = useState<{
+    employeeId: string
+    newValue: number
+    oldValue: number
+    entryId: string
+  } | null>(null)
+  const isSubmittingAdditionalRef = useRef(false)
 
   const loadPeriod = async (companyIdToLoad: string) => {
     if (!companyIdToLoad) return
@@ -462,40 +479,72 @@ export default function Folha() {
     setEditingAdditionalId(employeeId)
   }
 
-  const handleSaveAdditional = async (employeeId: string) => {
+  const handleAdditionalInputSubmit = (employeeId: string) => {
     if (isClosed) {
       setEditingAdditionalId(null)
       return
     }
+    if (isSubmittingAdditionalRef.current) return
+
     const emp = employees.find((e) => e.id === employeeId)
     if (!emp) {
       setEditingAdditionalId(null)
       return
     }
     const entry = entries.find((e) => e.employee_id === employeeId)
-    const numValue = parseInputValue(additionalInputValue)
+    const oldValue = entry?.additional_entry_id
+      ? entry.additional
+      : Number(emp.additional_amount) || 0
+    const newValue = parseInputValue(additionalInputValue)
+
+    if (newValue === oldValue) {
+      setEditingAdditionalId(null)
+      return
+    }
+
+    isSubmittingAdditionalRef.current = true
+    setPendingAdditionalSave({
+      employeeId,
+      newValue,
+      oldValue,
+      entryId: entry?.additional_entry_id || '',
+    })
+    setReasonText('')
+    setShowReasonModal(true)
+  }
+
+  const handleConfirmAdditionalSave = async () => {
+    if (!pendingAdditionalSave) return
+    if (reasonText.trim().length < 5) return
+
+    const { employeeId, newValue, oldValue, entryId } = pendingAdditionalSave
+    const emp = employees.find((e) => e.id === employeeId)
+    if (!emp) return
+
     setSavingAdditional(true)
     try {
       const startDate = `${selectedMonth}-01 00:00:00`
-      const payload = {
-        employee_id: employeeId,
-        company_id: emp.company_id,
-        category: 'additional',
-        amount: numValue,
-        entry_date: startDate,
-        created_by: user?.id,
-        updated_by: user?.id,
-      }
-      if (entry?.additional_entry_id) {
-        await pb.collection('payroll_entries').update(entry.additional_entry_id, payload)
-      } else {
-        await pb.collection('payroll_entries').create(payload)
-      }
+      await pb.send('/backend/v1/payroll/additional', {
+        method: 'POST',
+        body: JSON.stringify({
+          employee_id: employeeId,
+          company_id: emp.company_id,
+          amount: newValue,
+          entry_date: startDate,
+          reason: reasonText.trim(),
+          entry_id: entryId,
+          old_value: oldValue,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      })
       toast({
         title: 'Adicional fixo atualizado',
-        description: `Valor de ${formatCurrency(numValue)} salvo para ${emp.name}.`,
+        description: `Valor de ${formatCurrency(newValue)} salvo para ${emp.name}. Histórico registrado com sucesso.`,
       })
+      setShowReasonModal(false)
       setEditingAdditionalId(null)
+      setPendingAdditionalSave(null)
+      isSubmittingAdditionalRef.current = false
       await loadData()
     } catch (err: any) {
       toast({
@@ -887,11 +936,11 @@ export default function Folha() {
                             className="text-right h-8 w-24"
                             value={additionalInputValue}
                             onChange={(e) => setAdditionalInputValue(e.target.value)}
-                            onBlur={() => handleSaveAdditional(emp.id)}
+                            onBlur={() => handleAdditionalInputSubmit(emp.id)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
                                 e.preventDefault()
-                                handleSaveAdditional(emp.id)
+                                handleAdditionalInputSubmit(emp.id)
                               }
                               if (e.key === 'Escape') setEditingAdditionalId(null)
                             }}
@@ -917,7 +966,7 @@ export default function Folha() {
                               onClick={() => handleEnableFixedAdditional(emp.id)}
                               disabled={isClosed}
                             >
-                              Habilitar Adicional Fixo
+                              Alterar Adicional Fixo
                             </ContextMenuItem>
                           </ContextMenuContent>
                         </ContextMenu>
@@ -1140,6 +1189,71 @@ export default function Folha() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={showReasonModal}
+        onOpenChange={(open) => {
+          setShowReasonModal(open)
+          if (!open && !savingAdditional) {
+            setEditingAdditionalId(null)
+            setPendingAdditionalSave(null)
+            isSubmittingAdditionalRef.current = false
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Justificar Alteração</DialogTitle>
+            <DialogDescription>
+              Você está alterando o valor do Adicional Fixo. Por favor, forneça o motivo dessa
+              alteração (mínimo 5 caracteres). O registro será salvo no histórico de alterações.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            {pendingAdditionalSave && (
+              <div className="flex items-center justify-between gap-4 text-sm bg-muted/50 rounded-md p-3">
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Valor anterior</span>
+                  <span className="font-medium">
+                    {formatCurrency(pendingAdditionalSave.oldValue)}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-xs">Novo valor</span>
+                  <span className="font-medium">
+                    {formatCurrency(pendingAdditionalSave.newValue)}
+                  </span>
+                </div>
+              </div>
+            )}
+            <Textarea
+              placeholder="Motivo da alteração..."
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+              className="min-h-[100px]"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowReasonModal(false)}
+              disabled={savingAdditional}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmAdditionalSave}
+              disabled={reasonText.trim().length < 5 || savingAdditional}
+            >
+              {savingAdditional && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
