@@ -157,7 +157,7 @@ export function FechamentoView() {
       const amount = entry.amount || 0
       sum.categories[entry.category] = (sum.categories[entry.category] || 0) + amount
 
-      if (isProvento(entry.category)) {
+      if (isProvento(entry.category) && entry.category !== 'market_voucher') {
         sum.totalProventos += amount
         proventosGeral += amount
       } else if (isDesconto(entry.category)) {

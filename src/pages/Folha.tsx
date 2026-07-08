@@ -690,11 +690,7 @@ export default function Folha() {
       const additionalValue = entry.additional_entry_id
         ? entry.additional || 0
         : emp.additional_amount || 0
-      const currentAdditions =
-        entry.commissions +
-        entry.bonuses +
-        (entry.market_voucher || 0) +
-        (entry.other_addition || 0)
+      const currentAdditions = entry.commissions + entry.bonuses + (entry.other_addition || 0)
       const currentDeductions =
         entry.pharmacy +
         entry.advances +
@@ -923,7 +919,6 @@ export default function Folha() {
                   overtimeValue +
                   entry.commissions +
                   entry.bonuses +
-                  (entry.market_voucher || 0) +
                   (entry.other_addition || 0)
                 const totalDeductions =
                   entry.pharmacy +

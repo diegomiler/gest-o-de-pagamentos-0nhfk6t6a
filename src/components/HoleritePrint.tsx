@@ -36,7 +36,8 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
   if (bon.amount > 0) earnings.push({ label: 'Premiação', amount: bon.amount })
 
   const mv = getCategoryTotals('market_voucher')
-  if (mv.amount > 0) earnings.push({ label: 'Vale Mercado', amount: mv.amount })
+  if (mv.amount > 0)
+    earnings.push({ label: 'Vale Mercado', amount: mv.amount, excludeFromTotal: true })
 
   const additionalEntries = entries.filter((e) => e.category === 'additional')
   let variableAddAmount = 0
@@ -94,7 +95,10 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
   const othDesc = getCategoryTotals('other_discount')
   if (othDesc.amount > 0) deductions.push({ label: 'Outros Descontos', amount: othDesc.amount })
 
-  const totalEarnings = earnings.reduce((sum, item) => sum + item.amount, 0)
+  const totalEarnings = earnings.reduce(
+    (sum, item) => sum + (item.excludeFromTotal ? 0 : item.amount),
+    0,
+  )
   const totalDeductions = deductions.reduce((sum, item) => sum + item.amount, 0)
   const net = totalEarnings - totalDeductions
 
