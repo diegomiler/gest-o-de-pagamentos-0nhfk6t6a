@@ -69,6 +69,7 @@ export function EmployeeHistory({ employeeId }: { employeeId: string }) {
             <TableHead>Alteração</TableHead>
             <TableHead>Anterior</TableHead>
             <TableHead>Atual</TableHead>
+            <TableHead>Motivo</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -80,6 +81,9 @@ export function EmployeeHistory({ employeeId }: { employeeId: string }) {
               <TableCell>{getTypeLabel(record.change_type)}</TableCell>
               <TableCell>{formatValue(record.change_type, record.old_value)}</TableCell>
               <TableCell>{formatValue(record.change_type, record.new_value)}</TableCell>
+              <TableCell className="max-w-[200px] truncate" title={record.reason}>
+                {record.reason || '-'}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

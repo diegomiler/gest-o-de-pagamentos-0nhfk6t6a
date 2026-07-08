@@ -10,8 +10,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import pb from '@/lib/pocketbase/client'
 import { formatCPF, formatCEP } from '@/lib/format'
+import { useAuth } from '@/hooks/use-auth'
 
 type Props = {
   initialData?: any
@@ -20,7 +30,12 @@ type Props = {
 }
 
 export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
+  const { user } = useAuth()
+  const canEditSalary = user?.role === 'admin' || user?.role === 'manager'
+
   const [companies, setCompanies] = useState<any[]>([])
+  const [showReasonModal, setShowReasonModal] = useState(false)
+  const [reasonText, setReasonText] = useState('')
 
   const [formData, setFormData] = useState<any>(() => {
     const data = {
@@ -69,11 +84,37 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (initialData) {
+      const oldSalary = initialData.base_salary || 0
+      const newSalary = formData.base_salary || 0
+      const oldAdditional = initialData.additional_amount || 0
+      const newAdditional = formData.additional_amount || 0
+
+      const salaryChanged = newSalary !== oldSalary
+      const additionalChanged = newAdditional !== oldAdditional
+
+      if (salaryChanged || additionalChanged) {
+        setShowReasonModal(true)
+        return
+      }
+    }
+
+    submitData()
+  }
+
+  const submitData = (reason?: string) => {
     const dataToSave = {
       ...formData,
       admission_date: formData.admission_date ? `${formData.admission_date} 12:00:00.000Z` : '',
+      change_reason: reason || '',
     }
     onSubmit(dataToSave)
+  }
+
+  const confirmSave = () => {
+    submitData(reasonText)
+    setShowReasonModal(false)
   }
 
   const updateField = (field: string, value: any) => {
@@ -183,6 +224,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
               type="number"
               step="0.01"
               required
+              disabled={!canEditSalary}
               value={formData.base_salary}
               onChange={(e) => updateField('base_salary', parseFloat(e.target.value) || 0)}
             />
@@ -193,6 +235,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
               id="additional_amount"
               type="number"
               step="0.01"
+              disabled={!canEditSalary}
               value={formData.additional_amount}
               onChange={(e) => updateField('additional_amount', parseFloat(e.target.value) || 0)}
             />
@@ -301,6 +344,34 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
           Salvar
         </Button>
       </div>
+
+      <Dialog open={showReasonModal} onOpenChange={setShowReasonModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Motivo da Alteração</DialogTitle>
+            <DialogDescription>
+              Você alterou o salário base ou o valor adicional deste funcionário. Por favor, forneça
+              o motivo para essa alteração (mínimo 5 caracteres).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              placeholder="Motivo da alteração..."
+              value={reasonText}
+              onChange={(e) => setReasonText(e.target.value)}
+              className="min-h-[100px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowReasonModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={confirmSave} disabled={reasonText.trim().length < 5}>
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   )
 }

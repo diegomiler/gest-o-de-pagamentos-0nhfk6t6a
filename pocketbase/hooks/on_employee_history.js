@@ -36,12 +36,22 @@ onRecordAfterUpdateSuccess((e) => {
     })
   }
 
+  const reason = record.getString('change_reason')
+
   for (const change of changes) {
     const historyRecord = new Record(historyCol)
     historyRecord.set('employee_id', record.id)
     historyRecord.set('change_type', change.change_type)
     historyRecord.set('old_value', change.old_value)
     historyRecord.set('new_value', change.new_value)
+
+    if (
+      reason &&
+      (change.change_type === 'base_salary' || change.change_type === 'additional_amount')
+    ) {
+      historyRecord.set('reason', reason)
+    }
+
     $app.save(historyRecord)
   }
 
