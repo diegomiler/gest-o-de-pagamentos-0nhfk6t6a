@@ -496,9 +496,9 @@ export default function Folha() {
     if (!emp) return
     const entry = entries.find((e) => e.employee_id === employeeId)
     const currentValue = entry?.additional_entry_id
-      ? entry.additional
+      ? Number(entry.additional) || 0
       : Number(emp.additional_amount) || 0
-    setAdditionalInputValue(String(currentValue || ''))
+    setAdditionalInputValue(String(currentValue))
     setEditingAdditionalId(employeeId)
   }
 
@@ -516,7 +516,7 @@ export default function Folha() {
     }
     const entry = entries.find((e) => e.employee_id === employeeId)
     const oldValue = entry?.additional_entry_id
-      ? entry.additional
+      ? Number(entry.additional) || 0
       : Number(emp.additional_amount) || 0
     const newValue = parseInputValue(additionalInputValue)
 
@@ -955,13 +955,15 @@ export default function Folha() {
                       {editingAdditionalId === emp.id ? (
                         <div className="flex items-center justify-end gap-1">
                           <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
                             autoFocus
                             className="text-right h-8 w-24"
                             value={additionalInputValue}
-                            onChange={(e) => setAdditionalInputValue(e.target.value)}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^\d.,]/g, '')
+                              setAdditionalInputValue(val)
+                            }}
                             onBlur={() => handleAdditionalInputSubmit(emp.id)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {

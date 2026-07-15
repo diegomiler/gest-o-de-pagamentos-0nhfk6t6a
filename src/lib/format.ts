@@ -24,8 +24,11 @@ export const formatMonthYear = (dateStr: string) => {
   return `${months[parseInt(month) - 1]} / ${year}`
 }
 
-export const parseInputValue = (value: string) => {
-  const parsed = parseFloat(value)
+export const parseInputValue = (value: string | number) => {
+  if (value === null || value === undefined) return 0
+  const str = String(value).trim().replace(',', '.')
+  if (str === '') return 0
+  const parsed = parseFloat(str)
   return isNaN(parsed) ? 0 : parsed
 }
 

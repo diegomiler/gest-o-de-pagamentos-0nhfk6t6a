@@ -13,7 +13,9 @@ routerAdd(
 
     const employeeId = body.employee_id
     const companyId = body.company_id
-    const amount = parseFloat(body.amount)
+    const rawAmount =
+      body.amount === null || body.amount === undefined ? '' : String(body.amount).replace(',', '.')
+    const amount = parseFloat(rawAmount)
     const entryDate = body.entry_date
     const reason = (body.reason || '').trim()
     const entryId = body.entry_id || ''
@@ -25,6 +27,9 @@ routerAdd(
     }
     if (isNaN(amount)) {
       return e.badRequestError('invalid amount')
+    }
+    if (amount < 0) {
+      return e.badRequestError('amount must be >= 0')
     }
     if (reason.length < 5) {
       return e.badRequestError('reason is required (min 5 characters)')
