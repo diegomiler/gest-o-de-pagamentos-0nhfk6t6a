@@ -26,7 +26,18 @@ export function HoleritesView() {
   const [selectedId, setSelectedId] = useState<string>('')
   const [company, setCompany] = useState<any>(null)
 
-  const { entriesByEmployee, loading } = usePayrollData(period)
+  const { payrollEntries, isLoading: loading } = usePayrollData(period)
+
+  const entriesByEmployee = useMemo(() => {
+    const map: Record<string, any[]> = {}
+    if (!Array.isArray(payrollEntries)) return map
+    for (const entry of payrollEntries) {
+      if (!entry || !entry.employee_id) continue
+      if (!map[entry.employee_id]) map[entry.employee_id] = []
+      map[entry.employee_id].push(entry)
+    }
+    return map
+  }, [payrollEntries])
 
   const loadEmployees = async () => {
     if (!user) return
@@ -58,11 +69,11 @@ export function HoleritesView() {
   useRealtime('payroll_entries', () => loadEmployees())
 
   const filtered = useMemo(
-    () => employees.filter((e) => e.name.toLowerCase().includes(search.toLowerCase())),
+    () => employees.filter((e) => e?.name && e.name.toLowerCase().includes(search.toLowerCase())),
     [employees, search],
   )
 
-  const selected = employees.find((e) => e.id === selectedId)
+  const selected = employees.find((e) => e?.id === selectedId)
   const entries = selectedId ? entriesByEmployee[selectedId] || [] : []
 
   const handlePrint = () => window.print()
@@ -137,11 +148,18 @@ export function HoleritesView() {
               Nenhum funcionário encontrado.
             </div>
           )}
+          {loading && employees.length === 0 && (
+            <div className="p-4 text-sm text-muted-foreground text-center">Carregando...</div>
+          )}
         </div>
       </div>
 
       <div className="flex-1 overflow-auto bg-muted/30 rounded-lg p-4 print:p-0 print:bg-white print:overflow-visible print:block">
-        {selected ? (
+        {loading && !selected ? (
+          <div className="h-full flex items-center justify-center text-muted-foreground print:hidden">
+            Carregando...
+          </div>
+        ) : selected ? (
           <HoleritePrint
             employee={selected}
             entries={entries}
@@ -155,7 +173,9 @@ export function HoleritesView() {
           />
         ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground print:hidden">
-            Selecione um funcionário para visualizar o holerite.
+            {selectedId
+              ? 'Funcionário não encontrado.'
+              : 'Selecione um funcionário para visualizar o holerite.'}
           </div>
         )}
       </div>
