@@ -89,8 +89,16 @@ routerAdd(
         }
 
         try {
-          const empRec = txApp.findRecordById('employees', empId)
-          const fixedAdditional = empRec.getFloat('additional_amount') || 0
+          const hasAdjustment = !!entry.additional_entry_id
+          let fixedAdditional = 0
+
+          if (hasAdjustment) {
+            fixedAdditional = Number(entry.additional) || 0
+          } else {
+            const empRec = txApp.findRecordById('employees', empId)
+            fixedAdditional = empRec.getFloat('additional_amount') || 0
+          }
+
           if (fixedAdditional > 0) {
             const r = new Record(txApp.findCollectionByNameOrId('payroll_entries'))
             r.set('employee_id', empId)
