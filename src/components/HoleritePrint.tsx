@@ -108,7 +108,7 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
       : null
 
   return (
-    <div className="bg-white text-black font-mono text-[12px] leading-snug w-full max-w-[80mm] mx-auto p-4 print:p-2 print:m-0 print:w-[80mm] print:max-w-[80mm] border shadow-sm print:shadow-none print:border-none break-inside-avoid">
+    <div className="bg-white text-black font-mono text-[12px] leading-snug w-full max-w-[80mm] mx-auto p-4 print:p-2 print:m-0 print:w-[80mm] print:max-w-[80mm] print:border-none break-inside-avoid">
       {logoUrl && (
         <div className="flex justify-center mb-3">
           <img

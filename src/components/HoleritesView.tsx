@@ -80,7 +80,7 @@ export function HoleritesView() {
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full min-h-0 print:block">
-      <div className="lg:w-80 flex flex-col gap-3 print:hidden">
+      <div className="lg:w-80 flex flex-col gap-3 no-print">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">Holerites</h2>
           <PeriodSelector />
@@ -154,9 +154,9 @@ export function HoleritesView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-muted/30 rounded-lg p-4 print:p-0 print:bg-white print:overflow-visible print:block">
+      <div className="flex-1 overflow-auto bg-muted/30 rounded-lg p-4 printable-area print:p-0 print:bg-white print:overflow-visible print:block">
         {loading && !selected ? (
-          <div className="h-full flex items-center justify-center text-muted-foreground print:hidden">
+          <div className="h-full flex items-center justify-center text-muted-foreground no-print">
             Carregando...
           </div>
         ) : selected && period ? (
@@ -172,7 +172,7 @@ export function HoleritesView() {
             }}
           />
         ) : (
-          <div className="h-full flex items-center justify-center text-muted-foreground print:hidden">
+          <div className="h-full flex items-center justify-center text-muted-foreground no-print">
             {selectedId
               ? 'Funcionário não encontrado.'
               : 'Selecione um funcionário para visualizar o holerite.'}
