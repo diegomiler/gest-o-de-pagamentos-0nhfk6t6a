@@ -1,15 +1,4 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Printer, Search, Info } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { PeriodSelector } from '@/components/PeriodSelector'
-import { HoleritePrint } from '@/components/HoleritePrint'
-import { useAuth } from '@/hooks/use-auth'
-import { usePeriod } from '@/hooks/use-period'
-import { usePayrollData } from '@/hooks/use-payroll-data'
-import { useRealtime } from '@/hooks/use-realtime'
-import pb from '@/lib/pocketbase/client'
-import { formatCurrency } from '@/lib/format'
 import {
   Select,
   SelectContent,
@@ -17,167 +6,254 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { Printer, Check, ChevronsUpDown, X } from 'lucide-react'
+import { HoleritePrint } from '@/components/HoleritePrint'
+import { usePayrollData } from '@/hooks/use-payroll-data'
+import { usePeriod } from '@/hooks/use-period'
+import { PeriodSelector } from '@/components/PeriodSelector'
+import { cn } from '@/lib/utils'
 
 export function HoleritesView() {
-  const { user } = useAuth()
-  const { period } = usePeriod()
-  const [employees, setEmployees] = useState<any[]>([])
-  const [search, setSearch] = useState('')
-  const [selectedId, setSelectedId] = useState<string>('')
-  const [company, setCompany] = useState<any>(null)
-
-  const { payrollEntries, isLoading: loading } = usePayrollData(period)
-
-  const entriesByEmployee = useMemo(() => {
-    const map: Record<string, any[]> = {}
-    if (!Array.isArray(payrollEntries)) return map
-    for (const entry of payrollEntries) {
-      if (!entry || !entry.employee_id) continue
-      if (!map[entry.employee_id]) map[entry.employee_id] = []
-      map[entry.employee_id].push(entry)
-    }
-    return map
-  }, [payrollEntries])
-
-  const loadEmployees = async () => {
-    if (!user) return
-    const filter = user.role === 'admin' ? '' : `company_id = "${user.company_id}"`
-    const list = await pb.collection('employees').getFullList({
-      filter,
-      sort: 'name',
-    })
-    setEmployees(list)
-    if (list.length && !selectedId) setSelectedId(list[0].id)
-  }
-
-  const loadCompany = async () => {
-    if (!user?.company_id) return
-    try {
-      const c = await pb.collection('companies').getOne(user.company_id)
-      setCompany(c)
-    } catch {
-      setCompany(null)
-    }
-  }
+  const { selectedMonth } = usePeriod()
+  const [selectedEmp, setSelectedEmp] = useState('all')
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+  const [openEmp, setOpenEmp] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    loadEmployees()
-    loadCompany()
-  }, [user])
+    if (!openEmp) {
+      setTimeout(() => setSearchQuery(''), 200)
+    }
+  }, [openEmp])
 
-  useRealtime('employees', () => loadEmployees())
-  useRealtime('payroll_entries', () => loadEmployees())
+  const { employees, payrollEntries, companies, userCompany, isLoading } =
+    usePayrollData(selectedMonth)
 
-  const filtered = useMemo(
-    () => employees.filter((e) => e?.name && e.name.toLowerCase().includes(search.toLowerCase())),
-    [employees, search],
-  )
+  useEffect(() => {
+    if (userCompany && !selectedCompanyId) {
+      setSelectedCompanyId(userCompany.id)
+    } else if (companies.length > 0 && !selectedCompanyId && !userCompany) {
+      setSelectedCompanyId(companies[0].id)
+    }
+  }, [userCompany, companies, selectedCompanyId])
 
-  const selected = employees.find((e) => e?.id === selectedId)
-  const entries = selectedId ? entriesByEmployee[selectedId] || [] : []
+  useEffect(() => {
+    setSelectedEmp('all')
+  }, [selectedCompanyId])
 
-  const handlePrint = () => window.print()
+  const activeCompany = useMemo(() => {
+    return companies.find((c) => c.id === selectedCompanyId) || userCompany
+  }, [selectedCompanyId, userCompany, companies])
+
+  const companyEmployees = useMemo(() => {
+    if (!activeCompany) return []
+    return employees.filter((e) => e.company_id === activeCompany.id)
+  }, [employees, activeCompany])
+
+  const printableData = useMemo(() => {
+    if (!activeCompany) return []
+    const grouped = companyEmployees
+      .map((emp) => {
+        const empEntries = payrollEntries.filter((e) => e.employee_id === emp.id)
+        if (empEntries.length === 0) return null
+
+        return {
+          employee: emp,
+          entries: empEntries,
+          month: selectedMonth,
+        }
+      })
+      .filter(Boolean)
+
+    return grouped.filter((data) => selectedEmp === 'all' || data?.employee.id === selectedEmp)
+  }, [selectedMonth, selectedEmp, payrollEntries, companyEmployees, activeCompany])
+
+  const handlePrint = () => {
+    window.print()
+  }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-4 h-full min-h-0 print:block">
-      <div className="lg:w-80 flex flex-col gap-3 no-print">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Holerites</h2>
-          <PeriodSelector />
+    <div className="space-y-6 flex flex-col h-full">
+      <div className="flex flex-col sm:flex-row justify-between gap-4 print-hidden bg-card p-4 rounded-lg border">
+        <div className="flex gap-4 items-end flex-wrap">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Mês/Ano</label>
+            <PeriodSelector />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Empresa</label>
+            <Select
+              value={selectedCompanyId}
+              onValueChange={setSelectedCompanyId}
+              disabled={isLoading && companies.length === 0}
+            >
+              <SelectTrigger className="w-[250px]">
+                <SelectValue placeholder={isLoading ? 'Carregando...' : 'Selecione uma empresa'} />
+              </SelectTrigger>
+              <SelectContent>
+                {companies.length === 0 && !isLoading ? (
+                  <SelectItem value="empty" disabled>
+                    Nenhuma empresa encontrada
+                  </SelectItem>
+                ) : (
+                  companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Funcionário</label>
+            <Popover open={openEmp} onOpenChange={setOpenEmp}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={openEmp}
+                  className="w-[250px] justify-between font-normal bg-background"
+                  disabled={!activeCompany || companyEmployees.length === 0}
+                >
+                  <span className="truncate">
+                    {selectedEmp === 'all'
+                      ? 'Todos os Funcionários'
+                      : companyEmployees.find((e) => e.id === selectedEmp)?.name || 'Selecione...'}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[250px] p-0">
+                <Command
+                  filter={(value, search) => {
+                    const normalizedValue = value
+                      .normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .toLowerCase()
+                    const normalizedSearch = search
+                      .normalize('NFD')
+                      .replace(/[\u0300-\u036f]/g, '')
+                      .toLowerCase()
+                    if (normalizedValue.includes(normalizedSearch)) return 1
+                    return 0
+                  }}
+                >
+                  <div className="relative">
+                    <CommandInput
+                      placeholder="Buscar funcionário..."
+                      value={searchQuery}
+                      onValueChange={setSearchQuery}
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          setSearchQuery('')
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm focus:outline-none focus:ring-1 focus:ring-primary bg-background"
+                        aria-label="Limpar busca"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <CommandList>
+                    <CommandEmpty>Nenhum funcionário encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all Todos os Funcionários"
+                        onSelect={() => {
+                          setSelectedEmp('all')
+                          setOpenEmp(false)
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            selectedEmp === 'all' ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        Todos os Funcionários
+                      </CommandItem>
+                      {companyEmployees.map((e) => (
+                        <CommandItem
+                          key={e.id}
+                          value={`${e.name} ${e.id}`}
+                          onSelect={() => {
+                            setSelectedEmp(e.id)
+                            setOpenEmp(false)
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4',
+                              selectedEmp === e.id ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          {e.name}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
-
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar funcionário..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        <Select value={selectedId} onValueChange={setSelectedId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione um funcionário" />
-          </SelectTrigger>
-          <SelectContent>
-            {filtered.map((e) => (
-              <SelectItem key={e.id} value={e.id}>
-                {e.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 flex gap-2">
-          <Info className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>
-            Selecione um funcionário para visualizar e imprimir o holerite no formato de impressora
-            térmica 80mm.
-          </span>
-        </div>
-
-        <Button onClick={handlePrint} disabled={!selected} className="w-full">
-          <Printer className="mr-2 h-4 w-4" />
-          Imprimir Holerite
-        </Button>
-
-        <div className="flex-1 overflow-auto rounded-md border min-h-0">
-          {filtered.map((e) => {
-            const total = (entriesByEmployee[e.id] || []).reduce(
-              (s, x) => (x.category === 'base_net' || x.category === 'commission' ? s : s),
-              0,
-            )
-            return (
-              <button
-                key={e.id}
-                onClick={() => setSelectedId(e.id)}
-                className={`w-full text-left px-3 py-2 border-b last:border-0 hover:bg-muted/50 transition-colors ${
-                  e.id === selectedId ? 'bg-muted' : ''
-                }`}
-              >
-                <div className="font-medium text-sm">{e.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {e.role || '-'} · {formatCurrency(e.base_salary || 0)}
-                </div>
-              </button>
-            )
-          })}
-          {!loading && filtered.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground text-center">
-              Nenhum funcionário encontrado.
-            </div>
-          )}
-          {loading && employees.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground text-center">Carregando...</div>
-          )}
+        <div className="flex items-end">
+          <Button
+            onClick={handlePrint}
+            disabled={printableData.length === 0 || !activeCompany}
+            className="gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            Imprimir ({printableData.length})
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-muted/30 rounded-lg p-4 printable-area print:p-0 print:bg-white print:overflow-visible print:block">
-        {loading && !selected ? (
-          <div className="h-full flex items-center justify-center text-muted-foreground no-print">
-            Carregando...
-          </div>
-        ) : selected && period ? (
-          <HoleritePrint
-            employee={selected}
-            entries={entries}
-            month={period}
-            company={{
-              id: company?.id,
-              name: company?.name || 'Empresa',
-              tax_id: company?.cnpj || '',
-              logo: company?.logo,
-            }}
-          />
-        ) : (
-          <div className="h-full flex items-center justify-center text-muted-foreground no-print">
-            {selectedId
-              ? 'Funcionário não encontrado.'
-              : 'Selecione um funcionário para visualizar o holerite.'}
+      <div className="flex-1 overflow-auto print:overflow-visible pb-10 relative">
+        {isLoading && (
+          <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex items-start pt-20 justify-center print-hidden">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         )}
+        <div className="flex flex-wrap gap-8 print:block print:w-[80mm] print:m-0 print:p-0">
+          {printableData.length === 0 && !isLoading && (
+            <div className="text-center p-12 bg-card border rounded-lg w-full print-hidden">
+              Nenhum dado encontrado para os filtros selecionados.
+            </div>
+          )}
+
+          {activeCompany &&
+            !isLoading &&
+            printableData.map((data: any) => (
+              <div
+                key={data.employee.id}
+                className="print:page-break-after-always last:print:page-break-after-auto shrink-0"
+              >
+                <HoleritePrint
+                  employee={data.employee}
+                  entries={data.entries}
+                  month={data.month}
+                  company={activeCompany}
+                />
+              </div>
+            ))}
+        </div>
       </div>
     </div>
   )
