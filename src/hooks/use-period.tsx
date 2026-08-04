@@ -2,16 +2,20 @@ import { createContext, useContext, useState, ReactNode } from 'react'
 
 interface PeriodContextType {
   selectedMonth: string
-  setSelectedMonth: (val: string) => void
+  setSelectedMonth: (month: string) => void
+}
+
+const getCurrentMonth = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
 }
 
 const PeriodContext = createContext<PeriodContextType | undefined>(undefined)
 
-export function PeriodProvider({ children }: { children: ReactNode }) {
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const today = new Date()
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-  })
+export const PeriodProvider = ({ children }: { children: ReactNode }) => {
+  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth())
 
   return (
     <PeriodContext.Provider value={{ selectedMonth, setSelectedMonth }}>
@@ -20,10 +24,8 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function usePeriod() {
+export const usePeriod = () => {
   const context = useContext(PeriodContext)
-  if (!context) {
-    throw new Error('usePeriod must be used within a PeriodProvider')
-  }
+  if (!context) throw new Error('usePeriod must be used within a PeriodProvider')
   return context
 }

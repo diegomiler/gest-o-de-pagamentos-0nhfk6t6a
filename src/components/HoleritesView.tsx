@@ -159,7 +159,7 @@ export function HoleritesView() {
           <div className="h-full flex items-center justify-center text-muted-foreground print:hidden">
             Carregando...
           </div>
-        ) : selected ? (
+        ) : selected && period ? (
           <HoleritePrint
             employee={selected}
             entries={entries}

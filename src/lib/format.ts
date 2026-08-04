@@ -5,8 +5,10 @@ export const formatCurrency = (value: number) => {
   }).format(value)
 }
 
-export const formatMonthYear = (dateStr: string) => {
+export const formatMonthYear = (dateStr?: string | null) => {
+  if (!dateStr || typeof dateStr !== 'string') return ''
   const [year, month] = dateStr.split('-')
+  if (!year || !month) return ''
   const months = [
     'Jan',
     'Fev',
