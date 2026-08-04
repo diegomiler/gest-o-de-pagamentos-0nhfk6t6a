@@ -231,7 +231,7 @@ export function HoleritesView() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         )}
-        <div className="flex flex-wrap gap-8 print:block print:w-[80mm] print:m-0 print:p-0">
+        <div className="flex flex-wrap gap-8 print:block print:w-[80mm] print:m-0 print:p-0 printable-area">
           {printableData.length === 0 && !isLoading && (
             <div className="text-center p-12 bg-card border rounded-lg w-full print-hidden">
               Nenhum dado encontrado para os filtros selecionados.
