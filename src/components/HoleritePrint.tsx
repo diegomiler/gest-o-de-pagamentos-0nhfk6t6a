@@ -20,14 +20,8 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
   const baseNetEntry = entries.find((e) => e.category === 'base_net')
   const baseValue = baseNetEntry ? baseNetEntry.amount : 0
 
-  const employeeAdditionalAmount = employee.additional_amount || 0
-
   const earnings = []
   earnings.push({ label: 'Salário Base', amount: baseValue })
-
-  if (employeeAdditionalAmount > 0) {
-    earnings.push({ label: 'Adicional (Fixo)', amount: employeeAdditionalAmount })
-  }
 
   const comm = getCategoryTotals('commission')
   if (comm.amount > 0) earnings.push({ label: 'Comissões', amount: comm.amount })
@@ -39,20 +33,9 @@ export function HoleritePrint({ employee, entries, month, company }: Props) {
   if (mv.amount > 0)
     earnings.push({ label: 'Vale Mercado', amount: mv.amount, excludeFromTotal: true })
 
-  const additionalEntries = entries.filter((e) => e.category === 'additional')
-  let variableAddAmount = 0
-  let fixedOmitted = false
-
-  for (const entry of additionalEntries) {
-    if (!fixedOmitted && entry.amount === employeeAdditionalAmount) {
-      fixedOmitted = true
-    } else {
-      variableAddAmount += entry.amount || 0
-    }
-  }
-
-  if (variableAddAmount > 0) {
-    earnings.push({ label: 'Adicional', amount: variableAddAmount })
+  const addTotals = getCategoryTotals('additional')
+  if (addTotals.amount > 0) {
+    earnings.push({ label: 'Adicional', amount: addTotals.amount })
   }
 
   const over = getCategoryTotals('overtime')
