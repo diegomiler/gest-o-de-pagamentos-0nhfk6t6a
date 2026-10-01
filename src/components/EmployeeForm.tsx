@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { EmployeePhotoCapture } from '@/components/EmployeePhotoCapture'
 import {
   Select,
   SelectContent,
@@ -25,7 +26,7 @@ import { useAuth } from '@/hooks/use-auth'
 
 type Props = {
   initialData?: any
-  onSubmit: (data: any) => void
+  onSubmit: (data: any, photoFile?: File | null | undefined) => void
   onCancel: () => void
 }
 
@@ -36,6 +37,12 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
   const [companies, setCompanies] = useState<any[]>([])
   const [showReasonModal, setShowReasonModal] = useState(false)
   const [reasonText, setReasonText] = useState('')
+  // photoFile: undefined = unchanged, null = removed, File = new photo uploaded
+  const [photoFile, setPhotoFile] = useState<File | null | undefined>(undefined)
+
+  const currentPhotoUrl = initialData?.photo
+    ? pb.files.getURL(initialData, initialData.photo)
+    : null
 
   const [formData, setFormData] = useState<any>(() => {
     const data = {
@@ -109,7 +116,7 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
       admission_date: formData.admission_date ? `${formData.admission_date} 12:00:00.000Z` : '',
       change_reason: reason || '',
     }
-    onSubmit(dataToSave)
+    onSubmit(dataToSave, photoFile)
   }
 
   const confirmSave = () => {
@@ -128,6 +135,17 @@ export function EmployeeForm({ initialData, onSubmit, onCancel }: Props) {
           Nenhuma empresa cadastrada. Vá em Configurações para criar uma empresa primeiro.
         </div>
       )}
+
+      {/* Foto do Funcionário */}
+      <section className="space-y-2">
+        <EmployeePhotoCapture
+          currentPhotoUrl={currentPhotoUrl}
+          employeeName={formData.name}
+          onChange={(newFile) => setPhotoFile(newFile)}
+        />
+      </section>
+
+      <Separator />
 
       {/* Dados Pessoais */}
       <section className="space-y-4">

@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Search, Plus, FilterX } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Select,
   SelectContent,
@@ -87,17 +88,64 @@ export default function Funcionarios() {
     setSearchRole('all')
   }
 
-  const handleSave = async (data: any) => {
+  const handleSave = async (data: any, photoFile?: File | null | undefined) => {
     try {
+      // Cria FormData caso tenha upload/remoção de foto, ou salva objeto limpo
+      let payload: any = data
+
+      if (photoFile !== undefined) {
+        const formData = new FormData()
+        Object.entries(data).forEach(([key, value]) => {
+          // Excluir metadados do PocketBase se houver
+          if (
+            [
+              'id',
+              'created',
+              'updated',
+              'collectionId',
+              'collectionName',
+              'expand',
+              'photo',
+            ].includes(key)
+          ) {
+            return
+          }
+          if (value !== undefined && value !== null) {
+            formData.append(key, String(value))
+          }
+        })
+
+        if (photoFile instanceof File) {
+          formData.append('photo', photoFile)
+        } else if (photoFile === null) {
+          // Limpa foto existente no PocketBase
+          formData.append('photo', '')
+        }
+
+        payload = formData
+      } else {
+        // Objeto JS normal, mas garantindo não reenviar 'photo' ou metadados se for update
+        const cleanData = { ...data }
+        delete cleanData.id
+        delete cleanData.created
+        delete cleanData.updated
+        delete cleanData.collectionId
+        delete cleanData.collectionName
+        delete cleanData.expand
+        payload = cleanData
+      }
+
       if (editingEmployee) {
-        await pb.collection('employees').update(editingEmployee.id, data)
+        await pb.collection('employees').update(editingEmployee.id, payload)
         toast({ title: 'Sucesso', description: 'Funcionário atualizado com sucesso!' })
       } else {
-        await pb.collection('employees').create(data)
+        await pb.collection('employees').create(payload)
         toast({ title: 'Sucesso', description: 'Novo funcionário adicionado.' })
       }
+      await loadData()
       setIsSheetOpen(false)
     } catch (err: any) {
+      console.error('Erro ao salvar funcionário:', err)
       toast({
         title: 'Erro',
         description: 'Verifique os dados informados.',
@@ -206,6 +254,7 @@ export default function Funcionarios() {
           <Table className="min-w-[800px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="whitespace-nowrap w-[70px] text-center">Foto</TableHead>
                 <TableHead className="whitespace-nowrap">Nome</TableHead>
                 <TableHead className="whitespace-nowrap">Cargo / Depto</TableHead>
                 <TableHead className="whitespace-nowrap">Admissão</TableHead>
@@ -217,63 +266,94 @@ export default function Funcionarios() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Carregando funcionários...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Nenhum funcionário encontrado com os filtros atuais.
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((emp) => (
-                  <TableRow
-                    key={emp.id}
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => openEdit(emp)}
-                  >
-                    <TableCell className="font-medium whitespace-nowrap">{emp.name}</TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span>{emp.role || '-'}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {emp.department || '-'}
-                          {emp.expand?.company_id?.name ? ` • ${emp.expand.company_id.name}` : ''}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {emp.admission_date
-                        ? new Date(emp.admission_date).toLocaleDateString('pt-BR')
-                        : '-'}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {formatCurrency(emp.base_salary)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {formatCurrency(emp.additional_amount || 0)}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      <Badge
-                        variant={
-                          emp.status === 'active'
-                            ? 'default'
+                filtered.map((emp) => {
+                  const empInitials = emp.name
+                    ? emp.name
+                        .split(' ')
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((p: string) => p[0].toUpperCase())
+                        .join('')
+                    : 'FN'
+                  const photoUrl = emp.photo ? pb.files.getURL(emp, emp.photo) : undefined
+
+                  return (
+                    <TableRow
+                      key={emp.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => openEdit(emp)}
+                    >
+                      <TableCell className="py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex items-center justify-center cursor-pointer"
+                          onClick={() => openEdit(emp)}
+                        >
+                          <Avatar className="h-10 w-8 rounded-sm border shadow-xs object-cover">
+                            {photoUrl && (
+                              <AvatarImage
+                                src={photoUrl}
+                                alt={emp.name}
+                                className="object-cover h-full w-full"
+                              />
+                            )}
+                            <AvatarFallback className="rounded-sm bg-muted text-xs font-semibold text-muted-foreground">
+                              {empInitials}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">{emp.name}</TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <div className="flex flex-col">
+                          <span>{emp.role || '-'}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {emp.department || '-'}
+                            {emp.expand?.company_id?.name ? ` • ${emp.expand.company_id.name}` : ''}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {emp.admission_date
+                          ? new Date(emp.admission_date).toLocaleDateString('pt-BR')
+                          : '-'}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {formatCurrency(emp.base_salary)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {formatCurrency(emp.additional_amount || 0)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <Badge
+                          variant={
+                            emp.status === 'active'
+                              ? 'default'
+                              : emp.status === 'on_leave'
+                                ? 'secondary'
+                                : 'destructive'
+                          }
+                        >
+                          {emp.status === 'active'
+                            ? 'Ativo'
                             : emp.status === 'on_leave'
-                              ? 'secondary'
-                              : 'destructive'
-                        }
-                      >
-                        {emp.status === 'active'
-                          ? 'Ativo'
-                          : emp.status === 'on_leave'
-                            ? 'Férias'
-                            : 'Desligado'}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
+                              ? 'Férias'
+                              : 'Desligado'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

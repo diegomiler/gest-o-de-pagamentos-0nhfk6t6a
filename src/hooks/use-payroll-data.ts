@@ -87,7 +87,7 @@ export function usePayrollData(selectedMonth: string) {
     if (selectedMonth) loadEntries()
   }, [selectedMonth, updateTrigger])
 
-  const realtimeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const realtimeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const triggerRealtimeRefresh = useCallback(() => {
     if (realtimeTimeoutRef.current) clearTimeout(realtimeTimeoutRef.current)

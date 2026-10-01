@@ -394,7 +394,7 @@ export default function Folha() {
     }
   })
 
-  const realtimeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const realtimeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const triggerRealtimeRefresh = useCallback(() => {
     if (realtimeTimeoutRef.current) clearTimeout(realtimeTimeoutRef.current)
     realtimeTimeoutRef.current = setTimeout(() => {
@@ -402,7 +402,7 @@ export default function Folha() {
     }, 500)
   }, [])
 
-  const periodTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const periodTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const triggerPeriodRefresh = useCallback(() => {
     if (periodTimeoutRef.current) clearTimeout(periodTimeoutRef.current)
     periodTimeoutRef.current = setTimeout(() => {

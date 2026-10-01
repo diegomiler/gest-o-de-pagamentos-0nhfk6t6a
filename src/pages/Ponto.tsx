@@ -135,7 +135,7 @@ function DayRow({
   }
   const [record, setRecord] = useState(() => initialRecord || defaultRecord)
   const { toast } = useToast()
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const recordIdRef = useRef<string | null>(initialRecord?.id || null)
 
   useEffect(() => {

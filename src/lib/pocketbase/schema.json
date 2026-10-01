@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-05T14:01:18.123Z",
+  "generatedAt": "2026-10-01T23:19:49.493Z",
   "collections": [
     {
       "name": "users",
@@ -284,6 +284,12 @@
         {
           "name": "change_reason",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "photo",
+          "type": "file",
           "required": false,
           "system": false
         }

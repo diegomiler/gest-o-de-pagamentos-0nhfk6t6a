@@ -58,8 +58,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 const formSchema = z.object({
   id: z.string().optional(),
   company_id: z.string().min(1, 'Selecione uma empresa'),
-  limit_hours: z.coerce.number().min(0.01, 'Deve ser maior que 0'),
-  percentage: z.coerce.number().min(0, 'Min: 0').max(500, 'Max: 500'),
+  limit_hours: z.number().min(0.01, 'Deve ser maior que 0'),
+  percentage: z.number().min(0, 'Min: 0').max(500, 'Max: 500'),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -76,13 +76,13 @@ export default function RegrasHorasExtras() {
   const [ruleToDelete, setRuleToDelete] = useState<string | null>(null)
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as any,
     mode: 'onChange',
     defaultValues: {
       id: '',
       company_id: '',
-      limit_hours: '' as any,
-      percentage: '' as any,
+      limit_hours: 0,
+      percentage: 0,
     },
   })
 
