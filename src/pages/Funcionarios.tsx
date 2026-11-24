@@ -39,6 +39,7 @@ export default function Funcionarios() {
   const [searchName, setSearchName] = useState('')
   const [searchDepartment, setSearchDepartment] = useState('all')
   const [searchRole, setSearchRole] = useState('all')
+  const [searchStatus, setSearchStatus] = useState('all')
 
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState<any | null>(null)
@@ -75,7 +76,8 @@ export default function Funcionarios() {
     const matchName = !searchName || e.name.toLowerCase().includes(searchName.toLowerCase())
     const matchDept = searchDepartment === 'all' || e.department === searchDepartment
     const matchRole = searchRole === 'all' || e.role === searchRole
-    return matchCompany && matchName && matchDept && matchRole
+    const matchStatus = searchStatus === 'all' || e.status === searchStatus
+    return matchCompany && matchName && matchDept && matchRole && matchStatus
   })
 
   const departments = Array.from(new Set(employees.map((e) => e.department).filter(Boolean))).sort()
@@ -86,6 +88,7 @@ export default function Funcionarios() {
     setSearchName('')
     setSearchDepartment('all')
     setSearchRole('all')
+    setSearchStatus('all')
   }
 
   const handleSave = async (data: any, photoFile?: File | null | undefined) => {
@@ -182,7 +185,7 @@ export default function Funcionarios() {
             <FilterX className="mr-2 h-4 w-4" /> Limpar Filtros
           </Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div className="space-y-1.5">
             <Label className="text-xs">Empresa</Label>
             <Select value={selectedCompany} onValueChange={setSelectedCompany}>
@@ -243,6 +246,21 @@ export default function Funcionarios() {
                     {role}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Situação</Label>
+            <Select value={searchStatus} onValueChange={setSearchStatus}>
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="active">Ativo</SelectItem>
+                <SelectItem value="on_leave">Férias</SelectItem>
+                <SelectItem value="inactive">Desligado</SelectItem>
               </SelectContent>
             </Select>
           </div>
