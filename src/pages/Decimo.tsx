@@ -10,6 +10,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Printer, Save, Search } from 'lucide-react'
 import { useDecimoPayments, DecimoRow, installmentCompetency } from '@/hooks/useDecimoSalary'
 import type { DecimoInstallment } from '@/services/decimo_payments'
@@ -44,11 +51,14 @@ export default function Decimo() {
   const { rows, payments, isLoading, isSaving, updateRow, saveAll } =
     useDecimoPayments(selectedMonth)
 
-  const [employees, setEmployees] = useState<any[]>([])
-  const [company, setCompany] = useState<any>(null)
+  const [allEmployees, setAllEmployees] = useState<any[]>([])
+  const [companies, setCompanies] = useState<any[]>([])
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true)
   const [search, setSearch] = useState('')
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null)
+
+  const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
     const load = async () => {
@@ -62,11 +72,8 @@ export default function Decimo() {
           pb.collection('employees').getFullList({ filter: roleFilter, sort: 'name' }),
           pb.collection('companies').getFullList(),
         ])
-        const myCompany = user?.company_id
-          ? comps.find((c) => c.id === user.company_id) || null
-          : comps[0] || null
-        setEmployees(myCompany ? emps.filter((e) => e.company_id === myCompany.id) : emps)
-        setCompany(myCompany)
+        setAllEmployees(emps)
+        setCompanies(comps)
       } catch (err) {
         console.error('Erro ao carregar funcionários:', err)
       } finally {
@@ -75,6 +82,31 @@ export default function Decimo() {
     }
     load()
   }, [user])
+
+  // Empresa exibida: admin escolhe qualquer uma; demais usuários ficam na própria empresa.
+  useEffect(() => {
+    if (companies.length === 0) return
+    const preferred = user?.company_id || ''
+    if (!isAdmin && preferred) {
+      setSelectedCompanyId(preferred)
+      return
+    }
+    setSelectedCompanyId((prev) => {
+      if (companies.some((c) => c.id === prev)) return prev
+      if (companies.some((c) => c.id === preferred)) return preferred
+      return companies[0].id
+    })
+  }, [companies, user, isAdmin])
+
+  const company = useMemo(
+    () => companies.find((c) => c.id === selectedCompanyId) || null,
+    [companies, selectedCompanyId],
+  )
+
+  const employees = useMemo(
+    () => (company ? allEmployees.filter((e) => e.company_id === company.id) : []),
+    [allEmployees, company],
+  )
 
   const year = parseInt(selectedMonth?.split('-')[0] || String(new Date().getFullYear()), 10)
   const compFirst = installmentCompetency(year, 'first')
@@ -118,8 +150,8 @@ export default function Decimo() {
     () =>
       PARCELS.reduce(
         (acc, parcel) => {
-          acc[parcel.installment] = Object.values(rows[parcel.installment] || {}).reduce(
-            (sum, row) => sum + rowTotal(row),
+          acc[parcel.installment] = employees.reduce(
+            (sum, emp) => sum + rowTotal(rows[parcel.installment]?.[emp.id]),
             0,
           )
           return acc
@@ -127,7 +159,7 @@ export default function Decimo() {
         { first: 0, second: 0 } as Record<DecimoInstallment, number>,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows],
+    [rows, employees],
   )
 
   // Recibos a imprimir: uma parcela (todos ou um funcionário). Só entram funcionários com lançamento nela.
@@ -150,7 +182,7 @@ export default function Decimo() {
 
   const handleSave = async () => {
     try {
-      await saveAll(employees)
+      await saveAll(allEmployees)
       toast({ title: 'Sucesso', description: '13º salário salvo com sucesso.' })
     } catch {
       toast({
@@ -230,6 +262,33 @@ export default function Decimo() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {isAdmin ? (
+            <div className="space-y-1">
+              <label htmlFor="decimo-empresa" className="text-sm font-medium">
+                Empresa
+              </label>
+              <Select
+                value={selectedCompanyId}
+                onValueChange={setSelectedCompanyId}
+                disabled={companies.length === 0}
+              >
+                <SelectTrigger id="decimo-empresa" className="w-[250px]">
+                  <SelectValue placeholder="Selecione uma empresa" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Empresa: <span className="font-medium text-foreground">{company?.name || '—'}</span>
+            </p>
+          )}
           <PeriodSelector />
           <Button onClick={handleSave} disabled={isSaving || isLoading || isLoadingEmployees}>
             <Save className="h-4 w-4 mr-2" />
