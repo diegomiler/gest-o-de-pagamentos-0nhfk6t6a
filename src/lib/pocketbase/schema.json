@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T15:03:05.118Z",
+  "generatedAt": "2026-11-24T15:25:45.472Z",
   "collections": [
     {
       "name": "users",
@@ -717,6 +717,110 @@
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_payroll_periods_unique ON payroll_periods (company_id, month, year)"
+      ]
+    },
+    {
+      "name": "decimo_payments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'admin' || company_id = @request.auth.company_id)",
+        "delete": "@request.auth.id != '' && (@request.auth.role = 'admin' || (company_id = @request.auth.company_id && @request.auth.role != 'editor'))"
+      },
+      "fields": [
+        {
+          "name": "employee_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "employees"
+        },
+        {
+          "name": "company_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "companies"
+        },
+        {
+          "name": "installment",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["first", "second"]
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "additional",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "other",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "other_desc",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payment_date",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "updated_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "competency_month",
+          "type": "text",
+          "required": true,
+          "system": false
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_decimo_payments_lookup ON decimo_payments (company_id, payment_date)",
+        "CREATE INDEX idx_decimo_payments_employee ON decimo_payments (employee_id, installment)",
+        "CREATE INDEX idx_decimo_payments_lookup2 ON decimo_payments (company_id, competency_month)",
+        "CREATE UNIQUE INDEX idx_decimo_payments_unique ON decimo_payments (employee_id, installment, competency_month)"
       ]
     }
   ]
