@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Printer, Save } from 'lucide-react'
+import { Printer, Save, Search } from 'lucide-react'
 import { useDecimoPayments, DecimoRow, installmentCompetency } from '@/hooks/useDecimoSalary'
 import type { DecimoInstallment } from '@/services/decimo_payments'
 import { useAuth } from '@/hooks/use-auth'
@@ -25,6 +25,12 @@ const PARCELS: { installment: DecimoInstallment; label: string }[] = [
   { installment: 'first', label: '1ª Parcela' },
   { installment: 'second', label: '2ª Parcela' },
 ]
+
+/** Alvo de impressão: uma parcela inteira (todos) ou um funcionário numa parcela. */
+interface PrintTarget {
+  installment: DecimoInstallment
+  employeeId: string | null
+}
 
 const parseNum = (v: string) => {
   const n = parseFloat(String(v).replace(',', '.'))
@@ -41,6 +47,8 @@ export default function Decimo() {
   const [employees, setEmployees] = useState<any[]>([])
   const [company, setCompany] = useState<any>(null)
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true)
+  const [search, setSearch] = useState('')
+  const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -72,18 +80,34 @@ export default function Decimo() {
   const compFirst = installmentCompetency(year, 'first')
   const compSecond = installmentCompetency(year, 'second')
 
-  const receiptPaymentsFor = (employeeId: string) =>
-    payments.filter(
+  /** Lançamentos de UMA parcela de um funcionário (competência da própria parcela). */
+  const receiptPaymentsFor = (employeeId: string, installment: DecimoInstallment) => {
+    const comp = installmentCompetency(year, installment)
+    return payments.filter(
       (p) =>
+        p &&
         p.employee_id === employeeId &&
-        (p.competency_month === compFirst || p.competency_month === compSecond),
+        p.installment === installment &&
+        p.competency_month === comp,
     )
+  }
 
-  const employeesWithReceipt = useMemo(
-    () => employees.filter((emp) => receiptPaymentsFor(emp.id).length > 0),
+  const hasReceipt = (employeeId: string, installment: DecimoInstallment) =>
+    receiptPaymentsFor(employeeId, installment).length > 0
+
+  const countWithReceipt = (installment: DecimoInstallment) =>
+    employees.filter((emp) => hasReceipt(emp.id, installment)).length
+
+  const filteredEmployees = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return employees
+    return employees.filter((emp) =>
+      String(emp?.name || '')
+        .toLowerCase()
+        .includes(q),
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [employees, payments, compFirst, compSecond],
-  )
+  }, [employees, search])
 
   const rowTotal = (row: DecimoRow | undefined) => {
     if (!row) return 0
@@ -106,6 +130,24 @@ export default function Decimo() {
     [rows],
   )
 
+  // Recibos a imprimir: uma parcela (todos ou um funcionário). Só entram funcionários com lançamento nela.
+  const printList = printTarget
+    ? (printTarget.employeeId
+        ? employees.filter((e) => e.id === printTarget.employeeId)
+        : employees
+      ).filter((e) => hasReceipt(e.id, printTarget.installment))
+    : []
+
+  // Dispara a impressão depois que a área de recibos foi renderizada e limpa o alvo.
+  useEffect(() => {
+    if (!printTarget) return
+    const t = setTimeout(() => {
+      window.print()
+      setPrintTarget(null)
+    }, 50)
+    return () => clearTimeout(t)
+  }, [printTarget])
+
   const handleSave = async () => {
     try {
       await saveAll(employees)
@@ -117,10 +159,6 @@ export default function Decimo() {
         description: 'Falha ao salvar o 13º salário.',
       })
     }
-  }
-
-  const handlePrint = () => {
-    window.print()
   }
 
   const parcelCells = (installment: DecimoInstallment, emp: any) => {
@@ -165,6 +203,18 @@ export default function Decimo() {
             onChange={(e) => updateRow(installment, emp.id, 'payment_date', e.target.value)}
           />
         </TableCell>
+        <TableCell className="p-1 text-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Imprimir recibo da parcela de ${emp.name || ''}`}
+            title="Imprimir recibo desta parcela"
+            disabled={!hasReceipt(emp.id, installment)}
+            onClick={() => setPrintTarget({ installment, employeeId: emp.id })}
+          >
+            <Printer className="h-4 w-4" />
+          </Button>
+        </TableCell>
       </>
     )
   }
@@ -185,15 +235,29 @@ export default function Decimo() {
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? 'Salvando...' : 'Salvar 13º'}
           </Button>
-          <Button
-            variant="outline"
-            onClick={handlePrint}
-            disabled={employeesWithReceipt.length === 0}
-          >
-            <Printer className="h-4 w-4 mr-2" />
-            Imprimir Recibo do 13º ({employeesWithReceipt.length})
-          </Button>
+          {PARCELS.map((p) => (
+            <Button
+              key={`print-${p.installment}`}
+              variant="outline"
+              onClick={() => setPrintTarget({ installment: p.installment, employeeId: null })}
+              disabled={countWithReceipt(p.installment) === 0}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Recibos da {p.label} ({countWithReceipt(p.installment)})
+            </Button>
+          ))}
         </div>
+      </div>
+
+      <div className="relative max-w-sm print-hidden">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          className="pl-9"
+          placeholder="Buscar funcionário pelo nome..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="Buscar funcionário pelo nome"
+        />
       </div>
 
       {(isLoading || isLoadingEmployees) && (
@@ -212,10 +276,10 @@ export default function Decimo() {
                 <TableHead className="sticky left-0 bg-card z-10 min-w-[160px]">
                   Funcionário
                 </TableHead>
-                <TableHead colSpan={5} className="text-center border-l font-semibold">
+                <TableHead colSpan={6} className="text-center border-l font-semibold">
                   1ª Parcela — Novembro
                 </TableHead>
-                <TableHead colSpan={5} className="text-center border-l font-semibold">
+                <TableHead colSpan={6} className="text-center border-l font-semibold">
                   2ª Parcela — Dezembro
                 </TableHead>
               </TableRow>
@@ -228,6 +292,7 @@ export default function Decimo() {
                     <TableHead className="w-[90px]">Outros (R$)</TableHead>
                     <TableHead className="w-[140px]">Histórico</TableHead>
                     <TableHead className="w-[130px]">Data de pagamento</TableHead>
+                    <TableHead className="w-[70px] text-center">Recibo</TableHead>
                   </Fragment>
                 ))}
               </TableRow>
@@ -236,13 +301,13 @@ export default function Decimo() {
               <TableRow className="bg-muted/40">
                 <TableCell className="sticky left-0 bg-card z-10 font-semibold">Total</TableCell>
                 {PARCELS.map((p) => (
-                  <TableCell key={`t-${p.installment}`} colSpan={5} className="border-l">
+                  <TableCell key={`t-${p.installment}`} colSpan={6} className="border-l">
                     <span className="text-xs text-muted-foreground">Total {p.label}: </span>
                     <span className="font-semibold">{formatCurrency(totals[p.installment])}</span>
                   </TableCell>
                 ))}
               </TableRow>
-              {employees.map((emp) => (
+              {filteredEmployees.map((emp) => (
                 <TableRow key={emp.id}>
                   <TableCell className="sticky left-0 bg-card z-10 font-medium">
                     {emp.name}
@@ -256,8 +321,15 @@ export default function Decimo() {
               ))}
               {employees.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                     Nenhum funcionário encontrado para esta empresa.
+                  </TableCell>
+                </TableRow>
+              )}
+              {employees.length > 0 && filteredEmployees.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                    Nenhum funcionário encontrado para "{search}".
                   </TableCell>
                 </TableRow>
               )}
@@ -266,10 +338,11 @@ export default function Decimo() {
         </div>
       )}
 
-      {/* Área de impressão: recibos do 13º em bobina 80mm, um por funcionário com lançamento */}
+      {/* Área de impressão: um recibo por funcionário, de UMA parcela, em bobina 80mm. Só montada ao imprimir. */}
       <div className="printable-area hidden print:block">
         {company &&
-          employeesWithReceipt.map((emp) => (
+          printTarget &&
+          printList.map((emp) => (
             <div
               key={emp.id}
               className="print:page-break-after-always last:print:page-break-after-auto"
@@ -277,8 +350,9 @@ export default function Decimo() {
               <DecimoReceiptPrint
                 employee={emp}
                 company={company}
-                payments={receiptPaymentsFor(emp.id)}
+                payments={receiptPaymentsFor(emp.id, printTarget.installment)}
                 year={year}
+                installment={printTarget.installment}
               />
             </div>
           ))}

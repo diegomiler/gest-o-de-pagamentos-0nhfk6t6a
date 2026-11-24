@@ -1,24 +1,37 @@
+import { Fragment } from 'react'
 import { formatCurrency, formatDateBR, formatCNPJ, parcelLabel } from '@/lib/format'
-import type { DecimoPayment } from '@/services/decimo_payments'
+import type { DecimoInstallment, DecimoPayment } from '@/services/decimo_payments'
 
 interface DecimoReceiptPrintProps {
   employee: { name: string; role?: string }
   company: { name: string; cnpj?: string }
   payments: DecimoPayment[]
   year: number
+  /** Parcela impressa neste recibo: 1ª ou 2ª, cada uma em recibo próprio. */
+  installment: DecimoInstallment
 }
 
-export function DecimoReceiptPrint({ employee, company, payments, year }: DecimoReceiptPrintProps) {
-  const sorted = [...payments].sort(
-    (a, b) => (a.installment === 'first' ? 0 : 1) - (b.installment === 'first' ? 0 : 1),
-  )
+const COMPETENCY_NAME: Record<DecimoInstallment, string> = {
+  first: 'novembro',
+  second: 'dezembro',
+}
+
+export function DecimoReceiptPrint({
+  employee,
+  company,
+  payments,
+  year,
+  installment,
+}: DecimoReceiptPrintProps) {
+  const label = parcelLabel(installment)
+  const sorted = (payments || []).filter((p) => p && p.installment === installment)
   const total = sorted.reduce(
     (sum, p) => sum + (p.amount || 0) + (p.additional || 0) + (p.other || 0),
     0,
   )
-  const lastPaymentDate =
+  const paymentDate =
     sorted
-      .map((p) => p.payment_date)
+      .map((p) => p.payment_date || '')
       .filter(Boolean)
       .sort()
       .pop() || ''
@@ -27,6 +40,7 @@ export function DecimoReceiptPrint({ employee, company, payments, year }: Decimo
     <div className="receipt-80mm">
       <div className="text-center">
         <p className="font-bold text-[11px] uppercase">Recibo de 13º Salário</p>
+        <p className="text-[10px] font-semibold mt-1">{label}</p>
         <p className="text-[10px] mt-1">{company?.name || '—'}</p>
         {company?.cnpj && <p className="text-[9px]">CNPJ: {formatCNPJ(company.cnpj)}</p>}
       </div>
@@ -34,9 +48,10 @@ export function DecimoReceiptPrint({ employee, company, payments, year }: Decimo
       <div className="my-1 border-t border-dashed border-black/60" />
 
       <p className="text-[10px]">
-        Recebi de <strong>{company?.name || '—'}</strong> o pagamento do 13º salário
-        {employee?.role ? ` — ${employee.role}` : ''}, referente ao exercício {year}, no valor total
-        de <strong>{formatCurrency(total)}</strong>, conforme discriminação abaixo:
+        Recebi de <strong>{company?.name || '—'}</strong> o pagamento da {label.toLowerCase()} do
+        13º salário
+        {employee?.role ? ` — ${employee.role}` : ''}, referente ao exercício {year}, no valor de{' '}
+        <strong>{formatCurrency(total)}</strong>, conforme discriminação abaixo:
       </p>
 
       <div className="my-1 border-t border-dashed border-black/60" />
@@ -56,33 +71,30 @@ export function DecimoReceiptPrint({ employee, company, payments, year }: Decimo
               </td>
             </tr>
           )}
-          {sorted.map((p) => {
-            const label = parcelLabel(p.installment as 'first' | 'second')
-            return (
-              <>
-                {(p.amount || 0) !== 0 && (
-                  <tr key={`${p.id}-a`}>
-                    <td className="py-0.5">{label}</td>
-                    <td className="text-right py-0.5">{formatCurrency(p.amount || 0)}</td>
-                  </tr>
-                )}
-                {(p.additional || 0) !== 0 && (
-                  <tr key={`${p.id}-b`}>
-                    <td className="py-0.5">{label} — Adicional</td>
-                    <td className="text-right py-0.5">{formatCurrency(p.additional || 0)}</td>
-                  </tr>
-                )}
-                {(p.other || 0) !== 0 && (
-                  <tr key={`${p.id}-c`}>
-                    <td className="py-0.5">
-                      {label} — Outros{p.other_desc ? ` (${p.other_desc})` : ''}
-                    </td>
-                    <td className="text-right py-0.5">{formatCurrency(p.other || 0)}</td>
-                  </tr>
-                )}
-              </>
-            )
-          })}
+          {sorted.map((p) => (
+            <Fragment key={p.id}>
+              {(p.amount || 0) !== 0 && (
+                <tr>
+                  <td className="py-0.5">{label} — 13º</td>
+                  <td className="text-right py-0.5">{formatCurrency(p.amount || 0)}</td>
+                </tr>
+              )}
+              {(p.additional || 0) !== 0 && (
+                <tr>
+                  <td className="py-0.5">{label} — Adicional</td>
+                  <td className="text-right py-0.5">{formatCurrency(p.additional || 0)}</td>
+                </tr>
+              )}
+              {(p.other || 0) !== 0 && (
+                <tr>
+                  <td className="py-0.5">
+                    {label} — Outros{p.other_desc ? ` (${p.other_desc})` : ''}
+                  </td>
+                  <td className="text-right py-0.5">{formatCurrency(p.other || 0)}</td>
+                </tr>
+              )}
+            </Fragment>
+          ))}
         </tbody>
         <tfoot>
           <tr className="border-t border-black/60">
@@ -95,10 +107,10 @@ export function DecimoReceiptPrint({ employee, company, payments, year }: Decimo
       <div className="my-1 border-t border-dashed border-black/60" />
 
       <p className="text-[10px]">
-        Data de pagamento: <strong>{formatDateBR(lastPaymentDate)}</strong>
+        Data de pagamento: <strong>{formatDateBR(paymentDate)}</strong>
       </p>
       <p className="text-[9px] text-muted-foreground print:text-black">
-        Competências: novembro/{year} (1ª parcela) e dezembro/{year} (2ª parcela).
+        Competência: {COMPETENCY_NAME[installment]}/{year} ({label})
       </p>
 
       <div className="mt-8 text-center">
