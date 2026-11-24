@@ -68,9 +68,9 @@ export default function Decimo() {
     load()
   }, [user])
 
-  const year = selectedMonth?.split('-')[0] || String(new Date().getFullYear())
-  const compFirst = installmentCompetency(selectedMonth, 'first')
-  const compSecond = installmentCompetency(selectedMonth, 'second')
+  const year = parseInt(selectedMonth?.split('-')[0] || String(new Date().getFullYear()), 10)
+  const compFirst = installmentCompetency(year, 'first')
+  const compSecond = installmentCompetency(year, 'second')
 
   const receiptPaymentsFor = (employeeId: string) =>
     payments.filter(

@@ -7,10 +7,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Download, Printer } from 'lucide-react'
-import { formatCurrency, formatCNPJ, formatMonthYear } from '@/lib/format'
+import { Download, Printer, Gift } from 'lucide-react'
+import {
+  formatCurrency,
+  formatCNPJ,
+  formatDateBR,
+  formatMonthYear,
+  parcelLabel,
+} from '@/lib/format'
 import { usePeriod } from '@/hooks/use-period'
 import { PeriodSelector } from '@/components/PeriodSelector'
+import { fetchDecimoPaymentsByPaymentDate, DecimoPayment } from '@/services/decimo_payments'
+import { cn } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -66,6 +74,14 @@ const CAT_LABELS: Record<string, string> = {
 const isProvento = (cat: string) => ALL_PROVENTOS.includes(cat)
 const isDesconto = (cat: string) => ALL_DESCONTOS.includes(cat)
 
+type TypeFilter = 'both' | 'folha' | 'decimo'
+
+const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
+  { value: 'both', label: 'Ambos' },
+  { value: 'folha', label: 'Só Folha' },
+  { value: 'decimo', label: 'Só 13º' },
+]
+
 export function FechamentoView() {
   const { selectedMonth } = usePeriod()
   const { user } = useAuth()
@@ -74,6 +90,8 @@ export function FechamentoView() {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
 
   const [entries, setEntries] = useState<any[]>([])
+  const [decimoPayments, setDecimoPayments] = useState<DecimoPayment[]>([])
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('both')
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -97,6 +115,7 @@ export function FechamentoView() {
   const loadEntries = useCallback(async () => {
     if (!selectedCompanyId || !selectedMonth) {
       setEntries([])
+      setDecimoPayments([])
       return
     }
 
@@ -108,12 +127,33 @@ export function FechamentoView() {
       const endDate = `${selectedMonth}-${lastDay} 23:59:59`
       const filter = `company_id = '${selectedCompanyId}' && entry_date >= '${startDate}' && entry_date <= '${endDate}'`
 
-      const data = await pb.collection('payroll_entries').getFullList({
-        filter,
-        expand: 'employee_id',
-        sort: '-entry_date',
-      })
-      setEntries(data)
+      const jobs: Promise<void>[] = []
+
+      // Folha mensal (payroll_entries) — não carrega quando o filtro é "Só 13º"
+      if (typeFilter !== 'decimo') {
+        jobs.push(
+          pb
+            .collection('payroll_entries')
+            .getFullList({ filter, expand: 'employee_id', sort: '-entry_date' })
+            .then((data) => setEntries(data)),
+        )
+      } else {
+        setEntries([])
+      }
+
+      // 13º salário (decimo_payments) por DATA DE PAGAMENTO — coleção separada,
+      // nunca somada aos totais da folha do mês
+      if (typeFilter !== 'folha') {
+        jobs.push(
+          fetchDecimoPaymentsByPaymentDate([selectedCompanyId], selectedMonth).then((data) =>
+            setDecimoPayments(data),
+          ),
+        )
+      } else {
+        setDecimoPayments([])
+      }
+
+      await Promise.all(jobs)
     } catch (error: any) {
       if (!error?.isAbort) {
         toast.error(getErrorMessage(error))
@@ -125,7 +165,7 @@ export function FechamentoView() {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedCompanyId, selectedMonth])
+  }, [selectedCompanyId, selectedMonth, typeFilter])
 
   useEffect(() => {
     loadEntries()
@@ -180,10 +220,54 @@ export function FechamentoView() {
 
   const { list: summariesList, totalProventos, totalDescontos, netTotal } = employeeSummaries
 
+  // 13º salário: resumo por funcionário, em grupo SEPARADO da folha do mês
+  const decimoSummaries = useMemo(() => {
+    const summaries: Record<string, any> = {}
+    let total = 0
+
+    decimoPayments.forEach((p) => {
+      const empId = p.employee_id
+      if (!summaries[empId]) {
+        summaries[empId] = {
+          employeeId: empId,
+          employeeName: p.expand?.employee_id?.name || 'N/A',
+          parcels: {} as Record<string, any>,
+          total: 0,
+        }
+      }
+      const sum = summaries[empId]
+      const parcelTotal = (p.amount || 0) + (p.additional || 0) + (p.other || 0)
+      sum.parcels[p.installment] = {
+        amount: p.amount || 0,
+        additional: p.additional || 0,
+        other: p.other || 0,
+        otherDesc: p.other_desc || '',
+        paymentDate: p.payment_date,
+      }
+      sum.total += parcelTotal
+      total += parcelTotal
+    })
+
+    return {
+      list: Object.values(summaries).sort((a, b) => a.employeeName.localeCompare(b.employeeName)),
+      total,
+    }
+  }, [decimoPayments])
+
+  const decimoTotal = decimoSummaries.total
+  const hasRows = typeFilter !== 'decimo' && summariesList.length > 0
+  const hasDecimoRows = typeFilter !== 'folha' && decimoSummaries.list.length > 0
+  const grandNet =
+    typeFilter === 'folha'
+      ? netTotal
+      : typeFilter === 'decimo'
+        ? decimoTotal
+        : netTotal + decimoTotal
+
   const handlePrint = () => window.print()
 
   const handleExportCSV = () => {
-    if (!activeCompany || summariesList.length === 0) return
+    if (!activeCompany || (!hasRows && !hasDecimoRows)) return
 
     const provHeaders = ALL_PROVENTOS.map((c) => CAT_LABELS[c] || c)
     const descHeaders = ALL_DESCONTOS.map((c) => CAT_LABELS[c] || c)
@@ -194,19 +278,37 @@ export function FechamentoView() {
       'Total Proventos',
       ...descHeaders,
       'Total Descontos',
+      '13º Salário',
       'Líquido Total',
     ]
 
-    const rows = summariesList.map((sum) => {
-      return [
-        `"${sum.employeeName}"`,
-        ...ALL_PROVENTOS.map((c) => `"${(sum.categories[c] || 0).toFixed(2).replace('.', ',')}"`),
-        `"${sum.totalProventos.toFixed(2).replace('.', ',')}"`,
-        ...ALL_DESCONTOS.map((c) => `"${(sum.categories[c] || 0).toFixed(2).replace('.', ',')}"`),
-        `"${sum.totalDescontos.toFixed(2).replace('.', ',')}"`,
-        `"${sum.netTotal.toFixed(2).replace('.', ',')}"`,
-      ]
-    })
+    const rows: string[][] = []
+    if (typeFilter !== 'decimo') {
+      summariesList.forEach((sum) => {
+        rows.push([
+          `"${sum.employeeName}"`,
+          ...ALL_PROVENTOS.map((c) => `"${(sum.categories[c] || 0).toFixed(2).replace('.', ',')}"`),
+          `"${sum.totalProventos.toFixed(2).replace('.', ',')}"`,
+          ...ALL_DESCONTOS.map((c) => `"${(sum.categories[c] || 0).toFixed(2).replace('.', ',')}"`),
+          `"${sum.totalDescontos.toFixed(2).replace('.', ',')}"`,
+          '"0,00"',
+          `"${sum.netTotal.toFixed(2).replace('.', ',')}"`,
+        ])
+      })
+    }
+    if (typeFilter !== 'folha') {
+      decimoSummaries.list.forEach((sum) => {
+        rows.push([
+          `"${sum.employeeName} (13º)"`,
+          ...ALL_PROVENTOS.map(() => '"0,00"'),
+          '"0,00"',
+          ...ALL_DESCONTOS.map(() => '"0,00"'),
+          '"0,00"',
+          `"${sum.total.toFixed(2).replace('.', ',')}"`,
+          `"${sum.total.toFixed(2).replace('.', ',')}"`,
+        ])
+      })
+    }
 
     const csvContent = [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n')
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -316,13 +418,33 @@ export function FechamentoView() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium whitespace-nowrap">Tipo:</label>
+                <div className="flex items-center gap-1 rounded-md border border-input bg-background p-1">
+                  {TYPE_FILTERS.map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setTypeFilter(f.value)}
+                      className={cn(
+                        'px-3 py-1.5 text-sm rounded-md transition-colors',
+                        typeFilter === f.value
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportCSV}
-                disabled={summariesList.length === 0}
+                disabled={!hasRows && !hasDecimoRows}
                 className="gap-2 h-9"
               >
                 <Download className="h-4 w-4" /> Exportar CSV
@@ -330,7 +452,7 @@ export function FechamentoView() {
               <Button
                 size="sm"
                 onClick={handlePrint}
-                disabled={summariesList.length === 0}
+                disabled={!hasRows && !hasDecimoRows}
                 className="gap-2 h-9"
               >
                 <Printer className="h-4 w-4" /> Imprimir PDF
@@ -338,7 +460,7 @@ export function FechamentoView() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x bg-card rounded-lg border shadow-sm">
+          <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x bg-card rounded-lg border shadow-sm">
             <div className="flex items-center justify-between px-4 py-2.5">
               <span className="text-sm font-medium text-muted-foreground">Total de Proventos</span>
               <span className="text-base font-bold text-green-600">
@@ -351,9 +473,24 @@ export function FechamentoView() {
                 {formatCurrency(totalDescontos)}
               </span>
             </div>
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5">
+              <span className="text-sm font-medium text-muted-foreground">
+                13º Salário (separado)
+              </span>
+              <span className="text-base font-bold text-violet-600 flex items-center gap-1">
+                <Gift className="h-4 w-4 shrink-0" />
+                {formatCurrency(decimoTotal)}
+              </span>
+            </div>
             <div className="flex items-center justify-between px-4 py-2.5 bg-muted/10">
-              <span className="text-sm font-medium text-muted-foreground">Valor Líquido Total</span>
-              <span className="text-base font-bold">{formatCurrency(netTotal)}</span>
+              <span className="text-sm font-medium text-muted-foreground">
+                {typeFilter === 'folha'
+                  ? 'Líquido (Folha)'
+                  : typeFilter === 'decimo'
+                    ? 'Líquido (13º)'
+                    : 'Líquido Total (Folha + 13º)'}
+              </span>
+              <span className="text-base font-bold">{formatCurrency(grandNet)}</span>
             </div>
           </div>
         </div>
@@ -383,8 +520,18 @@ export function FechamentoView() {
                 <p className="text-sm font-bold text-red-700">{formatCurrency(totalDescontos)}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-600">Líquido Total</p>
-                <p className="text-sm font-bold">{formatCurrency(netTotal)}</p>
+                <p className="text-xs text-gray-600">13º Salário (separado)</p>
+                <p className="text-sm font-bold text-violet-700">{formatCurrency(decimoTotal)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-600">
+                  {typeFilter === 'folha'
+                    ? 'Líquido (Folha)'
+                    : typeFilter === 'decimo'
+                      ? 'Líquido (13º)'
+                      : 'Líquido Total (Folha + 13º)'}
+                </p>
+                <p className="text-sm font-bold">{formatCurrency(grandNet)}</p>
               </div>
             </div>
           </div>
@@ -425,54 +572,117 @@ export function FechamentoView() {
                 <TableHead className="text-right min-w-[120px] print:min-w-0 font-bold text-red-700 bg-red-50 print:bg-transparent">
                   T. Descontos
                 </TableHead>
+                <TableHead className="text-right min-w-[120px] print:min-w-0 font-bold text-violet-700 bg-violet-50 print:bg-transparent">
+                  13º Salário
+                </TableHead>
                 <TableHead className="text-right min-w-[130px] print:min-w-0 font-bold bg-muted print:bg-transparent sticky right-0 top-0 z-30 border-l print:border-none print:shadow-none">
                   Líquido
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {summariesList.length === 0 && !isLoading ? (
+              {!hasRows && !hasDecimoRows && !isLoading ? (
                 <TableRow>
                   <TableCell
-                    colSpan={ALL_PROVENTOS.length + ALL_DESCONTOS.length + 4}
+                    colSpan={ALL_PROVENTOS.length + ALL_DESCONTOS.length + 5}
                     className="text-center py-8 text-muted-foreground"
                   >
                     Nenhum lançamento encontrado para esta empresa e período.
                   </TableCell>
                 </TableRow>
               ) : (
-                summariesList.map((sum) => (
-                  <TableRow key={sum.employeeId} className="zebra-row transition-colors group">
-                    <TableCell className="font-medium sticky left-0 z-10 bg-inherit border-r print:border-none print:static print:bg-transparent">
-                      {sum.employeeName}
-                    </TableCell>
-                    {ALL_PROVENTOS.map((cat) => (
-                      <TableCell
-                        key={cat}
-                        className="text-right text-muted-foreground print:text-black"
-                      >
-                        {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
-                      </TableCell>
+                <>
+                  {hasRows &&
+                    summariesList.map((sum) => (
+                      <TableRow key={sum.employeeId} className="zebra-row transition-colors group">
+                        <TableCell className="font-medium sticky left-0 z-10 bg-inherit border-r print:border-none print:static print:bg-transparent">
+                          {sum.employeeName}
+                        </TableCell>
+                        {ALL_PROVENTOS.map((cat) => (
+                          <TableCell
+                            key={cat}
+                            className="text-right text-muted-foreground print:text-black"
+                          >
+                            {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right font-semibold text-green-600 print:text-black bg-green-50/50 group-hover:bg-green-100/50 print:bg-transparent">
+                          {formatCurrency(sum.totalProventos)}
+                        </TableCell>
+                        {ALL_DESCONTOS.map((cat) => (
+                          <TableCell
+                            key={cat}
+                            className="text-right text-muted-foreground print:text-black"
+                          >
+                            {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right font-semibold text-red-600 print:text-black bg-red-50/50 group-hover:bg-red-100/50 print:bg-transparent">
+                          {formatCurrency(sum.totalDescontos)}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground print:text-black">
+                          -
+                        </TableCell>
+                        <TableCell className="text-right font-bold print:text-black bg-inherit sticky right-0 z-10 border-l print:border-none print:static print:bg-transparent">
+                          {formatCurrency(sum.netTotal)}
+                        </TableCell>
+                      </TableRow>
                     ))}
-                    <TableCell className="text-right font-semibold text-green-600 print:text-black bg-green-50/50 group-hover:bg-green-100/50 print:bg-transparent">
-                      {formatCurrency(sum.totalProventos)}
-                    </TableCell>
-                    {ALL_DESCONTOS.map((cat) => (
-                      <TableCell
-                        key={cat}
-                        className="text-right text-muted-foreground print:text-black"
-                      >
-                        {sum.categories[cat] ? formatCurrency(sum.categories[cat]) : '-'}
-                      </TableCell>
+                  {hasDecimoRows &&
+                    decimoSummaries.list.map((sum) => (
+                      <TableRow key={`decimo-${sum.employeeId}`} className="bg-violet-50/40 group">
+                        <TableCell className="font-medium sticky left-0 z-10 bg-inherit border-r print:border-none print:static print:bg-transparent">
+                          <span className="inline-flex items-center gap-2">
+                            {sum.employeeName}
+                            <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 print:bg-transparent print:text-black">
+                              <Gift className="h-3 w-3" /> 13º
+                            </span>
+                          </span>
+                        </TableCell>
+                        <TableCell
+                          colSpan={ALL_PROVENTOS.length}
+                          className="text-xs text-muted-foreground print:text-black"
+                        >
+                          {(['first', 'second'] as const)
+                            .filter((inst) => sum.parcels[inst])
+                            .map((inst) => {
+                              const info = sum.parcels[inst]
+                              return (
+                                <div key={inst}>
+                                  {parcelLabel(inst)}: {formatCurrency(info.amount)}
+                                  {info.additional
+                                    ? ` + adicional ${formatCurrency(info.additional)}`
+                                    : ''}
+                                  {info.other
+                                    ? ` + outros ${formatCurrency(info.other)}${
+                                        info.otherDesc ? ` (${info.otherDesc})` : ''
+                                      }`
+                                    : ''}
+                                  {info.paymentDate
+                                    ? ` — pag. ${formatDateBR(info.paymentDate)}`
+                                    : ''}
+                                </div>
+                              )
+                            })}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground print:text-black">
+                          -
+                        </TableCell>
+                        <TableCell
+                          colSpan={ALL_DESCONTOS.length}
+                          className="text-right text-muted-foreground"
+                        >
+                          -
+                        </TableCell>
+                        <TableCell className="text-right font-semibold text-violet-700 print:text-black">
+                          {formatCurrency(sum.total)}
+                        </TableCell>
+                        <TableCell className="text-right font-bold print:text-black bg-inherit sticky right-0 z-10 border-l print:border-none print:static print:bg-transparent">
+                          {formatCurrency(sum.total)}
+                        </TableCell>
+                      </TableRow>
                     ))}
-                    <TableCell className="text-right font-semibold text-red-600 print:text-black bg-red-50/50 group-hover:bg-red-100/50 print:bg-transparent">
-                      {formatCurrency(sum.totalDescontos)}
-                    </TableCell>
-                    <TableCell className="text-right font-bold print:text-black bg-inherit sticky right-0 z-10 border-l print:border-none print:static print:bg-transparent">
-                      {formatCurrency(sum.netTotal)}
-                    </TableCell>
-                  </TableRow>
-                ))
+                </>
               )}
             </TableBody>
           </Table>
