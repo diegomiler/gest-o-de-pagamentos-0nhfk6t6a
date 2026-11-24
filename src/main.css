@@ -104,16 +104,25 @@
     visibility: visible;
   }
 
+  /* Apenas UMA área imprimível por vez: a página ativa esconde as demais */
+  .screen-hidden {
+    display: none !important;
+  }
+
   .printable-area {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+    position: static !important;
     display: block !important;
     width: 80mm !important;
     max-width: 80mm !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 4mm 3mm !important;
     background: #fff !important;
+  }
+
+  /* Recibos do 13º: cada funcionário em sua própria bobina */
+  .printable-area .print\:page-break-after-always {
+    page-break-after: always;
+    break-after: page;
   }
 
   .no-print {

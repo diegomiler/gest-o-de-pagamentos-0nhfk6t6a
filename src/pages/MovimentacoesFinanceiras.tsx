@@ -16,10 +16,19 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calculator, ChevronDown, Download, Loader2, Search, Building2 } from 'lucide-react'
+import { Calculator, ChevronDown, Download, Loader2, Search, Building2, Gift } from 'lucide-react'
 import { formatCurrency, formatMonthYear } from '@/lib/format'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { fetchDecimoPaymentsByPaymentDate, DecimoPayment } from '@/services/decimo_payments'
+
+type TypeFilter = 'both' | 'folha' | 'decimo'
+
+const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
+  { value: 'both', label: 'Ambos' },
+  { value: 'folha', label: 'Só Folha' },
+  { value: 'decimo', label: 'Só 13º' },
+]
 
 const EARNING_CATEGORIES = [
   'commission',
@@ -77,7 +86,11 @@ interface EmployeeAggregation {
   descontos: number
   net: number
   entriesCount: number
+  source: 'folha' | 'decimo'
 }
+
+const decimoInstallmentLabel = (installment: string) =>
+  installment === 'first' ? '1ª parcela' : '2ª parcela'
 
 export default function MovimentacoesFinanceiras() {
   const { user } = useAuth()
@@ -87,6 +100,8 @@ export default function MovimentacoesFinanceiras() {
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>([])
   const [companyPopoverOpen, setCompanyPopoverOpen] = useState(false)
   const [entries, setEntries] = useState<PayrollEntry[]>([])
+  const [decimoPayments, setDecimoPayments] = useState<DecimoPayment[]>([])
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('both')
   const [search, setSearch] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [companiesLoading, setCompaniesLoading] = useState(true)
@@ -130,12 +145,33 @@ export default function MovimentacoesFinanceiras() {
 
       const filter = `(${companyFilter}) && entry_date >= '${startDate}' && entry_date <= '${endDate}'`
 
-      const records = await pb.collection('payroll_entries').getFullList({
-        filter,
-        expand: 'employee_id,company_id',
-        sort: 'entry_date,-created',
-      })
-      setEntries(records as unknown as PayrollEntry[])
+      const requests: Promise<void>[] = []
+
+      if (typeFilter !== 'decimo') {
+        requests.push(
+          pb
+            .collection('payroll_entries')
+            .getFullList({
+              filter,
+              expand: 'employee_id,company_id',
+              sort: 'entry_date,-created',
+            })
+            .then((records) => setEntries(records as unknown as PayrollEntry[])),
+        )
+      }
+
+      if (typeFilter !== 'folha') {
+        requests.push(
+          fetchDecimoPaymentsByPaymentDate(selectedCompanyIds, selectedMonth).then((payments) =>
+            setDecimoPayments(payments),
+          ),
+        )
+      }
+
+      await Promise.all(requests)
+
+      if (typeFilter === 'decimo') setEntries([])
+      if (typeFilter === 'folha') setDecimoPayments([])
     } catch (err) {
       console.error(err)
       toast.error('Erro ao carregar lançamentos.', {
@@ -144,7 +180,7 @@ export default function MovimentacoesFinanceiras() {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedMonth, selectedCompanyIds])
+  }, [selectedMonth, selectedCompanyIds, typeFilter])
 
   useEffect(() => {
     loadEntries()
@@ -162,38 +198,74 @@ export default function MovimentacoesFinanceiras() {
   useRealtime('employees', triggerRefresh)
 
   const aggregatedData = useMemo(() => {
-    const map = new Map<string, EmployeeAggregation>()
-    entries.forEach((e) => {
-      const empId = e.employee_id
-      if (!empId) return
-      const existing = map.get(empId)
-      const amount = e.amount || 0
-      const type = getEntryType(e.category)
-      const proventoAdd = type === 'provento' ? amount : 0
-      const descontoAdd = type === 'desconto' ? amount : 0
-      if (existing) {
-        existing.proventos += proventoAdd
-        existing.descontos += descontoAdd
-        existing.net = existing.proventos - existing.descontos
-        existing.entriesCount += 1
-      } else {
-        map.set(empId, {
-          employeeId: empId,
-          employeeName: e.expand?.employee_id?.name || 'N/A',
-          employeeRole: e.expand?.employee_id?.role,
-          companyId: e.company_id,
-          companyName: e.expand?.company_id?.name || 'N/A',
-          proventos: proventoAdd,
-          descontos: descontoAdd,
-          net: proventoAdd - descontoAdd,
-          entriesCount: 1,
-        })
-      }
-    })
-    return Array.from(map.values()).sort((a, b) =>
-      a.employeeName.localeCompare(b.employeeName, 'pt-BR'),
-    )
-  }, [entries])
+    // Folha mensal e 13º são agregados em GRUPOS SEPARADOS — o 13º nunca
+    // soma nos totais da folha do mês.
+    const result: EmployeeAggregation[] = []
+
+    if (typeFilter !== 'decimo') {
+      const map = new Map<string, EmployeeAggregation>()
+      entries.forEach((e) => {
+        const empId = e.employee_id
+        if (!empId) return
+        const existing = map.get(empId)
+        const amount = e.amount || 0
+        const type = getEntryType(e.category)
+        const proventoAdd = type === 'provento' ? amount : 0
+        const descontoAdd = type === 'desconto' ? amount : 0
+        if (existing) {
+          existing.proventos += proventoAdd
+          existing.descontos += descontoAdd
+          existing.net = existing.proventos - existing.descontos
+          existing.entriesCount += 1
+        } else {
+          map.set(empId, {
+            employeeId: empId,
+            employeeName: e.expand?.employee_id?.name || 'N/A',
+            employeeRole: e.expand?.employee_id?.role,
+            companyId: e.company_id,
+            companyName: e.expand?.company_id?.name || 'N/A',
+            proventos: proventoAdd,
+            descontos: descontoAdd,
+            net: proventoAdd - descontoAdd,
+            entriesCount: 1,
+            source: 'folha',
+          })
+        }
+      })
+      result.push(...Array.from(map.values()))
+    }
+
+    if (typeFilter !== 'folha') {
+      const map = new Map<string, EmployeeAggregation>()
+      decimoPayments.forEach((p) => {
+        const empId = p.employee_id
+        if (!empId) return
+        const total = (p.amount || 0) + (p.additional || 0) + (p.other || 0)
+        const existing = map.get(empId)
+        if (existing) {
+          existing.proventos += total
+          existing.net = existing.proventos
+          existing.entriesCount += 1
+        } else {
+          map.set(empId, {
+            employeeId: empId,
+            employeeName: p.expand?.employee_id?.name || 'N/A',
+            employeeRole: p.expand?.employee_id?.role,
+            companyId: p.company_id,
+            companyName: p.expand?.company_id?.name || 'N/A',
+            proventos: total,
+            descontos: 0,
+            net: total,
+            entriesCount: 1,
+            source: 'decimo',
+          })
+        }
+      })
+      result.push(...Array.from(map.values()))
+    }
+
+    return result.sort((a, b) => a.employeeName.localeCompare(b.employeeName, 'pt-BR'))
+  }, [entries, decimoPayments, typeFilter])
 
   const filteredData = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -208,14 +280,20 @@ export default function MovimentacoesFinanceiras() {
   const totals = useMemo(() => {
     let proventos = 0
     let descontos = 0
+    let decimo = 0
     filteredData.forEach((e) => {
-      proventos += e.proventos
-      descontos += e.descontos
+      if (e.source === 'decimo') {
+        decimo += e.proventos
+      } else {
+        proventos += e.proventos
+        descontos += e.descontos
+      }
     })
     return {
       proventos,
       descontos,
-      net: proventos - descontos,
+      decimo,
+      net: proventos - descontos + decimo,
     }
   }, [filteredData])
 
@@ -369,6 +447,26 @@ export default function MovimentacoesFinanceiras() {
                 </Popover>
               </div>
               <div className="space-y-1.5">
+                <label className="text-sm font-medium">Tipo</label>
+                <div className="flex items-center gap-1 rounded-md border border-input bg-background p-1">
+                  {TYPE_FILTERS.map((f) => (
+                    <button
+                      key={f.value}
+                      type="button"
+                      onClick={() => setTypeFilter(f.value)}
+                      className={cn(
+                        'px-3 py-1.5 text-sm rounded-md transition-colors',
+                        typeFilter === f.value
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-sm font-medium">Buscar</label>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -394,11 +492,11 @@ export default function MovimentacoesFinanceiras() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <Card className="border-emerald-200 dark:border-emerald-900/50">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total de Proventos</p>
+              <p className="text-sm font-medium text-muted-foreground">Proventos (Folha do Mês)</p>
               <p className="text-2xl font-bold text-emerald-600 mt-1">
                 {formatCurrency(totals.proventos)}
               </p>
@@ -421,10 +519,29 @@ export default function MovimentacoesFinanceiras() {
             </div>
           </CardContent>
         </Card>
+        <Card className="border-violet-200 dark:border-violet-900/50">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">13º Salário (separado)</p>
+              <p className="text-2xl font-bold text-violet-600 mt-1">
+                {formatCurrency(totals.decimo)}
+              </p>
+            </div>
+            <div className="h-12 w-12 rounded-full bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center">
+              <Gift className="h-6 w-6 text-violet-600" />
+            </div>
+          </CardContent>
+        </Card>
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Líquido Total</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                {typeFilter === 'folha'
+                  ? 'Líquido (Folha)'
+                  : typeFilter === 'decimo'
+                    ? 'Líquido (13º)'
+                    : 'Líquido Total (Folha + 13º)'}
+              </p>
               <p className="text-2xl font-bold mt-1">{formatCurrency(totals.net)}</p>
             </div>
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -477,9 +594,22 @@ export default function MovimentacoesFinanceiras() {
               </TableHeader>
               <TableBody>
                 {filteredData.map((row) => (
-                  <TableRow key={row.employeeId} className="hover:bg-muted/50">
+                  <TableRow
+                    key={`${row.source}-${row.employeeId}`}
+                    className={cn(
+                      'hover:bg-muted/50',
+                      row.source === 'decimo' && 'bg-violet-50/50 dark:bg-violet-950/20',
+                    )}
+                  >
                     <TableCell className="font-medium">
-                      <div>{row.employeeName}</div>
+                      <div className="flex items-center gap-2">
+                        <span>{row.employeeName}</span>
+                        {row.source === 'decimo' && (
+                          <span className="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                            13º
+                          </span>
+                        )}
+                      </div>
                       {row.employeeRole && (
                         <div className="text-xs text-muted-foreground">{row.employeeRole}</div>
                       )}
@@ -501,6 +631,11 @@ export default function MovimentacoesFinanceiras() {
                     </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
                       {row.entriesCount}
+                      {row.source === 'decimo' && (
+                        <span className="block text-[10px] text-muted-foreground">
+                          {decimoInstallmentLabel('first')} / {decimoInstallmentLabel('second')}
+                        </span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

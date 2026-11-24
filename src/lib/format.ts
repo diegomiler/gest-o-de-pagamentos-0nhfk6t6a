@@ -5,6 +5,14 @@ export const formatCurrency = (value: number) => {
   }).format(value)
 }
 
+export const formatDateBR = (dateStr?: string | null) => {
+  if (!dateStr) return ''
+  const datePart = String(dateStr).slice(0, 10)
+  const [year, month, day] = datePart.split('-')
+  if (!year || !month || !day) return ''
+  return `${day}/${month}/${year}`
+}
+
 export const formatMonthYear = (dateStr?: string | null) => {
   if (!dateStr || typeof dateStr !== 'string') return ''
   const [year, month] = dateStr.split('-')
@@ -74,6 +82,9 @@ export const formatCNPJ = (value: string) => {
   if (v.length <= 12) return `${v.slice(0, 2)}.${v.slice(2, 5)}.${v.slice(5, 8)}/${v.slice(8)}`
   return `${v.slice(0, 2)}.${v.slice(2, 5)}.${v.slice(5, 8)}/${v.slice(8, 12)}-${v.slice(12)}`
 }
+
+export const parcelLabel = (installment: 'first' | 'second') =>
+  installment === 'first' ? '1ª parcela' : '2ª parcela'
 
 export const formatTimeOnBlur = (value: string) => {
   if (!value) return '00:00'
