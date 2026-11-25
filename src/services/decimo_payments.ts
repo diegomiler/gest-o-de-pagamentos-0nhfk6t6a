@@ -51,16 +51,24 @@ export interface SaveDecimoInput {
 /**
  * Upsert de um lançamento do 13º (por funcionário + parcela + competência).
  * Sem lançamento (todos os valores zerados) remove o registro existente.
+ * `existingId`: id do registro já conhecido (vindo da carga em lote). Quando
+ * `undefined`, busca o registro no banco antes de gravar.
  */
-export async function saveDecimoPayment(input: SaveDecimoInput): Promise<void> {
+export async function saveDecimoPayment(
+  input: SaveDecimoInput,
+  existingId?: string | null,
+): Promise<void> {
   const { userId } = input
-  const filter = [
-    `employee_id = '${input.employeeId}'`,
-    `installment = '${input.installment}'`,
-    `competency_month = '${input.competencyMonth}'`,
-  ].join(' && ')
-
-  const existing = await pb.collection('decimo_payments').getList(1, 1, { filter })
+  let recordId: string | null = existingId ?? null
+  if (existingId === undefined) {
+    const filter = [
+      `employee_id = '${input.employeeId}'`,
+      `installment = '${input.installment}'`,
+      `competency_month = '${input.competencyMonth}'`,
+    ].join(' && ')
+    const existing = await pb.collection('decimo_payments').getList(1, 1, { filter })
+    recordId = existing.items[0]?.id ?? null
+  }
   const hasValue =
     toNumber(input.amount) !== 0 ||
     toNumber(input.additional) !== 0 ||
@@ -68,8 +76,8 @@ export async function saveDecimoPayment(input: SaveDecimoInput): Promise<void> {
     input.otherDesc.trim() !== ''
 
   if (!hasValue) {
-    if (existing.items.length > 0) {
-      await pb.collection('decimo_payments').delete(existing.items[0].id)
+    if (recordId) {
+      await pb.collection('decimo_payments').delete(recordId)
     }
     return
   }
@@ -93,8 +101,8 @@ export async function saveDecimoPayment(input: SaveDecimoInput): Promise<void> {
     data.updated_by = userId
   }
 
-  if (existing.items.length > 0) {
-    await pb.collection('decimo_payments').update(existing.items[0].id, data)
+  if (recordId) {
+    await pb.collection('decimo_payments').update(recordId, data)
   } else {
     if (userId) data.created_by = userId
     await pb.collection('decimo_payments').create(data)

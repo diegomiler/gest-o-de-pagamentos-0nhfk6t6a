@@ -48,8 +48,6 @@ export default function Decimo() {
   const { user } = useAuth()
   const { selectedMonth } = usePeriod()
   const { toast } = useToast()
-  const { rows, payments, isLoading, isSaving, updateRow, saveAll } =
-    useDecimoPayments(selectedMonth)
 
   const [allEmployees, setAllEmployees] = useState<any[]>([])
   const [companies, setCompanies] = useState<any[]>([])
@@ -59,6 +57,12 @@ export default function Decimo() {
   const [printTarget, setPrintTarget] = useState<PrintTarget | null>(null)
 
   const isAdmin = user?.role === 'admin'
+
+  // Lançamentos carregados em lote para a empresa exibida (seletor do admin ou própria empresa).
+  const { rows, payments, isLoading, isSaving, updateRow, saveAll } = useDecimoPayments(
+    selectedMonth,
+    selectedCompanyId || undefined,
+  )
 
   useEffect(() => {
     const load = async () => {
